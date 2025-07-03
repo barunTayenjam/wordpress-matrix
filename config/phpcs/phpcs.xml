@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<ruleset name="WordPress Development Standards">
+    <description>WordPress coding standards for development environment</description>
+
+    <!-- Include WordPress Coding Standards -->
+    <rule ref="WordPress-Core" />
+    <rule ref="WordPress-Docs" />
+    <rule ref="WordPress-Extra" />
+
+    <!-- Check all PHP files -->
+    <arg name="extensions" value="php" />
+
+    <!-- Show progress and use colors -->
+    <arg value="sp" />
+    <arg name="colors" />
+
+    <!-- Paths to check -->
+    <file>/data/wordpress1/wp-content/themes</file>
+    <file>/data/wordpress1/wp-content/plugins</file>
+    <file>/data/wordpress2/wp-content/themes</file>
+    <file>/data/wordpress2/wp-content/plugins</file>
+
+    <!-- Exclude patterns -->
+    <exclude-pattern>/data/*/wp-content/themes/twentytwenty*</exclude-pattern>
+    <exclude-pattern>/data/*/wp-content/plugins/akismet</exclude-pattern>
+    <exclude-pattern>/data/*/wp-content/plugins/hello.php</exclude-pattern>
+    <exclude-pattern>/data/*/wp-content/cache</exclude-pattern>
+    <exclude-pattern>/data/*/wp-content/uploads</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+
+    <!-- Custom rules -->
+    <rule ref="Generic.Files.LineLength">
+        <properties>
+            <property name="lineLimit" value="120" />
+            <property name="absoluteLineLimit" value="150" />
+        </properties>
+    </rule>
+
+    <!-- Allow short array syntax -->
+    <rule ref="Generic.Arrays.DisallowShortArraySyntax.Found">
+        <severity>0</severity>
+    </rule>
+
+    <!-- WordPress specific customizations -->
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="default" />
+                <element value="your-theme-textdomain" />
+                <element value="your-plugin-textdomain" />
+            </property>
+        </properties>
+    </rule>
+
+    <rule ref="WordPress.Files.FileName.InvalidClassFileName">
+        <severity>0</severity>
+    </rule>
+
+    <rule ref="WordPress.Files.FileName.NotHyphenatedLowercase">
+        <severity>0</severity>
+    </rule>
+</ruleset>

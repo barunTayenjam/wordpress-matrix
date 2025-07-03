@@ -1,0 +1,25 @@
+parameters:
+    level: 8
+    paths:
+        - /app/wordpress1/wp-content/themes
+        - /app/wordpress1/wp-content/plugins
+        - /app/wordpress2/wp-content/themes
+        - /app/wordpress2/wp-content/plugins
+    
+    excludePaths:
+        - /app/*/wp-content/themes/twentytwenty*
+        - /app/*/wp-content/plugins/akismet
+        - /app/*/wp-content/plugins/hello.php
+        - /app/*/wp-content/cache
+        - /app/*/wp-content/uploads
+    
+    bootstrapFiles:
+        - /app/wordpress1/wp-config.php
+    
+    ignoreErrors:
+        - '#Function wp_[a-zA-Z_]+ not found#'
+        - '#Constant WP_[A-Z_]+ not found#'
+        - '#Class WP_[a-zA-Z_]+ not found#'
+    
+    wordpress:
+        wpConfigFile: /app/wordpress1/wp-config.php

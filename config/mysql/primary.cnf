@@ -1,0 +1,78 @@
+[mysqld]
+# Basic Settings
+user = mysql
+pid-file = /var/run/mysqld/mysqld.pid
+socket = /var/run/mysqld/mysqld.sock
+port = 3306
+basedir = /usr
+datadir = /var/lib/mysql
+tmpdir = /tmp
+lc-messages-dir = /usr/share/mysql
+skip-external-locking
+
+# Performance Settings
+innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+innodb_log_buffer_size = 64M
+innodb_flush_log_at_trx_commit = 2
+innodb_file_per_table = 1
+innodb_flush_method = O_DIRECT
+
+# Query Cache (disabled in MySQL 8.0, but keeping for reference)
+query_cache_type = 0
+query_cache_size = 0
+
+# Connection Settings
+max_connections = 200
+max_connect_errors = 1000000
+wait_timeout = 28800
+interactive_timeout = 28800
+
+# Buffer Settings
+key_buffer_size = 32M
+max_allowed_packet = 1G
+table_open_cache = 4000
+sort_buffer_size = 4M
+read_buffer_size = 2M
+read_rnd_buffer_size = 16M
+myisam_sort_buffer_size = 128M
+thread_cache_size = 50
+tmp_table_size = 256M
+max_heap_table_size = 256M
+
+# Logging
+log_error = /var/log/mysql/error.log
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+log_queries_not_using_indexes = 1
+
+# Binary Logging for Replication
+server-id = 1
+log-bin = mysql-bin
+binlog_format = ROW
+expire_logs_days = 7
+max_binlog_size = 100M
+
+# Replication Settings
+sync_binlog = 1
+binlog_cache_size = 1M
+binlog_stmt_cache_size = 1M
+
+# Character Set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Security
+local-infile = 0
+
+# WordPress Optimizations
+innodb_autoinc_lock_mode = 2
+innodb_lock_wait_timeout = 120
+innodb_rollback_on_timeout = 1
+
+[mysql]
+default-character-set = utf8mb4
+
+[client]
+default-character-set = utf8mb4

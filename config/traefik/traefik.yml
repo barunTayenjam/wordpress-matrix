@@ -1,0 +1,58 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: INFO
+  filePath: "/var/log/traefik/traefik.log"
+
+accessLog:
+  filePath: "/var/log/traefik/access.log"
+
+api:
+  dashboard: true
+  insecure: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entrypoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: wp-dev-platform_wp-network
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: admin@localhost
+      storage: /etc/ssl/certs/acme.json
+      httpChallenge:
+        entryPoint: web
+      # Use staging for development
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+
+# Metrics for Prometheus
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+# Tracing for debugging
+tracing:
+  jaeger:
+    samplingServerURL: http://jaeger:14268/api/sampling
+    localAgentHostPort: jaeger:6831

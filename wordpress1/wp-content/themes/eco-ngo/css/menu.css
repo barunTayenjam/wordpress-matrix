@@ -1,0 +1,268 @@
+.gb_nav_menu li{
+    display:inline-block;
+    margin:0;
+    position:relative;
+}
+.gb_nav_menu a{
+    color: #767c83;
+    padding: 12px;
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+}
+.gb_nav_menu li a {
+  color: #1D1D1D;
+  padding: 7px 15px;
+  display: block;
+  font-family: EB Garamond;
+  font-size: 14px;
+  font-weight: 600;
+}
+.gb_nav_menu li a:hover,.gb_nav_menu li a:focus{
+  color: #000000 !important;
+}
+.gb_nav_menu ul ul{
+  opacity: 0;
+  position: absolute;
+  top: 100% ;
+  padding: 0px;
+  background: #82B03D;
+  min-width: 210px;
+  z-index: 9999;
+}
+.gb_nav_menu ul ul ul{
+  left: 90% !important;
+  top: 0;
+}
+.gb_nav_menu ul ul a{
+  color: #fff;
+  border: none;
+  padding: 10px
+}
+.gb_nav_menu ul li:hover > ul{
+  opacity: 1;
+}
+.gb_nav_menu li.menu-item-has-children:hover > ul, .gb_nav_menu li.menu-item-has-children:focus > ul, .gb_nav_menu li.menu-item-has-children.focus > ul{
+  opacity: 1;
+}
+.gb_nav_menu ul li a:active,
+.gb_nav_menu ul li a:hover {
+    color: #82B03D;
+}
+.gb_nav_menu ul ul{
+    position: absolute;
+    background: #82B03D;
+    min-width: 210px;
+    z-index: 9999;
+    padding: 4px;
+}
+.gb_nav_menu ul ul a{
+    color: #fff;
+    padding: 10px;
+}
+.gb_nav_menu ul ul a:hover{
+  background: #fff;
+  color: #1D1D1D !important;
+}
+.gb_nav_menu ul ul li{
+  float: none;
+  display: block;
+  text-align: left;
+  border-left: none;
+  border-right: none !important;
+  padding: 0;
+}
+.gb_nav_menu ul ul li:last-child{
+  border-bottom: 0;
+}
+.gb_nav_menu ul li:hover > ul{
+  display: block;
+}
+.gb_nav_menu .menu > ul > li.highlight{
+  background-color: #006ccc;
+}
+.gb_nav_menu .menu > ul > li.highlight:hover{
+  background: transparent;
+}
+.sf-arrows ul .sf-with-ul{
+  padding: 10px;
+}
+.sf-arrows .sf-with-ul:after{
+  content: '\f0dd';
+  position: absolute;
+  right: -5px;
+  top: 10px;
+  font-size: 15px;
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 900;
+}
+.topbar .sf-arrows .sf-with-ul:after{
+  font-size: 14px;
+  top: 0px;
+  right: 8px;
+}
+.sf-arrows ul .sf-with-ul:after{
+  top: 4px;
+}
+.toggle-menu, a.closebtn{
+  display: none;
+}
+.gb_nav_menu .sub-menu {
+    background-color: #82B03D;
+    list-style: none;
+    padding: 4px;
+    position: absolute;
+    opacity: 0;
+    left: -9999px;
+    z-index: 99999;
+    width: 200px !important;
+}
+.gb_nav_menu .menu-item-has-children:not(.off-canvas):hover > .sub-menu,
+.gb_nav_menu .menu-item-has-children:not(.off-canvas):focus > .sub-menu,
+.gb_nav_menu .menu-item-has-children.is-focused:not(.off-canvas) > .sub-menu,
+.gb_nav_menu .menu-item-has-children:not(.off-canvas)[focus-within] > .sub-menum,
+.gb_nav_menu .menu-item-has-children:not(.off-canvas):focus-within > .sub-menu  {
+    display: block;
+    left: 0;
+    margin-top: 0;
+    opacity: 1;
+    width: auto;
+    min-width: 100%;
+}
+
+.gb_nav_menu .children {
+    background-color: #82B03D;
+    list-style: none;
+    padding: 4px;
+    position: absolute;
+    opacity: 0;
+    left: -9999px;
+    z-index: 99999;
+    width: 200px !important;
+}
+.gb_nav_menu .page_item_has_children:not(.off-canvas):hover > .children,
+.gb_nav_menu .page_item_has_children:not(.off-canvas):focus > .children,
+.gb_nav_menu .page_item_has_children.is-focused:not(.off-canvas) > .children,
+.gb_nav_menu .page_item_has_children:not(.off-canvas)[focus-within] > .children,
+.gb_nav_menu .page_item_has_children:not(.off-canvas):focus-within > .children  {
+    display: block;
+    left: 0;
+    margin-top: 0;
+    opacity: 1;
+    width: auto;
+    min-width: 100%;
+}
+
+@media screen and (max-width: 800px){
+    .gb_nav_menu .nav ul li a:focus,
+    a.closebtn.gb_menu:focus,
+    .toggle-menu button:focus{
+        outline: -webkit-focus-ring-color auto 1px !important;
+    }
+    .toggle-menu {
+        display: none;
+        width: 100%;
+        cursor: pointer;
+        font-size: 20px;
+    }
+    .toggle-menu i {
+        font-size: 18px;
+    }
+    .toggle-menu button {
+        background: #82B03D;
+        width: 35px;
+        height: 35px;
+        border-radius: 30px;
+        color: #fff;
+        padding: 0 !important;
+    }
+    .side_gb_nav {
+        max-height: 100%;
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        z-index: 9999999;
+        top: 110%;
+        right: 0;
+        overflow-y: scroll;
+        background-color: #82B03D;
+        overflow-x: hidden;
+        transition: 0.5s;
+        padding-top: 60px;
+        visibility: hidden;
+    }
+    .side_gb_nav.show {
+        visibility: visible;
+        top:0%;
+    }
+    .side_gb_nav .closebtn {
+        position: absolute;
+        top: 0;
+        padding: 0px 18px;
+        font-size: 42px;
+        display: block;
+        color: #ffffff;
+    }
+    .side_gb_nav #top_gb_menu {
+        width: 100%;
+    }
+    .toggle-menu span{
+        font-size:30px;
+        cursor:pointer;
+        text-align: right;
+    }
+    .toggle-menu {
+        display: block;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+    .gb_nav_menu li a:hover,.gb_nav_menu li a:focus{
+      color: #000000 !important;
+    }
+    .gb_nav_menu .nav ul li{
+        display:block;
+    }
+    .nav ul li a{
+        padding: 10px 15px;
+        display: block;
+        color: #ffffff !important;
+        background: none !important;
+    }
+    .gb_nav_menu .current_page_item > a, .gb_nav_menu .current-menu-item > a, .gb_nav_menu .current_page_ancestor > a {
+        color: #1D1D1D;
+    }
+    .nav ul li ul li a:before{
+        content:"__";
+        padding-right: 10px;
+    }
+    .nav ul li ul li a{
+        padding-left:20px !important;
+    }
+    .nav ul li ul li ul li a{
+        padding-left:30px !important;
+    }
+    .gb_nav_menu ul ul{
+        position: static !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        color: #fff !important;
+        opacity: 1 !important;        
+    }
+    .gb_nav_menu li{
+        padding: 0;
+        display: block;        
+    }
+    .gb_nav_menu ul ul a:hover{
+        color: #fff !important;
+    }
+    .gb_nav_menu .sub-menu > li > a:focus, .nav ul li a:focus{
+        outline: -webkit-focus-ring-color auto 1px;
+    }
+    ul.woo-info {
+        margin-top: 20px;
+    }
+    .gb_nav_menu .sub-menu {
+        width: 100% !important;
+    }
+}
