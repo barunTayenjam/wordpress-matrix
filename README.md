@@ -85,6 +85,7 @@ If you have issues with your Docker images, you can use the `fix-images.sh` scri
 
 For more in-depth information, please refer to the `docs` directory:
 
+- **[Debugging with XDebug](docs/DEBUGGING.md)**
 - **[Platform Compatibility](docs/PLATFORM_COMPATIBILITY.md)**
 - **[Usage Guide](docs/USAGE_GUIDE.md)**
 - **[Quick Reference](docs/QUICK_REFERENCE.md)**
