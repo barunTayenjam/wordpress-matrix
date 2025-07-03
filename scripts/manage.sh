@@ -11,7 +11,7 @@ set -e
 HEALTH_CHECK_SERVICES=("db-primary" "nginx-wp1" "nginx-wp2")
 
 # Time to wait for services to become healthy (in seconds).
-HEALTH_CHECK_TIMEOUT=120
+HEALTH_CHECK_TIMEOUT=600
 
 # --- Helper Functions ---
 
@@ -103,10 +103,10 @@ function wp_cli() {
 
     site=$1
     shift
-    command=$@
+    wp_command_and_args=("$@")
 
-    echo "🤖  Running WP-CLI command on '$site': wp $command"
-    docker-compose exec wpcli wp $command --path=/var/www/html/$site
+    echo "🤖  Running WP-CLI command on '$site': wp ${wp_command_and_args[@]}"
+    docker-compose exec wpcli wp "${wp_command_and_args[@]}" --path=/var/www/html/$site
 }
 
 # --- Main Script ---
@@ -128,7 +128,7 @@ case "$1" in
         logs_env "$2"
         ;;
     wp)
-        wp_cli "$2" "$3"
+        wp_cli "$2" "${@:3}"
         ;;
     *)
         echo "Usage: $0 {start|stop|restart|status|logs|wp}"

@@ -29,18 +29,7 @@ services:
       - TRAEFIK_API_INSECURE=false
     networks:
       - wp-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.dashboard.tls=true"
-      - "traefik.http.routers.dashboard.service=api@internal"
-      - "traefik.http.routers.dashboard.middlewares=auth"
-      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH}"
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    
 
   # =============================================================================
   # DATABASE
@@ -49,7 +38,7 @@ services:
     image: mysql:8.0
     container_name: wp_mysql
     restart: unless-stopped
-    command: sh -c "chown -R mysql:mysql /var/lib/mysql && /usr/local/bin/docker-entrypoint.sh mysqld"
+    
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${WORDPRESS_1_DB_NAME}
@@ -58,13 +47,14 @@ services:
     volumes:
       - db_data:/var/lib/mysql
       - ./config/mysql/primary.cnf:/etc/mysql/conf.d/mysql.cnf:ro
+      - ./mysql_entrypoint.sh:/docker-entrypoint-initdb.d/mysql_entrypoint.sh:ro
     networks:
       - wp-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      interval: 60s
+      timeout: 20s
+      retries: 10
 
   # =============================================================================
   # CACHING
@@ -73,7 +63,7 @@ services:
     image: redis:7-alpine
     container_name: wp_redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory ${REDIS_MAXMEMORY} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY}
+    
     volumes:
       - redis_data:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -89,7 +79,7 @@ services:
     image: memcached:alpine
     container_name: wp_memcached
     restart: unless-stopped
-    command: memcached -m 256
+    
     networks:
       - wp-network
 
@@ -254,31 +244,20 @@ services:
       - "traefik.http.routers.mailhog.tls=true"
       - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
 
-  wpcli:
-    image: wordpress:cli-2.8
-    container_name: wp_cli
-    restart: unless-stopped
-    depends_on:
-      - db-primary
-      - wordpress1
-      - wordpress2
-    volumes:
-      - ./wordpress1:/var/www/html/wordpress1
-      - ./wordpress2:/var/www/html/wordpress2
-    networks:
-      - wp-network
-    command: tail -f /dev/null
+  
 
   # =============================================================================
   # FILE SYNC & HOT RELOAD
   # =============================================================================
   file-sync:
-    image: node:20-alpine
+    build:
+      context: ./docker/file-sync
+      dockerfile: Dockerfile
     container_name: wp_file_sync
-    working_dir: /app
     restart: unless-stopped
     volumes:
-      - ./docker/file-sync:/app
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - wp-network
@@ -286,4 +265,3 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - SYNC_PATHS=/app/wordpress1,/app/wordpress2
       - RELOAD_CONTAINERS=wp_site1,wp_site2
-    command: sh -c "npm install && node index.js"

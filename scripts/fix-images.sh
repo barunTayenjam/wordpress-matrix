@@ -17,6 +17,7 @@ IMAGES_TO_FIX=(
     "phpmyadmin:latest"
     "mailhog/mailhog:latest"
     "wordpress:cli-2.8"
+    "wp-dev-platform-file-sync"
 )
 
 for image in "${IMAGES_TO_FIX[@]}"; do

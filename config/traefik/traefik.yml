@@ -3,7 +3,7 @@ global:
   sendAnonymousUsage: false
 
 log:
-  level: INFO
+  level: DEBUG
   filePath: "/var/log/traefik/traefik.log"
 
 accessLog:
