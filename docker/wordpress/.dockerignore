@@ -1,0 +1,15 @@
+# Ignore unnecessary files to speed up build context
+.git
+.gitignore
+*.md
+README*
+docs/
+logs/
+*.log
+.env*
+docker-compose*.yml
+.vscode/
+.idea/
+node_modules/
+*.tmp
+*.temp

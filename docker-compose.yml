@@ -1,18 +1,11 @@
-version: '3.8'
-
 networks:
   wp-network:
-    driver: bridge
-  monitoring:
     driver: bridge
 
 volumes:
   db_data:
   db_backup:
   redis_data:
-  elasticsearch_data:
-  grafana_data:
-  prometheus_data:
   ssl_certs:
 
 services:
@@ -36,7 +29,6 @@ services:
       - TRAEFIK_API_INSECURE=false
     networks:
       - wp-network
-      - monitoring
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN_SUFFIX}`)"
@@ -51,61 +43,23 @@ services:
       retries: 3
 
   # =============================================================================
-  # DATABASE CLUSTER
+  # DATABASE
   # =============================================================================
   db-primary:
     image: mysql:8.0
-    container_name: wp_db_primary
+    container_name: wp_mysql
     restart: unless-stopped
+    command: sh -c "chown -R mysql:mysql /var/lib/mysql && /usr/local/bin/docker-entrypoint.sh mysqld"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE_1}
+      MYSQL_DATABASE: ${WORDPRESS_1_DB_NAME}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_REPLICATION_USER: replicator
-      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD}
     volumes:
       - db_data:/var/lib/mysql
-      - ./config/mysql/primary.cnf:/etc/mysql/conf.d/primary.cnf:ro
-      - ./config/mysql/init:/docker-entrypoint-initdb.d:ro
-      - db_backup:/backup
+      - ./config/mysql/primary.cnf:/etc/mysql/conf.d/mysql.cnf:ro
     networks:
       - wp-network
-      - monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-        reservations:
-          memory: 512M
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-
-  db-replica:
-    image: mysql:8.0
-    container_name: wp_db_replica
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_REPLICATION_USER: replicator
-      MYSQL_REPLICATION_PASSWORD: ${MYSQL_REPLICATION_PASSWORD}
-    volumes:
-      - ./config/mysql/replica.cnf:/etc/mysql/conf.d/replica.cnf:ro
-    networks:
-      - wp-network
-      - monitoring
-    depends_on:
-      - db-primary
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 30s
@@ -113,24 +67,18 @@ services:
       retries: 5
 
   # =============================================================================
-  # CACHING LAYER
+  # CACHING
   # =============================================================================
   redis:
     image: redis:7-alpine
     container_name: wp_redis
     restart: unless-stopped
-    command: redis-server /etc/redis/redis.conf
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAXMEMORY} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY}
     volumes:
       - redis_data:/data
-      - ./config/redis/redis.conf:/etc/redis/redis.conf:ro
+      - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - wp-network
-      - monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -138,64 +86,18 @@ services:
       retries: 3
 
   memcached:
-    image: memcached:1.6-alpine
+    image: memcached:alpine
     container_name: wp_memcached
     restart: unless-stopped
-    command: memcached -m 256 -I 4m
+    command: memcached -m 256
     networks:
       - wp-network
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.25'
-
-  # =============================================================================
-  # SEARCH ENGINE
-  # =============================================================================
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: wp_elasticsearch
-    restart: unless-stopped
-    platform: linux/amd64  # Force AMD64 for compatibility
-    environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-      - xpack.security.enabled=false
-      - bootstrap.memory_lock=true
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - wp-network
-      - monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
   # =============================================================================
   # WORDPRESS INSTANCES
   # =============================================================================
   wordpress1:
-    build:
-      context: ./docker/wordpress
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
-      args:
-        - PHP_VERSION=${PHP_VERSION}
-        - WORDPRESS_VERSION=${WORDPRESS_1_VERSION}
+    image: wordpress:php${PHP_VERSION}-fpm-alpine
     container_name: wp_site1
     restart: unless-stopped
     depends_on:
@@ -214,7 +116,6 @@ services:
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
         define('WP_CACHE_KEY_SALT', '${WORDPRESS_1_DB_NAME}');
-        define('ELASTICSEARCH_HOST', 'elasticsearch:9200');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
@@ -228,18 +129,22 @@ services:
       - ./wordpress1:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
       - ./logs/wordpress1:/var/log/wordpress
-      - ./config/nginx/wordpress.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - wp-network
-      - monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
+
+  # Nginx proxy for wordpress1
+  nginx-wp1:
+    image: nginx:alpine
+    container_name: nginx_wp1
+    restart: unless-stopped
+    depends_on:
+      - wordpress1
+    volumes:
+      - ./wordpress1:/var/www/html:ro
+      - ./config/nginx/wordpress.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - wp-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.wordpress1.rule=Host(`wordpress1.${DOMAIN_SUFFIX}`)"
@@ -254,15 +159,7 @@ services:
       retries: 3
 
   wordpress2:
-    build:
-      context: ./docker/wordpress
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
-      args:
-        - PHP_VERSION=${PHP_VERSION}
-        - WORDPRESS_VERSION=${WORDPRESS_2_VERSION}
+    image: wordpress:php${PHP_VERSION}-fpm-alpine
     container_name: wp_site2
     restart: unless-stopped
     depends_on:
@@ -281,7 +178,6 @@ services:
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
         define('WP_CACHE_KEY_SALT', '${WORDPRESS_2_DB_NAME}');
-        define('ELASTICSEARCH_HOST', 'elasticsearch:9200');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
@@ -295,18 +191,22 @@ services:
       - ./wordpress2:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
       - ./logs/wordpress2:/var/log/wordpress
-      - ./config/nginx/wordpress.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - wp-network
-      - monitoring
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.25'
+
+  # Nginx proxy for wordpress2
+  nginx-wp2:
+    image: nginx:alpine
+    container_name: nginx_wp2
+    restart: unless-stopped
+    depends_on:
+      - wordpress2
+    volumes:
+      - ./wordpress2:/var/www/html:ro
+      - ./config/nginx/wordpress2.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - wp-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.wordpress2.rule=Host(`wordpress2.${DOMAIN_SUFFIX}`)"
@@ -324,29 +224,26 @@ services:
   # DEVELOPMENT TOOLS
   # =============================================================================
   phpmyadmin:
-    image: phpmyadmin:5.2
+    image: phpmyadmin:latest
     container_name: wp_phpmyadmin
     restart: unless-stopped
-    environment:
-      PMA_HOSTS: db-primary,db-replica
-      PMA_PORTS: 3306,3306
-      PMA_USER: ${MYSQL_USER}
-      PMA_PASSWORD: ${MYSQL_PASSWORD}
-      UPLOAD_LIMIT: 1G
-      MEMORY_LIMIT: 512M
     depends_on:
       - db-primary
+    environment:
+      PMA_HOST: db-primary
+      PMA_USER: root
+      PMA_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      UPLOAD_LIMIT: 100M
     networks:
       - wp-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.${DOMAIN_SUFFIX}`)"
       - "traefik.http.routers.phpmyadmin.tls=true"
-      - "traefik.http.routers.phpmyadmin.middlewares=auth"
       - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
   mailhog:
-    image: mailhog/mailhog:v1.0.1
+    image: mailhog/mailhog:latest
     container_name: wp_mailhog
     restart: unless-stopped
     networks:
@@ -358,12 +255,7 @@ services:
       - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
 
   wpcli:
-    build:
-      context: ./docker/wpcli
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
+    image: wordpress:cli-2.8
     container_name: wp_cli
     restart: unless-stopped
     depends_on:
@@ -373,173 +265,6 @@ services:
     volumes:
       - ./wordpress1:/var/www/html/wordpress1
       - ./wordpress2:/var/www/html/wordpress2
-      - ./scripts:/scripts:ro
-      - ./backups:/backups
-    networks:
-      - wp-network
-    environment:
-      WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-    command: tail -f /dev/null
-
-  composer:
-    image: composer:2.6
-    container_name: wp_composer
-    volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
-      - ~/.composer:/tmp
-    networks:
-      - wp-network
-    command: tail -f /dev/null
-
-  node:
-    image: node:20-alpine
-    container_name: wp_node
-    working_dir: /app
-    volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
-      - ./tools:/app/tools
-    networks:
-      - wp-network
-    command: tail -f /dev/null
-
-  # =============================================================================
-  # MONITORING & LOGGING
-  # =============================================================================
-  prometheus:
-    image: prom/prometheus:v2.47.0
-    container_name: wp_prometheus
-    restart: unless-stopped
-    volumes:
-      - ./config/prometheus:/etc/prometheus:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=200h'
-      - '--web.enable-lifecycle'
-    networks:
-      - monitoring
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.prometheus.tls=true"
-      - "traefik.http.routers.prometheus.middlewares=auth"
-      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
-
-  grafana:
-    image: grafana/grafana:10.1.0
-    container_name: wp_grafana
-    restart: unless-stopped
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
-      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./config/grafana:/etc/grafana/provisioning:ro
-    networks:
-      - monitoring
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.grafana.tls=true"
-      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
-
-  elasticsearch-exporter:
-    image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
-    container_name: wp_elasticsearch_exporter
-    restart: unless-stopped
-    command:
-      - '--es.uri=http://elasticsearch:9200'
-    networks:
-      - wp-network
-      - monitoring
-    depends_on:
-      - elasticsearch
-
-  mysql-exporter:
-    image: prom/mysqld-exporter:v0.15.0
-    container_name: wp_mysql_exporter
-    restart: unless-stopped
-    environment:
-      DATA_SOURCE_NAME: "${MYSQL_USER}:${MYSQL_PASSWORD}@(db-primary:3306)/"
-    networks:
-      - wp-network
-      - monitoring
-    depends_on:
-      - db-primary
-
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.55.0
-    container_name: wp_redis_exporter
-    restart: unless-stopped
-    environment:
-      REDIS_ADDR: redis:6379
-    networks:
-      - wp-network
-      - monitoring
-    depends_on:
-      - redis
-
-  # =============================================================================
-  # BACKUP & SECURITY
-  # =============================================================================
-  backup:
-    build:
-      context: ./docker/backup
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
-    container_name: wp_backup
-    restart: unless-stopped
-    environment:
-      MYSQL_HOST: db-primary
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
-      S3_BUCKET: ${S3_BACKUP_BUCKET}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
-    volumes:
-      - ./wordpress1:/var/www/html/wordpress1:ro
-      - ./wordpress2:/var/www/html/wordpress2:ro
-      - db_backup:/backup/mysql
-      - ./backups:/backup/files
-      - ./scripts/backup:/scripts:ro
-    networks:
-      - wp-network
-    depends_on:
-      - db-primary
-
-  # =============================================================================
-  # CODE QUALITY & TESTING
-  # =============================================================================
-  phpstan:
-    image: phpstan/phpstan:1.10
-    container_name: wp_phpstan
-    volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
-      - ./config/phpstan:/config:ro
-    networks:
-      - wp-network
-    command: tail -f /dev/null
-
-  phpcs:
-    image: cytopia/phpcs:3
-    container_name: wp_phpcs
-    volumes:
-      - ./wordpress1:/data/wordpress1
-      - ./wordpress2:/data/wordpress2
-      - ./config/phpcs:/config:ro
     networks:
       - wp-network
     command: tail -f /dev/null
@@ -548,20 +273,17 @@ services:
   # FILE SYNC & HOT RELOAD
   # =============================================================================
   file-sync:
-    build:
-      context: ./docker/file-sync
-      dockerfile: Dockerfile
-      platforms:
-        - linux/amd64
-        - linux/arm64
+    image: node:20-alpine
     container_name: wp_file_sync
+    working_dir: /app
     restart: unless-stopped
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/file-sync:/app
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - wp-network
     environment:
-      SYNC_PATHS: "/app/wordpress1/wp-content/themes,/app/wordpress1/wp-content/plugins,/app/wordpress2/wp-content/themes,/app/wordpress2/wp-content/plugins"
-      RELOAD_CONTAINERS: "wp_site1,wp_site2"
+      - CHOKIDAR_USEPOLLING=true
+      - SYNC_PATHS=/app/wordpress1,/app/wordpress2
+      - RELOAD_CONTAINERS=wp_site1,wp_site2
+    command: sh -c "npm install && node index.js"

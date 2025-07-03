@@ -1,7 +1,7 @@
 #!/bin/bash
 # WordPress Optimization Script
 
-echo "🔧 Running WordPress optimizations..."
+echo "Running WordPress optimizations..."
 
 # Flush rewrite rules
 wp rewrite flush --allow-root --path=/var/www/html
@@ -35,4 +35,4 @@ fi
 mkdir -p /var/www/html/wp-content/mu-plugins
 chown -R www-data:www-data /var/www/html/wp-content/mu-plugins
 
-echo "✅ WordPress optimization completed!"
+echo "WordPress optimization completed!"

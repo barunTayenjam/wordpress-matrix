@@ -1,41 +1,25 @@
 ARG PHP_VERSION=8.3
 ARG WORDPRESS_VERSION=latest
 
-FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-fpm-alpine
+# Build stage for extensions
+FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-fpm-alpine as builder
 
 # Set build arguments for faster builds
 ENV MAKEFLAGS="-j$(nproc)"
 
-# Install system dependencies in optimized order
+# Install build dependencies
 RUN apk update && apk add --no-cache \
-    # Core system packages
-    nginx \
-    supervisor \
-    curl \
-    wget \
-    unzip \
-    git \
-    bash \
-    mysql-client \
-    redis \
-    # Build dependencies
     autoconf \
     g++ \
     make \
     linux-headers \
-    # PHP extension dependencies
     icu-dev \
     libxml2-dev \
     libzip-dev \
     oniguruma-dev \
-    imagemagick-dev \
-    imagemagick \
-    # Node.js (install early to avoid conflicts)
-    nodejs \
-    npm \
-    && rm -rf /var/cache/apk/*
+    imagemagick-dev
 
-# Install PHP extensions (core extensions first)
+# Install PHP extensions
 RUN docker-php-ext-configure intl \
     && docker-php-ext-install -j$(nproc) \
         bcmath \
@@ -48,16 +32,37 @@ RUN docker-php-ext-configure intl \
         sockets \
         zip
 
-# Install PECL extensions with better error handling
+# Install PECL extensions
 RUN pecl channel-update pecl.php.net \
     && pecl install redis \
     && pecl install xdebug \
     && docker-php-ext-enable redis xdebug
 
-# Install ImageMagick separately (often causes issues)
-RUN pecl install imagick \
-    && docker-php-ext-enable imagick \
-    || echo "ImageMagick installation failed, continuing without it"
+# Try to install ImageMagick (optional)
+RUN pecl install imagick && docker-php-ext-enable imagick || echo "ImageMagick skipped"
+
+# Final stage
+FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-fpm-alpine
+
+# Copy PHP extensions from builder
+COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+
+# Install runtime dependencies only
+RUN apk add --no-cache \
+    nginx \
+    supervisor \
+    curl \
+    wget \
+    unzip \
+    git \
+    bash \
+    mysql-client \
+    redis \
+    imagemagick \
+    nodejs \
+    npm \
+    && rm -rf /var/cache/apk/*
 
 # Install Composer
 COPY --from=composer:2.6 /usr/bin/composer /usr/bin/composer
@@ -86,6 +91,7 @@ COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 # Copy WordPress optimization scripts
 COPY wp-optimize.sh /usr/local/bin/wp-optimize
 COPY entrypoint.sh /usr/local/bin/docker-entrypoint-custom
+COPY health.php /var/www/html/health.php
 RUN chmod +x /usr/local/bin/wp-optimize /usr/local/bin/docker-entrypoint-custom
 
 # Set proper permissions

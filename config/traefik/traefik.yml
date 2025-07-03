@@ -11,7 +11,7 @@ accessLog:
 
 api:
   dashboard: true
-  insecure: false
+  insecure: true
 
 entryPoints:
   web:
@@ -51,8 +51,8 @@ metrics:
     addServicesLabels: true
     addRoutersLabels: true
 
-# Tracing for debugging
-tracing:
-  jaeger:
-    samplingServerURL: http://jaeger:14268/api/sampling
-    localAgentHostPort: jaeger:6831
+# Tracing for debugging (disabled - jaeger not running)
+# tracing:
+#   jaeger:
+#     samplingServerURL: http://jaeger:14268/api/sampling
+#     localAgentHostPort: jaeger:6831
