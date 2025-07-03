@@ -245,7 +245,7 @@ services:
       - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
 
   phpcs:
-    image: squizlabs/php_codesniffer:latest
+    image: cytopia/phpcs:latest
     container_name: wp_phpcs
     restart: "no"
     volumes:
@@ -255,7 +255,7 @@ services:
       - wp-network
 
   phpstan:
-    image: phpstan/phpstan:latest
+    image: ghcr.io/phpstan/phpstan:latest-php8.3
     container_name: wp_phpstan
     restart: "no"
     volumes:
