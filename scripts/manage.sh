@@ -298,6 +298,22 @@ case "$1" in
         npm_cmd "${@:2}"
         ;;
     
+    # Site Management
+    create-site)
+        ./scripts/create-site.sh
+        ;;
+    list-sites)
+        ./scripts/manage-sites.sh list
+        ;;
+    site-info)
+        if [ -z "$2" ]; then
+            error "Please specify a site name"
+            echo "Usage: $0 site-info <site-name>"
+            exit 1
+        fi
+        ./scripts/manage-sites.sh info "$2"
+        ;;
+    
     # Database Management
     backup)
         backup_db
@@ -314,6 +330,11 @@ case "$1" in
         echo "   restart        - Restart the development environment"
         echo "   status         - Show status of all services"
         echo "   logs [service] - Show logs for a service"
+        echo ""
+        echo "🌐  Site Management:"
+        echo "   create-site    - Create a new WordPress development site"
+        echo "   list-sites     - List all WordPress sites"
+        echo "   site-info      - Show information about a specific site"
         echo ""
         echo "🔍  Code Quality Tools:"
         echo "   lint           - Run PHP Code Sniffer (WordPress Standards)"
@@ -335,9 +356,16 @@ case "$1" in
         echo ""
         echo "Example usage:"
         echo "   $0 start"
+        echo "   $0 create-site"
+        echo "   $0 list-sites"
         echo "   $0 quality"
         echo "   $0 composer install"
         echo "   $0 npm install"
+        echo ""
+        echo "🚀  Quick Start:"
+        echo "   1. $0 start              # Start the environment"
+        echo "   2. $0 create-site        # Create your first site"
+        echo "   3. $0 quality            # Run code quality checks"
         exit 1
         ;;
 esac

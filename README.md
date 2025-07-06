@@ -53,20 +53,44 @@ Use the `manage.sh` script to control your environment. This is the central tool
 
 # View the logs of a specific service
 ./scripts/manage.sh logs wordpress1
-
-# Run a WP-CLI command on a specific site
-./scripts/manage.sh wp wordpress1 plugin list
-
-# Run code quality checks
-./scripts/manage.sh quality
-
-# Run quick essential checks
-./scripts/manage.sh quick-check
 ```
+
+## 🌐 Dynamic Site Management
+
+Create unlimited WordPress development instances on demand:
+
+```bash
+# Create a new WordPress site (interactive)
+./scripts/manage.sh create-site
+
+# List all WordPress sites
+./scripts/manage.sh list-sites
+
+# Get information about a specific site
+./scripts/manage.sh site-info myproject
+
+# Advanced site management
+./scripts/manage-sites.sh start myproject    # Start a site
+./scripts/manage-sites.sh stop myproject     # Stop a site
+./scripts/manage-sites.sh remove myproject   # Remove a site
+```
+
+### Site Creation Process
+1. **Run**: `./scripts/create-site.sh`
+2. **Enter**: Site name (e.g., "myproject")
+3. **Choose**: WordPress version and PHP version
+4. **Access**: `https://myproject.127.0.0.1.nip.io`
+
+Each site gets:
+- ✅ Dedicated WordPress container
+- ✅ Nginx proxy with SSL
+- ✅ Separate database
+- ✅ Code quality integration
+- ✅ Health monitoring
 
 ## 🎯 Code Quality Tools
 
-The Ultimate WordPress Development Matrix includes a comprehensive suite of code quality tools:
+The Ultimate WordPress Development Matrix includes a comprehensive suite of code quality tools that work across all your sites:
 
 ```bash
 # Run all quality checks (recommended before commits)
@@ -82,6 +106,10 @@ The Ultimate WordPress Development Matrix includes a comprehensive suite of code
 
 # Quick check (PHPCS + PHPStan only)
 ./scripts/manage.sh quick-check
+
+# Development tools
+./scripts/manage.sh composer install  # Composer commands
+./scripts/manage.sh npm install       # NPM commands
 ```
 
 ### If You Encounter Image Errors
@@ -124,6 +152,7 @@ If you have issues with your Docker images, you can use the `fix-images.sh` scri
 
 For more in-depth information, please refer to the `docs` directory:
 
+- **[Site Management](docs/SITE_MANAGEMENT.md)** - Dynamic site creation and management
 - **[Code Quality Tools](docs/CODE_QUALITY.md)** - Comprehensive guide to all quality tools
 - **[Debugging with XDebug](docs/DEBUGGING.md)** - Step-by-step debugging setup
 - **[Platform Compatibility](docs/PLATFORM_COMPATIBILITY.md)** - System requirements
