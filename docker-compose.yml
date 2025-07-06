@@ -123,7 +123,43 @@ services:
     networks:
       - wp-network
 
-  # Nginx proxy for wordpress1
+  wordpress2:
+    image: wordpress:php${PHP_VERSION}-fpm-alpine
+    container_name: wp_site2
+    restart: unless-stopped
+    depends_on:
+      - db-primary
+      - redis
+      - memcached
+    environment:
+      WORDPRESS_DB_HOST: db-primary:3306
+      WORDPRESS_DB_USER: ${MYSQL_USER}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
+      WORDPRESS_DB_NAME: ${WORDPRESS_2_DB_NAME}
+      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
+      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
+      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_REDIS_HOST', 'redis');
+        define('WP_REDIS_PORT', 6379);
+        define('WP_CACHE_KEY_SALT', '${WORDPRESS_2_DB_NAME}');
+        define('WP_ENVIRONMENT_TYPE', 'development');
+        define('AUTOMATIC_UPDATER_DISABLED', true);
+        define('WP_AUTO_UPDATE_CORE', false);
+        define('DISALLOW_FILE_EDIT', false);
+        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
+        define('WP_DEBUG_LOG', true);
+        define('SCRIPT_DEBUG', true);
+        define('SAVEQUERIES', true);
+        define('WP_MEMORY_LIMIT', '512M');
+    volumes:
+      - ./wordpress2:/var/www/html
+      - ./config/php:/usr/local/etc/php/conf.d:ro
+      - ./logs/wordpress2:/var/log/wordpress
+    networks:
+      - wp-network
+
+  # Nginx proxy for wordpress1 and wordpress2
   nginx-wp1:
     image: nginx:alpine
     container_name: nginx_wp1
@@ -221,7 +257,7 @@ services:
     working_dir: /app
 
   phpmd:
-    image: phpmd/phpmd:latest
+    image: phpqa/phpmd:latest
     container_name: wp_phpmd
     restart: "no"
     volumes:
@@ -233,7 +269,7 @@ services:
     working_dir: /app
 
   psalm:
-    image: vimeo/psalm:latest
+    image: phpqa/psalm:latest
     container_name: wp_psalm
     restart: "no"
     volumes:
@@ -246,7 +282,7 @@ services:
     working_dir: /app
 
   phpunit:
-    image: phpunit/phpunit:10
+    image: wordpressdevelop/phpunit:latest
     container_name: wp_phpunit
     restart: "no"
     volumes:
@@ -266,18 +302,22 @@ services:
     container_name: wp_composer
     restart: "no"
     volumes:
-      - ./wordpress:/app
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
     networks:
       - wp-network
+    working_dir: /app
 
   node:
     image: node:20-alpine
     container_name: wp_node
     restart: "no"
     volumes:
-      - ./wordpress:/app
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
     networks:
       - wp-network
+    working_dir: /app
 
   
 

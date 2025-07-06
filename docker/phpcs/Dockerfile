@@ -14,6 +14,9 @@ RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local
 # Set up working directory
 WORKDIR /app
 
+# Configure Composer to allow required plugins
+RUN composer global config allow-plugins.dealerdirect/phpcodesniffer-composer-installer true
+
 # Install PHP_CodeSniffer and related tools globally
 RUN composer global require --no-interaction \
     "squizlabs/php_codesniffer:^3.7" \
