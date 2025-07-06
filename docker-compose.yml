@@ -88,7 +88,7 @@ services:
   # WORDPRESS INSTANCES
   # =============================================================================
   xandar:
-    image: wordpress:php${PHP_VERSION}-fpm-alpine
+    image: wordpress:php${PHP_VERSION}-fpm
     container_name: wp_site1
     restart: unless-stopped
     depends_on:
@@ -124,7 +124,7 @@ services:
       - wp-network
 
   sakaar:
-    image: wordpress:php${PHP_VERSION}-fpm-alpine
+    image: wordpress:php${PHP_VERSION}-fpm
     container_name: wp_site2
     restart: unless-stopped
     depends_on:

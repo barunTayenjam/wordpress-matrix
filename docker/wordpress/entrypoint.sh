@@ -1,5 +1,8 @@
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
+
+# Call the original WordPress entrypoint script
+/usr/local/bin/docker-entrypoint.sh "$@"
 
 # WordPress Development Environment Entrypoint
 echo "🚀 Starting WordPress Development Environment..."
@@ -10,11 +13,6 @@ while ! mysqladmin ping -h"$WORDPRESS_DB_HOST" --silent; do
     sleep 1
 done
 echo "✅ Database connection established"
-
-# Run original WordPress entrypoint
-if [ -f /usr/local/bin/docker-entrypoint.sh ]; then
-    source /usr/local/bin/docker-entrypoint.sh
-fi
 
 # Install WordPress if not already installed
 if ! wp core is-installed --allow-root --path=/var/www/html 2>/dev/null; then
@@ -71,6 +69,8 @@ PHP
     fi
     
     # Install WordPress
+    echo "Attempting WordPress core install..."
+    echo "DEBUG: Attempting wp core install..."
     wp core install \
         --url="http://localhost" \
         --title="WordPress Development Site" \
@@ -78,8 +78,20 @@ PHP
         --admin_password="admin" \
         --admin_email="admin@localhost" \
         --allow-root \
-        --path=/var/www/html
-    
+        --path=/var/www/html 2> /tmp/wp_install_stderr.log
+    WP_INSTALL_EXIT_CODE=$?
+    echo "DEBUG: wp core install finished with exit code: ${WP_INSTALL_EXIT_CODE}. Stderr:"
+    cat /tmp/wp_install_stderr.log
+    if [ ${WP_INSTALL_EXIT_CODE} -ne 0 ]; then
+        echo "Error: WordPress installation failed. Exiting."
+        exit ${WP_INSTALL_EXIT_CODE}
+    fi
+    WP_INSTALL_EXIT_CODE=$?
+    echo "WordPress core install command finished with exit code: ${WP_INSTALL_EXIT_CODE}"
+    if [ ${WP_INSTALL_EXIT_CODE} -ne 0 ]; then
+        echo "Error: WordPress installation failed. Check logs for details."
+        exit ${WP_INSTALL_EXIT_CODE}
+    fi
     echo "✅ WordPress installed successfully"
 fi
 
@@ -125,5 +137,5 @@ echo "🎉 WordPress Development Environment is ready!"
 echo "📊 Access your site at: http://xandar.127.0.0.1.nip.io"
 echo "🔧 Admin credentials: admin/admin"
 
-# Execute the main command
-exec "$@"
+# Keep the container running
+php-fpm

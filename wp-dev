@@ -61,7 +61,7 @@ Instance Management:
 
 Examples:
   ./wp-dev setup                    # Initial setup
-  ./wp-dev start                    # Start environment
+  1. $0 start              # Start the environment
   ./wp-dev logs -f xandar       # Follow WordPress 1 logs
   ./wp-dev shell wpcli              # Access WP-CLI container
   ./wp-dev backup xandar        # Backup WordPress 1
@@ -88,13 +88,13 @@ cmd_setup() {
 # Start command
 cmd_start() {
     log_info "Starting WordPress Development Environment..."
-    ./scripts/dev/start.sh
+    ./scripts/dev-start.sh
 }
 
 # Stop command
 cmd_stop() {
     log_info "Stopping WordPress Development Environment..."
-    ./scripts/dev/stop.sh
+        ./scripts/dev-stop.sh
 }
 
 # Restart command

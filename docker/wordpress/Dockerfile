@@ -1,39 +1,41 @@
 ARG PHP_VERSION=8.3
 ARG WORDPRESS_VERSION=latest
 
-FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-fpm-alpine
+FROM wordpress:${WORDPRESS_VERSION}-php${PHP_VERSION}-fpm
 
 # Set build arguments for faster builds
 ENV MAKEFLAGS="-j$(nproc)"
 
 # Install system dependencies in optimized order
-RUN apk update && apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     # Core system packages
-    nginx \
-    supervisor \
     curl \
     wget \
     unzip \
     git \
     bash \
     mysql-client \
-    redis \
+    redis-tools \
     # Build dependencies
     autoconf \
     g++ \
     make \
-    linux-headers \
     # PHP extension dependencies
-    icu-dev \
+    libicu-dev \
     libxml2-dev \
     libzip-dev \
-    oniguruma-dev \
-    imagemagick-dev \
-    imagemagick \
+    libonig-dev \
+    libmagickwand-dev \
+    libcurl4-openssl-dev \
+    libpq-dev \
+    libgmp-dev \
+    libpng-dev \
+    libjpeg-dev \
+    libmemcached-dev \
     # Node.js (install early to avoid conflicts)
     nodejs \
     npm \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions (core extensions first)
 RUN docker-php-ext-configure intl \
@@ -71,20 +73,9 @@ RUN curl --connect-timeout 30 --retry 3 --retry-delay 5 \
 
 # Create necessary directories
 RUN mkdir -p \
-    /var/log/nginx \
     /var/log/php \
-    /var/log/supervisor \
     /var/log/wordpress \
-    /run/nginx \
     /run/php
-
-# Remove default.conf to prevent read-only filesystem errors
-RUN rm -f /etc/nginx/conf.d/default.conf
-
-# Copy configuration files
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY php-fpm.conf /usr/local/etc/php-fpm.d/www.conf
 
 # Copy WordPress optimization scripts
 COPY wp-optimize.sh /usr/local/bin/wp-optimize
@@ -102,4 +93,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 EXPOSE 80
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint-custom"]
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["php-fpm"]
+
