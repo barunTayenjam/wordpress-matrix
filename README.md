@@ -56,6 +56,32 @@ Use the `manage.sh` script to control your environment. This is the central tool
 
 # Run a WP-CLI command on a specific site
 ./scripts/manage.sh wp wordpress1 plugin list
+
+# Run code quality checks
+./scripts/manage.sh quality
+
+# Run quick essential checks
+./scripts/manage.sh quick-check
+```
+
+## 🎯 Code Quality Tools
+
+The Ultimate WordPress Development Matrix includes a comprehensive suite of code quality tools:
+
+```bash
+# Run all quality checks (recommended before commits)
+./scripts/manage.sh quality
+
+# Individual tools
+./scripts/manage.sh lint      # PHP Code Sniffer (WordPress Standards)
+./scripts/manage.sh fix       # Auto-fix PHPCS issues
+./scripts/manage.sh analyse   # PHPStan Level 9 static analysis
+./scripts/manage.sh phpmd     # PHP Mess Detector
+./scripts/manage.sh psalm     # Psalm static analysis
+./scripts/manage.sh test      # PHPUnit tests with coverage
+
+# Quick check (PHPCS + PHPStan only)
+./scripts/manage.sh quick-check
 ```
 
 ### If You Encounter Image Errors
@@ -70,14 +96,27 @@ If you have issues with your Docker images, you can use the `fix-images.sh` scri
 
 ## ✨ Features
 
-- **WordPress**: Two instances for multi-site development.
-- **Nginx**: High-performance web server.
-- **MySQL**: The world's most popular open-source database.
-- **Redis & Memcached**: For powerful caching.
-- **WP-CLI**: Manage your WordPress sites from the command line.
-- **MailHog**: E-mail testing tool.
-- **phpMyAdmin**: Web-based database management.
-- **Hot Reload**: Automatic browser refreshing on file changes.
+### **Core WordPress Development**
+- **WordPress**: Two instances for multi-site development
+- **Nginx**: High-performance web server with unified configuration
+- **MySQL**: The world's most popular open-source database
+- **Redis & Memcached**: For powerful caching
+- **WP-CLI**: Manage your WordPress sites from the command line
+- **XDebug**: Step-by-step debugging with VS Code integration
+
+### **Code Quality Suite (Level 9)**
+- **PHP Code Sniffer**: WordPress coding standards enforcement
+- **PHPStan**: Level 9 static analysis with WordPress rules
+- **PHP Mess Detector**: Code smell and complexity analysis
+- **Psalm**: Advanced static analysis and type checking
+- **PHPUnit**: Unit testing with WordPress test framework
+
+### **Development Tools**
+- **MailHog**: E-mail testing tool
+- **phpMyAdmin**: Web-based database management
+- **Hot Reload**: Automatic browser refreshing on file changes
+- **Composer**: PHP dependency management
+- **Node.js/NPM**: Frontend build tools and package management
 
 ---
 
@@ -85,11 +124,12 @@ If you have issues with your Docker images, you can use the `fix-images.sh` scri
 
 For more in-depth information, please refer to the `docs` directory:
 
-- **[Debugging with XDebug](docs/DEBUGGING.md)**
-- **[Platform Compatibility](docs/PLATFORM_COMPATIBILITY.md)**
-- **[Usage Guide](docs/USAGE_GUIDE.md)**
-- **[Quick Reference](docs/QUICK_REFERENCE.md)**
-- **[Architecture Overview](ARCHITECTURE.md)**
+- **[Code Quality Tools](docs/CODE_QUALITY.md)** - Comprehensive guide to all quality tools
+- **[Debugging with XDebug](docs/DEBUGGING.md)** - Step-by-step debugging setup
+- **[Platform Compatibility](docs/PLATFORM_COMPATIBILITY.md)** - System requirements
+- **[Usage Guide](docs/USAGE_GUIDE.md)** - Complete usage instructions
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Command reference
+- **[Architecture Overview](ARCHITECTURE.md)** - System architecture details
 
 ---
 

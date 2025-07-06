@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<ruleset name="Ultimate WordPress PHPMD Rules"
+         xmlns="http://pmd.sf.net/ruleset/1.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sf.net/ruleset/1.0.0 http://pmd.sf.net/ruleset_xml_schema.xsd"
+         xsi:noNamespaceSchemaLocation="http://pmd.sf.net/ruleset_xml_schema.xsd">
+    
+    <description>
+        Comprehensive PHP Mess Detector rules for WordPress development
+    </description>
+
+    <!-- Clean Code Rules -->
+    <rule ref="rulesets/cleancode.xml">
+        <!-- Allow WordPress-style boolean flag parameters -->
+        <exclude name="BooleanArgumentFlag" />
+        <!-- Allow WordPress-style else expressions -->
+        <exclude name="ElseExpression" />
+        <!-- Allow WordPress-style static access -->
+        <exclude name="StaticAccess" />
+    </rule>
+
+    <!-- Code Size Rules -->
+    <rule ref="rulesets/codesize.xml">
+        <!-- Adjust for WordPress development -->
+        <exclude name="ExcessiveMethodLength" />
+        <exclude name="ExcessiveClassLength" />
+        <exclude name="ExcessiveParameterList" />
+    </rule>
+    
+    <!-- Custom Code Size Rules for WordPress -->
+    <rule ref="rulesets/codesize.xml/ExcessiveMethodLength">
+        <properties>
+            <property name="minimum" value="150" />
+        </properties>
+    </rule>
+    
+    <rule ref="rulesets/codesize.xml/ExcessiveClassLength">
+        <properties>
+            <property name="minimum" value="1500" />
+        </properties>
+    </rule>
+    
+    <rule ref="rulesets/codesize.xml/ExcessiveParameterList">
+        <properties>
+            <property name="minimum" value="12" />
+        </properties>
+    </rule>
+
+    <!-- Controversial Rules -->
+    <rule ref="rulesets/controversial.xml">
+        <!-- WordPress uses camelCase for some functions -->
+        <exclude name="CamelCaseMethodName" />
+        <exclude name="CamelCaseParameterName" />
+        <exclude name="CamelCaseVariableName" />
+    </rule>
+
+    <!-- Design Rules -->
+    <rule ref="rulesets/design.xml">
+        <!-- WordPress often uses exit/die -->
+        <exclude name="ExitExpression" />
+        <!-- WordPress uses eval in some core functions -->
+        <exclude name="EvalExpression" />
+        <!-- WordPress uses goto in some cases -->
+        <exclude name="GotoStatement" />
+    </rule>
+
+    <!-- Naming Rules -->
+    <rule ref="rulesets/naming.xml">
+        <!-- WordPress uses short variable names like $wp, $id -->
+        <exclude name="ShortVariable" />
+        <!-- WordPress has long variable names -->
+        <exclude name="LongVariable" />
+        <!-- WordPress uses short method names -->
+        <exclude name="ShortMethodName" />
+    </rule>
+    
+    <!-- Custom Naming Rules -->
+    <rule ref="rulesets/naming.xml/ShortVariable">
+        <properties>
+            <property name="minimum" value="2" />
+        </properties>
+    </rule>
+
+    <!-- Unused Code Rules -->
+    <rule ref="rulesets/unusedcode.xml" />
+
+</ruleset>

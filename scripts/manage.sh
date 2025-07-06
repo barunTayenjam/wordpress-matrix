@@ -101,18 +101,101 @@ function logs_env() {
 
 
 
+# =============================================================================
+# CODE QUALITY FUNCTIONS
+# =============================================================================
+
 # Run PHP Code Sniffer
 function lint_php() {
-    echo "🧹  Running PHP Code Sniffer..."
-    docker-compose run --rm phpcs /root/.composer/vendor/bin/phpcs --standard=/root/.composer/vendor/wp-coding-standards/wpcs/WordPress --standard=/root/.composer/vendor/wp-coding-standards/wpcs/WordPress-Core --standard=/root/.composer/vendor/wp-coding-standards/wpcs/WordPress-Docs --standard=/root/.composer/vendor/wp-coding-standards/wpcs/WordPress-Extra --standard=/root/.composer/vendor/phpcsstandards/phpcsextra --standard=/root/.composer/vendor/phpcsstandards/phpcsutils /app
+    echo "🧹  Running PHP Code Sniffer (WordPress Coding Standards)..."
+    docker-compose run --rm phpcs phpcs --standard=/phpcs-config/phpcs.xml --report=full --report-file=/tmp/phpcs-report.txt
     success "PHP Code Sniffer finished."
 }
 
-# Run PHPStan static analysis
+# Fix PHP Code Sniffer issues automatically
+function fix_php() {
+    echo "🔧  Auto-fixing PHP Code Sniffer issues..."
+    docker-compose run --rm phpcs phpcbf --standard=/phpcs-config/phpcs.xml
+    success "PHP Code Beautifier and Fixer finished."
+}
+
+# Run PHPStan static analysis (Level 9)
 function analyse_php() {
-    echo "🔍  Running PHPStan static analysis..."
-    docker-compose run --rm phpstan analyse /app --configuration=/phpstan-config/phpstan.neon
+    echo "🔍  Running PHPStan static analysis (Level 9)..."
+    docker-compose run --rm phpstan analyse --configuration=/phpstan-config/phpstan.neon --memory-limit=1G
     success "PHPStan analysis finished."
+}
+
+# Run PHP Mess Detector
+function mess_detector() {
+    echo "🔍  Running PHP Mess Detector..."
+    docker-compose run --rm phpmd phpmd /app/wordpress1/wp-content/themes,/app/wordpress1/wp-content/plugins,/app/wordpress2/wp-content/themes,/app/wordpress2/wp-content/plugins text /phpmd-config/phpmd.xml
+    success "PHP Mess Detector finished."
+}
+
+# Run Psalm static analysis
+function psalm_analysis() {
+    echo "🔍  Running Psalm static analysis..."
+    docker-compose run --rm psalm psalm --config=/psalm-config/psalm.xml --show-info=true
+    success "Psalm analysis finished."
+}
+
+# Run PHPUnit tests
+function test_php() {
+    echo "🧪  Running PHPUnit tests..."
+    docker-compose run --rm phpunit phpunit --configuration=/phpunit-config/phpunit.xml --coverage-html=/app/tests/coverage/html
+    success "PHPUnit tests finished."
+}
+
+# Run all code quality checks
+function quality_check() {
+    echo "🎯  Running comprehensive code quality checks..."
+    echo ""
+    
+    echo "📋  Step 1/5: PHP Code Sniffer (Coding Standards)"
+    lint_php
+    echo ""
+    
+    echo "📋  Step 2/5: PHPStan (Static Analysis Level 9)"
+    analyse_php
+    echo ""
+    
+    echo "📋  Step 3/5: PHP Mess Detector (Code Quality)"
+    mess_detector
+    echo ""
+    
+    echo "📋  Step 4/5: Psalm (Advanced Static Analysis)"
+    psalm_analysis
+    echo ""
+    
+    echo "📋  Step 5/5: PHPUnit (Unit Tests)"
+    test_php
+    echo ""
+    
+    success "🎉  All code quality checks completed!"
+    echo ""
+    echo "📊  Reports available at:"
+    echo "   - PHPCS: Check console output above"
+    echo "   - PHPStan: Check console output above"
+    echo "   - PHPMD: Check console output above"
+    echo "   - Psalm: Check console output above"
+    echo "   - PHPUnit: ./logs/phpunit/ and ./tests/coverage/"
+}
+
+# Quick code quality check (essential tools only)
+function quick_check() {
+    echo "⚡  Running quick code quality check..."
+    echo ""
+    
+    echo "📋  Step 1/2: PHP Code Sniffer"
+    lint_php
+    echo ""
+    
+    echo "📋  Step 2/2: PHPStan Level 9"
+    analyse_php
+    echo ""
+    
+    success "⚡  Quick quality check completed!"
 }
 
 # Run Composer commands
@@ -181,61 +264,41 @@ case "$1" in
         logs_env "$2"
         ;;
     
+    # Code Quality Commands
     lint)
         lint_php
+        ;;
+    fix)
+        fix_php
         ;;
     analyse)
         analyse_php
         ;;
-    composer)
-        composer_cmd "${@:2}"
+    phpmd)
+        mess_detector
         ;;
-    npm)
-        npm_cmd "${@:2}"
+    psalm)
+        psalm_analysis
         ;;
-    backup)
-        backup_db
+    test)
+        test_php
         ;;
-    restore)
-        restore_db
+    quality)
+        quality_check
         ;;
-    *)
-        echo "Usage: $0 {start|stop|restart|status|logs|lint|analyse|composer|npm|backup|restore}"
-        exit 1
-        ;;
-esac
-
-# --- Main Script ---
-
-case "$1" in
-    start)
-        start_env
-        ;;
-    stop)
-        stop_env
-        ;;
-    restart)
-        restart_env
-        ;;
-    status)
-        status_env
-        ;;
-    logs)
-        logs_env "$2"
+    quick-check)
+        quick_check
         ;;
     
-    lint)
-        lint_php
-        ;;
-    analyse)
-        analyse_php
-        ;;
+    # Development Tools
     composer)
         composer_cmd "${@:2}"
         ;;
     npm)
         npm_cmd "${@:2}"
         ;;
+    
+    # Database Management
     backup)
         backup_db
         ;;
@@ -243,7 +306,38 @@ case "$1" in
         restore_db
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs|lint|analyse|composer|npm|backup|restore}"
+        echo "🎯  Ultimate WordPress Development Matrix - Management Script"
+        echo ""
+        echo "📋  Environment Management:"
+        echo "   start          - Start the development environment"
+        echo "   stop           - Stop the development environment"
+        echo "   restart        - Restart the development environment"
+        echo "   status         - Show status of all services"
+        echo "   logs [service] - Show logs for a service"
+        echo ""
+        echo "🔍  Code Quality Tools:"
+        echo "   lint           - Run PHP Code Sniffer (WordPress Standards)"
+        echo "   fix            - Auto-fix PHP Code Sniffer issues"
+        echo "   analyse        - Run PHPStan static analysis (Level 9)"
+        echo "   phpmd          - Run PHP Mess Detector"
+        echo "   psalm          - Run Psalm static analysis"
+        echo "   test           - Run PHPUnit tests"
+        echo "   quality        - Run all code quality checks"
+        echo "   quick-check    - Run essential quality checks only"
+        echo ""
+        echo "🛠️  Development Tools:"
+        echo "   composer <cmd> - Run Composer commands"
+        echo "   npm <cmd>      - Run NPM commands"
+        echo ""
+        echo "💾  Database Management:"
+        echo "   backup         - Backup the database"
+        echo "   restore        - Restore the database"
+        echo ""
+        echo "Example usage:"
+        echo "   $0 start"
+        echo "   $0 quality"
+        echo "   $0 composer install"
+        echo "   $0 npm install"
         exit 1
         ;;
 esac

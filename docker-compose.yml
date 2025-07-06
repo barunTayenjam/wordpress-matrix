@@ -190,6 +190,9 @@ services:
       - "traefik.http.routers.mailhog.tls=true"
       - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
 
+  # =============================================================================
+  # CODE QUALITY TOOLS
+  # =============================================================================
   phpcs:
     build:
       context: ./docker/phpcs
@@ -197,20 +200,66 @@ services:
     container_name: wp_phpcs
     restart: "no"
     volumes:
-      - ./wordpress:/app
-      - ./config/phpcs:/phpcs-config
+      - ./wordpress1:/data/wordpress1
+      - ./wordpress2:/data/wordpress2
+      - ./config/phpcs:/phpcs-config:ro
     networks:
       - wp-network
+    command: ["phpcs", "--config-set", "installed_paths", "/phpcs-config"]
 
   phpstan:
     image: ghcr.io/phpstan/phpstan:latest-php8.3
     container_name: wp_phpstan
     restart: "no"
     volumes:
-      - ./wordpress:/app
-      - ./config/phpstan:/phpstan-config
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
+      - ./config/phpstan:/phpstan-config:ro
+      - composer_global_cache:/tmp/composer-cache
     networks:
       - wp-network
+    working_dir: /app
+
+  phpmd:
+    image: phpmd/phpmd:latest
+    container_name: wp_phpmd
+    restart: "no"
+    volumes:
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
+      - ./config/phpmd:/phpmd-config:ro
+    networks:
+      - wp-network
+    working_dir: /app
+
+  psalm:
+    image: vimeo/psalm:latest
+    container_name: wp_psalm
+    restart: "no"
+    volumes:
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
+      - ./config/psalm:/psalm-config:ro
+      - composer_global_cache:/tmp/composer-cache
+    networks:
+      - wp-network
+    working_dir: /app
+
+  phpunit:
+    image: phpunit/phpunit:10
+    container_name: wp_phpunit
+    restart: "no"
+    volumes:
+      - ./wordpress1:/app/wordpress1
+      - ./wordpress2:/app/wordpress2
+      - ./config/phpunit:/phpunit-config:ro
+      - ./tests:/app/tests
+      - ./logs/phpunit:/app/tests/logs
+    networks:
+      - wp-network
+    working_dir: /app
+    environment:
+      - XDEBUG_MODE=coverage
 
   composer:
     image: composer:2.6

@@ -1,5 +1,8 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
 parameters:
-    level: 8
+    level: 9
     paths:
         - /app/wordpress1/wp-content/themes
         - /app/wordpress1/wp-content/plugins
@@ -12,14 +15,50 @@ parameters:
         - /app/*/wp-content/plugins/hello.php
         - /app/*/wp-content/cache
         - /app/*/wp-content/uploads
+        - /app/*/wp-content/upgrade
+        - /app/*/wp-content/mu-plugins
+        - '*/node_modules/*'
+        - '*/vendor/*'
+        - '*/tests/*'
+        - '*/test/*'
     
     bootstrapFiles:
         - /app/wordpress1/wp-config.php
     
-    ignoreErrors:
-        - '#Function wp_[a-zA-Z_]+ not found#'
-        - '#Constant WP_[A-Z_]+ not found#'
-        - '#Class WP_[a-zA-Z_]+ not found#'
-    
+    # WordPress-specific configuration
     wordpress:
         wpConfigFile: /app/wordpress1/wp-config.php
+    
+    # Enhanced error handling
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
+    reportUnmatchedIgnoredErrors: true
+    
+    # WordPress-specific ignores (minimal set for Level 9)
+    ignoreErrors:
+        # Allow WordPress globals
+        - '#Undefined variable: \$wp_[a-zA-Z_]+#'
+        - '#Undefined variable: \$wpdb#'
+        - '#Undefined variable: \$post#'
+        - '#Undefined variable: \$wp_query#'
+        
+        # WordPress hook system
+        - '#Function add_action invoked with [0-9]+ parameters, [0-9]+ required#'
+        - '#Function add_filter invoked with [0-9]+ parameters, [0-9]+ required#'
+        
+        # WordPress database layer
+        - '#Method wpdb::[a-zA-Z_]+ invoked with [0-9]+ parameters, [0-9]+ required#'
+    
+    # Strict rules for better code quality
+    strictRules:
+        allRules: true
+        disallowedLooseComparison: true
+        booleansInConditions: true
+        uselessCast: true
+        requireParentConstructorCall: true
+        disallowedConstructs: true
+        overwriteVariablesWithLoop: true
+        closureUsesThis: true
+        matchingInheritedMethodNames: true
+        numericOperandsInArithmeticOperators: true
+        strictCalls: true
