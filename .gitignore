@@ -5,14 +5,14 @@
 .env.production
 
 # WordPress files
-wordpress1/wp-config.php
-wordpress2/wp-config.php
-wordpress1/wp-content/uploads/
-wordpress2/wp-content/uploads/
-wordpress1/wp-content/cache/
-wordpress2/wp-content/cache/
-wordpress1/wp-content/debug.log
-wordpress2/wp-content/debug.log
+xandar/wp-config.php
+sakaar/wp-config.php
+xandar/wp-content/uploads/
+sakaar/wp-content/uploads/
+xandar/wp-content/cache/
+sakaar/wp-content/cache/
+xandar/wp-content/debug.log
+sakaar/wp-content/debug.log
 
 # Logs
 logs/

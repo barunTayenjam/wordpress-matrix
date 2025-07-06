@@ -15,7 +15,7 @@ fi
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
-mkdir -p logs/nginx logs/wordpress1 logs/wordpress2
+mkdir -p logs/nginx logs/xandar logs/sakaar
 
 # Start all services
 echo "🚀 Starting all services..."
@@ -48,8 +48,8 @@ echo ""
 echo "✅ WordPress Development Environment is ready!"
 echo ""
 echo "🌐 Access URLs:"
-echo "   WordPress 1: http://wordpress1.127.0.0.1.nip.io"
-echo "   WordPress 2: http://wordpress2.127.0.0.1.nip.io"
+echo "   WordPress 1: http://xandar.127.0.0.1.nip.io"
+echo "   WordPress 2: http://sakaar.127.0.0.1.nip.io"
 echo "   Traefik Dashboard: http://traefik.127.0.0.1.nip.io"
 echo "   phpMyAdmin: http://phpmyadmin.127.0.0.1.nip.io"
 echo "   MailHog: http://mailhog.127.0.0.1.nip.io"

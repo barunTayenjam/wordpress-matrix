@@ -26,10 +26,10 @@
     <arg name="parallel" value="8" />
 
     <!-- Paths to check -->
-    <file>/data/wordpress1/wp-content/themes</file>
-    <file>/data/wordpress1/wp-content/plugins</file>
-    <file>/data/wordpress2/wp-content/themes</file>
-    <file>/data/wordpress2/wp-content/plugins</file>
+    <file>/data/xandar/wp-content/themes</file>
+    <file>/data/xandar/wp-content/plugins</file>
+    <file>/data/sakaar/wp-content/themes</file>
+    <file>/data/sakaar/wp-content/plugins</file>
 
     <!-- Exclude patterns -->
     <exclude-pattern>/data/*/wp-content/themes/twentytwenty*</exclude-pattern>

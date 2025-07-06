@@ -122,7 +122,7 @@ echo "⚡ Optimizing WordPress..."
 /usr/local/bin/wp-optimize
 
 echo "🎉 WordPress Development Environment is ready!"
-echo "📊 Access your site at: http://wordpress1.127.0.0.1.nip.io"
+echo "📊 Access your site at: http://xandar.127.0.0.1.nip.io"
 echo "🔧 Admin credentials: admin/admin"
 
 # Execute the main command

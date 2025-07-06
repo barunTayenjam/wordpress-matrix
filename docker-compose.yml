@@ -87,7 +87,7 @@ services:
   # =============================================================================
   # WORDPRESS INSTANCES
   # =============================================================================
-  wordpress1:
+  xandar:
     image: wordpress:php${PHP_VERSION}-fpm-alpine
     container_name: wp_site1
     restart: unless-stopped
@@ -117,13 +117,13 @@ services:
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress1:/var/www/html
+      - ./xandar:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress1:/var/log/wordpress
+      - ./logs/xandar:/var/log/wordpress
     networks:
       - wp-network
 
-  wordpress2:
+  sakaar:
     image: wordpress:php${PHP_VERSION}-fpm-alpine
     container_name: wp_site2
     restart: unless-stopped
@@ -153,39 +153,39 @@ services:
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress2:/var/www/html
+      - ./sakaar:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress2:/var/log/wordpress
+      - ./logs/sakaar:/var/log/wordpress
     networks:
       - wp-network
 
-  # Nginx proxy for wordpress1 and wordpress2
+  # Nginx proxy for xandar and sakaar
   nginx-wp1:
     image: nginx:alpine
     container_name: nginx_wp1
     restart: unless-stopped
     depends_on:
-      - wordpress1
-      - wordpress2
+      - xandar
+      - sakaar
     volumes:
-      - ./wordpress1:/var/www/html/wordpress1:ro
-      - ./wordpress2:/var/www/html/wordpress2:ro
+      - ./xandar:/var/www/html/xandar:ro
+      - ./sakaar:/var/www/html/sakaar:ro
       - ./config/nginx/unified-wordpress.conf:/etc/nginx/conf.d/unified-wordpress.conf:ro
       - ./logs/nginx:/var/log/nginx
     networks:
       - wp-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wordpress1.rule=Host(`wordpress1.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.wordpress1.tls=true"
-      - "traefik.http.routers.wordpress1.middlewares=security-headers"
-      - "traefik.http.services.wordpress1.loadbalancer.server.port=80"
-      - "traefik.http.services.wordpress1.loadbalancer.healthcheck.path=/wp-admin/admin-ajax.php"
-      - "traefik.http.routers.wordpress2.rule=Host(`wordpress2.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.wordpress2.tls=true"
-      - "traefik.http.routers.wordpress2.middlewares=security-headers"
-      - "traefik.http.services.wordpress2.loadbalancer.server.port=80"
-      - "traefik.http.services.wordpress2.loadbalancer.healthcheck.path=/wp-admin/admin-ajax.php"
+      - "traefik.http.routers.xandar.rule=Host(`xandar.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.routers.xandar.tls=true"
+      - "traefik.http.routers.xandar.middlewares=security-headers"
+      - "traefik.http.services.xandar.loadbalancer.server.port=80"
+      - "traefik.http.services.xandar.loadbalancer.healthcheck.path=/wp-admin/admin-ajax.php"
+      - "traefik.http.routers.sakaar.rule=Host(`sakaar.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.routers.sakaar.tls=true"
+      - "traefik.http.routers.sakaar.middlewares=security-headers"
+      - "traefik.http.services.sakaar.loadbalancer.server.port=80"
+      - "traefik.http.services.sakaar.loadbalancer.healthcheck.path=/wp-admin/admin-ajax.php"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost/wp-admin/admin-ajax.php?action=heartbeat || exit 1"]
       interval: 30s
@@ -236,8 +236,8 @@ services:
     container_name: wp_phpcs
     restart: "no"
     volumes:
-      - ./wordpress1:/data/wordpress1
-      - ./wordpress2:/data/wordpress2
+      - ./xandar:/data/xandar
+      - ./sakaar:/data/sakaar
       - ./config/phpcs:/phpcs-config:ro
     networks:
       - wp-network
@@ -248,8 +248,8 @@ services:
     container_name: wp_phpstan
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
       - ./config/phpstan:/phpstan-config:ro
       - composer_global_cache:/tmp/composer-cache
     networks:
@@ -261,8 +261,8 @@ services:
     container_name: wp_phpmd
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
       - ./config/phpmd:/phpmd-config:ro
     networks:
       - wp-network
@@ -273,8 +273,8 @@ services:
     container_name: wp_psalm
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
       - ./config/psalm:/psalm-config:ro
       - composer_global_cache:/tmp/composer-cache
     networks:
@@ -286,8 +286,8 @@ services:
     container_name: wp_phpunit
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
       - ./config/phpunit:/phpunit-config:ro
       - ./tests:/app/tests
       - ./logs/phpunit:/app/tests/logs
@@ -302,8 +302,8 @@ services:
     container_name: wp_composer
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
     networks:
       - wp-network
     working_dir: /app
@@ -313,8 +313,8 @@ services:
     container_name: wp_node
     restart: "no"
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
     networks:
       - wp-network
     working_dir: /app
@@ -331,12 +331,12 @@ services:
     container_name: wp_file_sync
     restart: unless-stopped
     volumes:
-      - ./wordpress1:/app/wordpress1
-      - ./wordpress2:/app/wordpress2
+      - ./xandar:/app/xandar
+      - ./sakaar:/app/sakaar
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - wp-network
     environment:
       - CHOKIDAR_USEPOLLING=true
-      - SYNC_PATHS=/app/wordpress1,/app/wordpress2
+      - SYNC_PATHS=/app/xandar,/app/sakaar
       - RELOAD_CONTAINERS=wp_site1,wp_site2

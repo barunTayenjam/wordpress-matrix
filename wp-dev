@@ -62,9 +62,9 @@ Instance Management:
 Examples:
   ./wp-dev setup                    # Initial setup
   ./wp-dev start                    # Start environment
-  ./wp-dev logs -f wordpress1       # Follow WordPress 1 logs
+  ./wp-dev logs -f xandar       # Follow WordPress 1 logs
   ./wp-dev shell wpcli              # Access WP-CLI container
-  ./wp-dev backup wordpress1        # Backup WordPress 1
+  ./wp-dev backup xandar        # Backup WordPress 1
   ./wp-dev instances create blog 6.3 # Create new blog instance
   ./wp-dev instances list           # List all instances
   ./wp-dev clean                    # Clean up resources

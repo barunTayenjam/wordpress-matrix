@@ -10,10 +10,10 @@
     findUnusedVariablesAndParams="true"
 >
     <projectFiles>
-        <directory name="/app/wordpress1/wp-content/themes" />
-        <directory name="/app/wordpress1/wp-content/plugins" />
-        <directory name="/app/wordpress2/wp-content/themes" />
-        <directory name="/app/wordpress2/wp-content/plugins" />
+        <directory name="/app/xandar/wp-content/themes" />
+        <directory name="/app/xandar/wp-content/plugins" />
+        <directory name="/app/sakaar/wp-content/themes" />
+        <directory name="/app/sakaar/wp-content/plugins" />
         
         <ignoreFiles>
             <directory name="/app/*/wp-content/themes/twentytwenty*" />

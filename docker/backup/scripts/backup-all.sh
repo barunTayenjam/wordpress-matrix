@@ -25,7 +25,7 @@ mkdir -p "$BACKUP_BASE"/{mysql,files,logs}
 
 # Backup MySQL databases
 log "💾 Backing up MySQL databases..."
-for db in wordpress1 wordpress2; do
+for db in xandar sakaar; do
     log "  📊 Backing up database: $db"
     mysqldump -h "$MYSQL_HOST" -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" \
         --single-transaction \
@@ -41,7 +41,7 @@ done
 
 # Backup WordPress files
 log "📁 Backing up WordPress files..."
-for site in wordpress1 wordpress2; do
+for site in xandar sakaar; do
     if [ -d "/var/www/html/$site" ]; then
         log "  📦 Backing up site: $site"
         tar -czf "$BACKUP_BASE/files/${site}_${TIMESTAMP}.tar.gz" \

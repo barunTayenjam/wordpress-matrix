@@ -26,8 +26,8 @@
    ```
 
 4. **Access your sites**
-   - WordPress 1: https://wordpress1.127.0.0.1.nip.io
-   - WordPress 2: https://wordpress2.127.0.0.1.nip.io
+   - WordPress 1: https://xandar.127.0.0.1.nip.io
+   - WordPress 2: https://sakaar.127.0.0.1.nip.io
 
 ## 🎯 Daily Development Workflow
 
@@ -49,9 +49,9 @@
 ./wp-dev shell wpcli
 
 # Inside WP-CLI container:
-wp plugin install query-monitor --activate --path=/var/www/html/wordpress1
-wp theme install twentytwentyfour --activate --path=/var/www/html/wordpress1
-wp user create developer dev@example.com --role=administrator --path=/var/www/html/wordpress1
+wp plugin install query-monitor --activate --path=/var/www/html/xandar
+wp theme install twentytwentyfour --activate --path=/var/www/html/xandar
+wp user create developer dev@example.com --role=administrator --path=/var/www/html/xandar
 ```
 
 ### 3. Database Management
@@ -62,22 +62,22 @@ wp user create developer dev@example.com --role=administrator --path=/var/www/ht
 
 # Or use command line
 ./wp-dev shell wpcli
-wp db export backup.sql --path=/var/www/html/wordpress1
-wp db import backup.sql --path=/var/www/html/wordpress2
+wp db export backup.sql --path=/var/www/html/xandar
+wp db import backup.sql --path=/var/www/html/sakaar
 ```
 
 ### 4. File Development
 ```bash
 # Edit theme files - hot reload will automatically refresh browser
-vim wordpress1/wp-content/themes/your-theme/style.css
+vim xandar/wp-content/themes/your-theme/style.css
 
 # Install dependencies
 ./wp-dev shell composer
-composer install --working-dir=/app/wordpress1/wp-content/themes/your-theme
+composer install --working-dir=/app/xandar/wp-content/themes/your-theme
 
 # Node.js development
 ./wp-dev shell node
-cd /app/wordpress1/wp-content/themes/your-theme
+cd /app/xandar/wp-content/themes/your-theme
 npm install
 npm run build
 ```
@@ -89,10 +89,10 @@ npm run build
 # Configure IDE to connect to localhost:9003
 
 # View debug logs
-./wp-dev logs -f wordpress1
+./wp-dev logs -f xandar
 
 # Access error logs
-./wp-dev shell wordpress1
+./wp-dev shell xandar
 tail -f /var/log/php/error.log
 ```
 
@@ -102,36 +102,36 @@ tail -f /var/log/php/error.log
 ```bash
 # Run PHPStan analysis
 ./wp-dev shell phpstan
-phpstan analyse /app/wordpress1/wp-content/themes/your-theme
+phpstan analyse /app/xandar/wp-content/themes/your-theme
 
 # Run PHPCS code style check
 ./wp-dev shell phpcs
-phpcs --standard=WordPress /data/wordpress1/wp-content/themes/your-theme
+phpcs --standard=WordPress /data/xandar/wp-content/themes/your-theme
 
 # Fix code style issues
-phpcbf --standard=WordPress /data/wordpress1/wp-content/themes/your-theme
+phpcbf --standard=WordPress /data/xandar/wp-content/themes/your-theme
 ```
 
 ### Performance Testing
 ```bash
 # Load testing with Apache Bench
-ab -n 1000 -c 10 https://wordpress1.127.0.0.1.nip.io/
+ab -n 1000 -c 10 https://xandar.127.0.0.1.nip.io/
 
 # WordPress performance analysis
 ./wp-dev shell wpcli
-wp profile stage --all --path=/var/www/html/wordpress1
+wp profile stage --all --path=/var/www/html/xandar
 ```
 
 ### Backup and Restore
 ```bash
 # Create backup
-./wp-dev backup wordpress1
+./wp-dev backup xandar
 
 # List available backups
-./wp-dev restore wordpress1 list
+./wp-dev restore xandar list
 
 # Restore from backup
-./wp-dev restore wordpress1 20231201_120000
+./wp-dev restore xandar 20231201_120000
 
 # Automated backups run daily at 2 AM
 # Check backup logs
@@ -155,7 +155,7 @@ wp profile stage --all --path=/var/www/html/wordpress1
 - **Query Examples**:
   ```promql
   # WordPress response time
-  traefik_service_request_duration_seconds{service="wordpress1"}
+  traefik_service_request_duration_seconds{service="xandar"}
   
   # Database connections
   mysql_global_status_threads_connected
@@ -170,12 +170,12 @@ wp profile stage --all --path=/var/www/html/wordpress1
 ./wp-dev logs -f
 
 # Specific service logs
-./wp-dev logs -f wordpress1
+./wp-dev logs -f xandar
 ./wp-dev logs -f db-primary
 ./wp-dev logs -f redis
 
 # Search logs
-./wp-dev logs wordpress1 | grep "ERROR"
+./wp-dev logs xandar | grep "ERROR"
 ```
 
 ## 🔒 Security Management
@@ -213,7 +213,7 @@ docker system prune -f
 ./wp-dev logs
 
 # Restart specific service
-./wp-dev restart wordpress1
+./wp-dev restart xandar
 ```
 
 **Database connection issues:**
@@ -234,8 +234,8 @@ docker stats
 
 # Clear all caches
 ./wp-dev shell wpcli
-wp cache flush --path=/var/www/html/wordpress1
-wp redis flush --path=/var/www/html/wordpress1
+wp cache flush --path=/var/www/html/xandar
+wp redis flush --path=/var/www/html/xandar
 ```
 
 **SSL certificate issues:**
@@ -257,7 +257,7 @@ WORDPRESS_DEBUG_LOG=true
 XDEBUG_MODE=debug,develop,coverage
 
 # Restart WordPress containers
-./wp-dev restart wordpress1 wordpress2
+./wp-dev restart xandar sakaar
 ```
 
 ## 📈 Performance Optimization
@@ -266,13 +266,13 @@ XDEBUG_MODE=debug,develop,coverage
 ```bash
 # Clear all caches
 ./wp-dev shell wpcli
-wp cache flush --path=/var/www/html/wordpress1
+wp cache flush --path=/var/www/html/xandar
 
 # Redis cache status
-wp redis status --path=/var/www/html/wordpress1
+wp redis status --path=/var/www/html/xandar
 
 # OPcache status
-./wp-dev shell wordpress1
+./wp-dev shell xandar
 php -r "print_r(opcache_get_status());"
 ```
 
@@ -280,10 +280,10 @@ php -r "print_r(opcache_get_status());"
 ```bash
 # Optimize database
 ./wp-dev shell wpcli
-wp db optimize --path=/var/www/html/wordpress1
+wp db optimize --path=/var/www/html/xandar
 
 # Check database size
-wp db size --path=/var/www/html/wordpress1
+wp db size --path=/var/www/html/xandar
 
 # Analyze slow queries
 ./wp-dev shell db-primary

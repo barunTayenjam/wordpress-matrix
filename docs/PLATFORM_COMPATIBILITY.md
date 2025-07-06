@@ -372,7 +372,7 @@ sudo usermod -aG docker $USER
 newgrp docker
 
 # Fix file permissions
-sudo chown -R $USER:$USER wordpress1 wordpress2
+sudo chown -R $USER:$USER xandar sakaar
 ```
 
 #### **Elasticsearch Memory Issues**

@@ -430,7 +430,7 @@ Use different Redis databases for cache isolation:
 ```php
 // In wp-config.php for different instances
 define('WP_REDIS_DATABASE', 1); // wordpress1 uses DB 1
-define('WP_REDIS_DATABASE', 2); // wordpress2 uses DB 2
+define('WP_REDIS_DATABASE', 2); // sakaar uses DB 2
 define('WP_REDIS_DATABASE', 3); // wordpress3 uses DB 3
 ```
 

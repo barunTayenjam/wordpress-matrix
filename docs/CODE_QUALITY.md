@@ -178,7 +178,7 @@ This document outlines the comprehensive code quality tools integrated into the 
 ### Custom PHPCS Rules
 ```bash
 # Run with specific standard
-docker-compose run --rm phpcs phpcs --standard=WordPress-VIP-Go /data/wordpress1/wp-content/themes/your-theme
+docker-compose run --rm phpcs phpcs --standard=WordPress-VIP-Go /data/xandar/wp-content/themes/your-theme
 
 # Generate detailed report
 docker-compose run --rm phpcs phpcs --report=full --report-file=/tmp/detailed-report.txt
@@ -187,7 +187,7 @@ docker-compose run --rm phpcs phpcs --report=full --report-file=/tmp/detailed-re
 ### PHPStan with Custom Configuration
 ```bash
 # Run with different level
-docker-compose run --rm phpstan analyse --level=8 /app/wordpress1/wp-content/themes/your-theme
+docker-compose run --rm phpstan analyse --level=8 /app/xandar/wp-content/themes/your-theme
 
 # Generate baseline (ignore existing issues)
 docker-compose run --rm phpstan analyse --generate-baseline
@@ -196,7 +196,7 @@ docker-compose run --rm phpstan analyse --generate-baseline
 ### PHPMD Custom Analysis
 ```bash
 # Analyze specific directory with custom rules
-docker-compose run --rm phpmd phpmd /app/wordpress1/wp-content/themes/your-theme text cleancode,codesize,design
+docker-compose run --rm phpmd phpmd /app/xandar/wp-content/themes/your-theme text cleancode,codesize,design
 ```
 
 ### PHPUnit with Coverage

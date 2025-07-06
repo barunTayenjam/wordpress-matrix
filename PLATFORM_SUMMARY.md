@@ -64,16 +64,16 @@ docker-compose build && docker-compose up -d
 - `scripts/test-setup.sh` - Environment validation
 
 ### **Configuration**
-- `config/nginx/wordpress.conf` - Optimized for wordpress1
-- `config/nginx/wordpress2.conf` - Optimized for wordpress2
+- `config/nginx/wordpress.conf` - Optimized for xandar
+- `config/nginx/sakaar.conf` - Optimized for sakaar
 - `.dockerignore` - Optimized for future builds
 
 ## 🌐 Access Points
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| WordPress 1 | http://wordpress1.127.0.0.1.nip.io | admin/admin |
-| WordPress 2 | http://wordpress2.127.0.0.1.nip.io | admin/admin |
+| WordPress 1 | http://xandar.127.0.0.1.nip.io | admin/admin |
+| WordPress 2 | http://sakaar.127.0.0.1.nip.io | admin/admin |
 | Traefik Dashboard | http://traefik.127.0.0.1.nip.io | admin/password |
 | Grafana | http://grafana.127.0.0.1.nip.io | admin/SecureGrafana2024! |
 | phpMyAdmin | http://phpmyadmin.127.0.0.1.nip.io | root/SecureRoot2024! |

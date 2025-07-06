@@ -53,5 +53,5 @@ This guide explains how to set up XDebug for step-debugging your WordPress envir
     *   Ensure your Docker containers are running.
     *   Verify that `xdebug.client_host` is `host.docker.internal` in `config/php/php.ini`.
     *   Check that the port in `launch.json` (9003) matches `xdebug.client_port` in `php.ini`.
-    *   Look at the XDebug log file: `/var/log/php/xdebug.log` inside the WordPress container. You can access it using `docker-compose exec wordpress1 tail -f /var/log/php/xdebug.log`.
+    *   Look at the XDebug log file: `/var/log/php/xdebug.log` inside the WordPress container. You can access it using `docker-compose exec xandar tail -f /var/log/php/xdebug.log`.
 *   **Performance issues**: XDebug can impact performance. Remember to disable it when not actively debugging by commenting out or removing the `xdebug.mode` line in `config/php/php.ini` and restarting your containers.

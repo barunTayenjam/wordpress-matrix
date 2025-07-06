@@ -17,35 +17,35 @@
 ./wp-dev shell wpcli     # Access WP-CLI container
 ./wp-dev shell composer  # Access Composer container
 ./wp-dev shell node      # Access Node.js container
-./wp-dev shell wordpress1 # Access WordPress container
+./wp-dev shell xandar # Access WordPress container
 ./wp-dev logs -f         # Follow all logs
-./wp-dev logs wordpress1 # Show specific service logs
+./wp-dev logs xandar # Show specific service logs
 ```
 
 ### WordPress Management
 ```bash
 # Inside WP-CLI container (./wp-dev shell wpcli)
-wp core update --path=/var/www/html/wordpress1
-wp plugin install query-monitor --activate --path=/var/www/html/wordpress1
-wp theme install twentytwentyfour --path=/var/www/html/wordpress1
-wp user create dev dev@example.com --role=administrator --path=/var/www/html/wordpress1
-wp db export backup.sql --path=/var/www/html/wordpress1
+wp core update --path=/var/www/html/xandar
+wp plugin install query-monitor --activate --path=/var/www/html/xandar
+wp theme install twentytwentyfour --path=/var/www/html/xandar
+wp user create dev dev@example.com --role=administrator --path=/var/www/html/xandar
+wp db export backup.sql --path=/var/www/html/xandar
 ```
 
 ### Backup & Restore
 ```bash
 ./wp-dev backup          # Backup all sites
-./wp-dev backup wordpress1 # Backup specific site
-./wp-dev restore wordpress1 list # List backups
-./wp-dev restore wordpress1 20231201_120000 # Restore specific backup
+./wp-dev backup xandar # Backup specific site
+./wp-dev restore xandar list # List backups
+./wp-dev restore xandar 20231201_120000 # Restore specific backup
 ```
 
 ## 🌐 Access URLs
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| WordPress 1 | https://wordpress1.127.0.0.1.nip.io | admin/admin |
-| WordPress 2 | https://wordpress2.127.0.0.1.nip.io | admin/admin |
+| WordPress 1 | https://xandar.127.0.0.1.nip.io | admin/admin |
+| WordPress 2 | https://sakaar.127.0.0.1.nip.io | admin/admin |
 | PHPMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | wp_dev_user/(see .env) |
 | MailHog | https://mailhog.127.0.0.1.nip.io | No auth |
 | Grafana | https://grafana.127.0.0.1.nip.io | admin/(see .env.local) |
@@ -75,7 +75,7 @@ wp db export backup.sql --path=/var/www/html/wordpress1
 ### Prometheus Queries
 ```promql
 # WordPress response time
-traefik_service_request_duration_seconds{service="wordpress1"}
+traefik_service_request_duration_seconds{service="xandar"}
 
 # Database connections
 mysql_global_status_threads_connected
@@ -97,7 +97,7 @@ WORDPRESS_DEBUG_DISPLAY=true
 WORDPRESS_DEBUG_LOG=true
 
 # Restart containers
-./wp-dev restart wordpress1 wordpress2
+./wp-dev restart xandar sakaar
 ```
 
 ### XDebug Setup
@@ -109,16 +109,16 @@ WORDPRESS_DEBUG_LOG=true
 ### Log Locations
 ```bash
 # WordPress logs
-./logs/wordpress1/
-./logs/wordpress2/
+./logs/xandar/
+./logs/sakaar/
 
 # Container logs
-./wp-dev logs wordpress1
+./wp-dev logs xandar
 ./wp-dev logs db-primary
 ./wp-dev logs redis
 
 # PHP error logs
-./wp-dev shell wordpress1
+./wp-dev shell xandar
 tail -f /var/log/php/error.log
 ```
 
@@ -143,19 +143,19 @@ openssl rand -base64 32
 ### Clear All Caches
 ```bash
 ./wp-dev shell wpcli
-wp cache flush --path=/var/www/html/wordpress1
-wp redis flush --path=/var/www/html/wordpress1
+wp cache flush --path=/var/www/html/xandar
+wp redis flush --path=/var/www/html/xandar
 
 # Clear OPcache
-./wp-dev shell wordpress1
+./wp-dev shell xandar
 php -r "opcache_reset();"
 ```
 
 ### Database Optimization
 ```bash
 ./wp-dev shell wpcli
-wp db optimize --path=/var/www/html/wordpress1
-wp db repair --path=/var/www/html/wordpress1
+wp db optimize --path=/var/www/html/xandar
+wp db repair --path=/var/www/html/xandar
 ```
 
 ## 🔄 Instance Management
@@ -191,8 +191,8 @@ mysqladmin ping
 
 **Permission issues:**
 ```bash
-sudo chown -R $USER:$USER wordpress1 wordpress2
-chmod -R 755 wordpress1 wordpress2
+sudo chown -R $USER:$USER xandar sakaar
+chmod -R 755 xandar sakaar
 ```
 
 **Out of disk space:**
@@ -220,7 +220,7 @@ free -h
 ### Composer (PHP Dependencies)
 ```bash
 ./wp-dev shell composer
-cd /app/wordpress1/wp-content/themes/your-theme
+cd /app/xandar/wp-content/themes/your-theme
 composer install
 composer require vendor/package
 ```
@@ -228,7 +228,7 @@ composer require vendor/package
 ### NPM (JavaScript Dependencies)
 ```bash
 ./wp-dev shell node
-cd /app/wordpress1/wp-content/themes/your-theme
+cd /app/xandar/wp-content/themes/your-theme
 npm install
 npm run build
 npm run watch
@@ -246,15 +246,15 @@ git pull origin main
 ### Update WordPress
 ```bash
 ./wp-dev shell wpcli
-wp core update --path=/var/www/html/wordpress1
-wp core update-db --path=/var/www/html/wordpress1
+wp core update --path=/var/www/html/xandar
+wp core update-db --path=/var/www/html/xandar
 ```
 
 ### Update Plugins/Themes
 ```bash
 ./wp-dev shell wpcli
-wp plugin update --all --path=/var/www/html/wordpress1
-wp theme update --all --path=/var/www/html/wordpress1
+wp plugin update --all --path=/var/www/html/xandar
+wp theme update --all --path=/var/www/html/xandar
 ```
 
 ## 📞 Support
@@ -279,6 +279,6 @@ docker-compose down -v
 ./wp-dev start
 
 # Restore from backup
-./wp-dev restore wordpress1 list
-./wp-dev restore wordpress1 <backup_timestamp>
+./wp-dev restore xandar list
+./wp-dev restore xandar <backup_timestamp>
 ```

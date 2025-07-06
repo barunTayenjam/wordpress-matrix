@@ -23,12 +23,12 @@
 >
     <testsuites>
         <testsuite name="WordPress Plugin Tests">
-            <directory>/app/wordpress1/wp-content/plugins/*/tests</directory>
-            <directory>/app/wordpress2/wp-content/plugins/*/tests</directory>
+            <directory>/app/xandar/wp-content/plugins/*/tests</directory>
+            <directory>/app/sakaar/wp-content/plugins/*/tests</directory>
         </testsuite>
         <testsuite name="WordPress Theme Tests">
-            <directory>/app/wordpress1/wp-content/themes/*/tests</directory>
-            <directory>/app/wordpress2/wp-content/themes/*/tests</directory>
+            <directory>/app/xandar/wp-content/themes/*/tests</directory>
+            <directory>/app/sakaar/wp-content/themes/*/tests</directory>
         </testsuite>
         <testsuite name="Integration Tests">
             <directory>/app/tests/integration</directory>
@@ -40,10 +40,10 @@
 
     <source>
         <include>
-            <directory suffix=".php">/app/wordpress1/wp-content/themes</directory>
-            <directory suffix=".php">/app/wordpress1/wp-content/plugins</directory>
-            <directory suffix=".php">/app/wordpress2/wp-content/themes</directory>
-            <directory suffix=".php">/app/wordpress2/wp-content/plugins</directory>
+            <directory suffix=".php">/app/xandar/wp-content/themes</directory>
+            <directory suffix=".php">/app/xandar/wp-content/plugins</directory>
+            <directory suffix=".php">/app/sakaar/wp-content/themes</directory>
+            <directory suffix=".php">/app/sakaar/wp-content/plugins</directory>
         </include>
         <exclude>
             <directory>/app/*/wp-content/themes/twentytwenty*</directory>

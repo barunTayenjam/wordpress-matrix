@@ -4,10 +4,10 @@ includes:
 parameters:
     level: 9
     paths:
-        - /app/wordpress1/wp-content/themes
-        - /app/wordpress1/wp-content/plugins
-        - /app/wordpress2/wp-content/themes
-        - /app/wordpress2/wp-content/plugins
+        - /app/xandar/wp-content/themes
+        - /app/xandar/wp-content/plugins
+        - /app/sakaar/wp-content/themes
+        - /app/sakaar/wp-content/plugins
     
     excludePaths:
         - /app/*/wp-content/themes/twentytwenty*
@@ -23,11 +23,11 @@ parameters:
         - '*/test/*'
     
     bootstrapFiles:
-        - /app/wordpress1/wp-config.php
+        - /app/xandar/wp-config.php
     
     # WordPress-specific configuration
     wordpress:
-        wpConfigFile: /app/wordpress1/wp-config.php
+        wpConfigFile: /app/xandar/wp-config.php
     
     # Enhanced error handling
     checkMissingIterableValueType: true

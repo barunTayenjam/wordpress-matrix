@@ -21,8 +21,8 @@ cd wordpress-matrix
 This command will start all the necessary services and run health checks to ensure everything is running correctly.
 
 ### 3. Access Your Sites
-- **WordPress 1**: [http://wordpress1.127.0.0.1.nip.io](http://wordpress1.127.0.0.1.nip.io)
-- **WordPress 2**: [http://wordpress2.127.0.0.1.nip.io](http://wordpress2.127.0.0.1.nip.io)
+- **WordPress 1**: [http://xandar.127.0.0.1.nip.io](http://xandar.127.0.0.1.nip.io)
+- **WordPress 2**: [http://sakaar.127.0.0.1.nip.io](http://sakaar.127.0.0.1.nip.io)
 - **Traefik Dashboard**: [http://traefik.127.0.0.1.nip.io](http://traefik.127.0.0.1.nip.io)
 - **phpMyAdmin**: [http://phpmyadmin.127.0.0.1.nip.io](http://phpmyadmin.127.0.0.1.nip.io)
 - **MailHog**: [http://mailhog.127.0.0.1.nip.io](http://mailhog.127.0.0.1.nip.io)
@@ -52,7 +52,7 @@ Use the `manage.sh` script to control your environment. This is the central tool
 ./scripts/manage.sh status
 
 # View the logs of a specific service
-./scripts/manage.sh logs wordpress1
+./scripts/manage.sh logs xandar
 ```
 
 ## 🌐 Dynamic Site Management

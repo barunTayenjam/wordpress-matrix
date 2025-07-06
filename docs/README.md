@@ -20,8 +20,8 @@ cd wp-dev-platform
 ./wp-dev start
 
 # Access your sites
-# WordPress 1: https://wordpress1.127.0.0.1.nip.io
-# WordPress 2: https://wordpress2.127.0.0.1.nip.io
+# WordPress 1: https://xandar.127.0.0.1.nip.io
+# WordPress 2: https://sakaar.127.0.0.1.nip.io
 ```
 
 ## 📖 Documentation Structure
@@ -51,22 +51,22 @@ cd wp-dev-platform
 
 # Monitor performance
 ./wp-dev monitor                  # Open Grafana
-./wp-dev logs -f wordpress1       # Follow logs
+./wp-dev logs -f xandar       # Follow logs
 ```
 
 ### WordPress Management
 ```bash
 # Install plugins/themes
 ./wp-dev shell wpcli
-wp plugin install query-monitor --activate --path=/var/www/html/wordpress1
+wp plugin install query-monitor --activate --path=/var/www/html/xandar
 
 # Database operations
-wp db export backup.sql --path=/var/www/html/wordpress1
-wp db import backup.sql --path=/var/www/html/wordpress2
+wp db export backup.sql --path=/var/www/html/xandar
+wp db import backup.sql --path=/var/www/html/sakaar
 
 # Cache management
-wp cache flush --path=/var/www/html/wordpress1
-wp redis flush --path=/var/www/html/wordpress1
+wp cache flush --path=/var/www/html/xandar
+wp redis flush --path=/var/www/html/xandar
 ```
 
 ### Instance Management
@@ -84,13 +84,13 @@ wp redis flush --path=/var/www/html/wordpress1
 ### Backup & Restore
 ```bash
 # Create backups
-./wp-dev backup wordpress1
+./wp-dev backup xandar
 
 # List available backups
-./wp-dev restore wordpress1 list
+./wp-dev restore xandar list
 
 # Restore from backup
-./wp-dev restore wordpress1 20231201_120000
+./wp-dev restore xandar 20231201_120000
 ```
 
 ## 🔧 Advanced Features
@@ -116,8 +116,8 @@ wp redis flush --path=/var/www/html/wordpress1
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| WordPress 1 | https://wordpress1.127.0.0.1.nip.io | Primary development site |
-| WordPress 2 | https://wordpress2.127.0.0.1.nip.io | Secondary development site |
+| WordPress 1 | https://xandar.127.0.0.1.nip.io | Primary development site |
+| WordPress 2 | https://sakaar.127.0.0.1.nip.io | Secondary development site |
 | PHPMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | Database management |
 | MailHog | https://mailhog.127.0.0.1.nip.io | Email testing |
 | Grafana | https://grafana.127.0.0.1.nip.io | Performance monitoring |
@@ -136,7 +136,7 @@ docker system prune -f
 ./wp-dev restart db-primary
 
 # Permission problems
-sudo chown -R $USER:$USER wordpress1 wordpress2
+sudo chown -R $USER:$USER xandar sakaar
 
 # Clear all caches
 ./wp-dev shell wpcli

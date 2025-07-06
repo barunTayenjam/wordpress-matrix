@@ -7,11 +7,11 @@
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
-    define('ABSPATH', '/app/wordpress1/');
+    define('ABSPATH', '/app/xandar/');
 }
 
 // Define test environment constants
-define('WP_TESTS_CONFIG_FILE_PATH', '/app/wordpress1/wp-config.php');
+define('WP_TESTS_CONFIG_FILE_PATH', '/app/xandar/wp-config.php');
 define('WP_TESTS_DOMAIN', 'example.org');
 define('WP_TESTS_EMAIL', 'admin@example.org');
 define('WP_TESTS_TITLE', 'Test Blog');
@@ -40,13 +40,13 @@ $_SERVER['SCRIPT_NAME'] = '/index.php';
 $_SERVER['REQUEST_URI'] = '/';
 
 // Load WordPress test functions
-if (file_exists('/app/wordpress1/wp-includes/functions.php')) {
-    require_once '/app/wordpress1/wp-includes/functions.php';
+if (file_exists('/app/xandar/wp-includes/functions.php')) {
+    require_once '/app/xandar/wp-includes/functions.php';
 }
 
 // Load WordPress
-if (file_exists('/app/wordpress1/wp-config.php')) {
-    require_once '/app/wordpress1/wp-config.php';
+if (file_exists('/app/xandar/wp-config.php')) {
+    require_once '/app/xandar/wp-config.php';
 }
 
 // Load WordPress test case

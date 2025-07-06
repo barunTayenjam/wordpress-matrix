@@ -63,8 +63,8 @@ function start_env() {
 
     echo "
 🌐  Access your services at:"
-    echo "    - WordPress 1: https://wordpress1.${DOMAIN_SUFFIX}"
-    echo "    - WordPress 2: https://wordpress2.${DOMAIN_SUFFIX}"
+    echo "    - WordPress 1: https://xandar.${DOMAIN_SUFFIX}"
+    echo "    - WordPress 2: https://sakaar.${DOMAIN_SUFFIX}"
     echo "    - phpMyAdmin:  https://phpmyadmin.${DOMAIN_SUFFIX}"
     echo "    - MailHog:     https://mailhog.${DOMAIN_SUFFIX}"
 }
@@ -129,7 +129,7 @@ function analyse_php() {
 # Run PHP Mess Detector
 function mess_detector() {
     echo "🔍  Running PHP Mess Detector..."
-    docker-compose run --rm phpmd phpmd /app/wordpress1/wp-content/themes,/app/wordpress1/wp-content/plugins,/app/wordpress2/wp-content/themes,/app/wordpress2/wp-content/plugins text /phpmd-config/phpmd.xml
+    docker-compose run --rm phpmd phpmd /app/xandar/wp-content/themes,/app/xandar/wp-content/plugins,/app/wordpress2/wp-content/themes,/app/wordpress2/wp-content/plugins text /phpmd-config/phpmd.xml
     success "PHP Mess Detector finished."
 }
 
