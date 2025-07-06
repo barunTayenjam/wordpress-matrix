@@ -78,6 +78,9 @@ RUN mkdir -p \
     /run/nginx \
     /run/php
 
+# Remove default.conf to prevent read-only filesystem errors
+RUN rm -f /etc/nginx/conf.d/default.conf
+
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY nginx.conf /etc/nginx/nginx.conf
