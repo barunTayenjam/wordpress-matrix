@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
+echo "DEBUG: Starting docker-entrypoint-custom.sh"
+
 # Call the original WordPress entrypoint script
 /usr/local/bin/docker-entrypoint.sh "$@"
 
@@ -15,16 +17,30 @@ done
 echo "✅ Database connection established"
 
 # Install WordPress if not already installed
-if ! wp core is-installed --allow-root --path=/var/www/html 2>/dev/null; then
+if ! wp core is-installed --allow-root --path=/var/www/html 2> /tmp/wp_is_installed_stderr.log; then
+    echo "DEBUG: WordPress is NOT installed or check failed. Stderr:"
+    cat /tmp/wp_is_installed_stderr.log
     echo "📦 Installing WordPress..."
     
     # Download WordPress if not present
     if [ ! -f /var/www/html/wp-config.php ]; then
-        wp core download --allow-root --path=/var/www/html --force
+        echo "DEBUG: Attempting wp core download..."
+        wp core download --allow-root --path=/var/www/html --force 2> /tmp/wp_download_stderr.log
+        WP_DOWNLOAD_EXIT_CODE=$?
+        echo "DEBUG: wp core download finished with exit code: ${WP_DOWNLOAD_EXIT_CODE}. Stderr:"
+        cat /tmp/wp_download_stderr.log
+        if [ ${WP_DOWNLOAD_EXIT_CODE} -ne 0 ]; then
+            echo "Error: WordPress download failed. Exiting."
+            exit ${WP_DOWNLOAD_EXIT_CODE}
+        fi
+    else
+        echo "wp-config.php already exists."
     fi
+    ls -la /var/www/html/wp-config.php
     
     # Create wp-config.php if not present
     if [ ! -f /var/www/html/wp-config.php ]; then
+        echo "DEBUG: Attempting wp config create..."
         wp config create \
             --dbname="$WORDPRESS_DB_NAME" \
             --dbuser="$WORDPRESS_DB_USER" \
@@ -66,6 +82,13 @@ define('COMPRESS_SCRIPTS', true);
 define('CONCATENATE_SCRIPTS', false);
 define('ENFORCE_GZIP', true);
 PHP
+        WP_CONFIG_EXIT_CODE=$?
+        echo "DEBUG: wp config create finished with exit code: ${WP_CONFIG_EXIT_CODE}. Stderr:"
+        cat /tmp/wp_config_stderr.log
+        if [ ${WP_CONFIG_EXIT_CODE} -ne 0 ]; then
+            echo "Error: wp-config.php creation failed. Exiting."
+            exit ${WP_CONFIG_EXIT_CODE}
+        fi
     fi
     
     # Install WordPress
@@ -83,12 +106,6 @@ PHP
     echo "DEBUG: wp core install finished with exit code: ${WP_INSTALL_EXIT_CODE}. Stderr:"
     cat /tmp/wp_install_stderr.log
     if [ ${WP_INSTALL_EXIT_CODE} -ne 0 ]; then
-        echo "Error: WordPress installation failed. Exiting."
-        exit ${WP_INSTALL_EXIT_CODE}
-    fi
-    WP_INSTALL_EXIT_CODE=$?
-    echo "WordPress core install command finished with exit code: ${WP_INSTALL_EXIT_CODE}"
-    if [ ${WP_INSTALL_EXIT_CODE} -ne 0 ]; then
         echo "Error: WordPress installation failed. Check logs for details."
         exit ${WP_INSTALL_EXIT_CODE}
     fi
@@ -99,23 +116,39 @@ fi
 echo "🔌 Installing essential development plugins..."
 
 # Redis Object Cache
-if ! wp plugin is-installed redis-cache --allow-root --path=/var/www/html; then
-    wp plugin install redis-cache --activate --allow-root --path=/var/www/html
+echo "DEBUG: Installing redis-cache plugin..."
+if ! wp plugin is-installed redis-cache --allow-root --path=/var/www/html 2> /tmp/wp_plugin_redis_stderr.log; then
+    wp plugin install redis-cache --activate --allow-root --path=/var/www/html 2>> /tmp/wp_plugin_redis_stderr.log
+    WP_PLUGIN_REDIS_EXIT_CODE=$?
+    echo "DEBUG: redis-cache plugin install finished with exit code: ${WP_PLUGIN_REDIS_EXIT_CODE}. Stderr:"
+    cat /tmp/wp_plugin_redis_stderr.log
 fi
 
 # Query Monitor
-if ! wp plugin is-installed query-monitor --allow-root --path=/var/www/html; then
-    wp plugin install query-monitor --activate --allow-root --path=/var/www/html
+echo "DEBUG: Installing query-monitor plugin..."
+if ! wp plugin is-installed query-monitor --allow-root --path=/var/www/html 2> /tmp/wp_plugin_query_stderr.log; then
+    wp plugin install query-monitor --activate --allow-root --path=/var/www/html 2>> /tmp/wp_plugin_query_stderr.log
+    WP_PLUGIN_QUERY_EXIT_CODE=$?
+    echo "DEBUG: query-monitor plugin install finished with exit code: ${WP_PLUGIN_QUERY_EXIT_CODE}. Stderr:"
+    cat /tmp/wp_plugin_query_stderr.log
 fi
 
 # Debug Bar
-if ! wp plugin is-installed debug-bar --allow-root --path=/var/www/html; then
-    wp plugin install debug-bar --activate --allow-root --path=/var/www/html
+echo "DEBUG: Installing debug-bar plugin..."
+if ! wp plugin is-installed debug-bar --allow-root --path=/var/www/html 2> /tmp/wp_plugin_debug_stderr.log; then
+    wp plugin install debug-bar --activate --allow-root --path=/var/www/html 2>> /tmp/wp_plugin_debug_stderr.log
+    WP_PLUGIN_DEBUG_EXIT_CODE=$?
+    echo "DEBUG: debug-bar plugin install finished with exit code: ${WP_PLUGIN_DEBUG_EXIT_CODE}. Stderr:"
+    cat /tmp/wp_plugin_debug_stderr.log
 fi
 
 # Developer Tools
-if ! wp plugin is-installed developer --allow-root --path=/var/www/html; then
-    wp plugin install developer --activate --allow-root --path=/var/www/html || true
+echo "DEBUG: Installing developer plugin..."
+if ! wp plugin is-installed developer --allow-root --path=/var/www/html 2> /tmp/wp_plugin_developer_stderr.log; then
+    wp plugin install developer --activate --allow-root --path=/var/www/html 2>> /tmp/wp_plugin_developer_stderr.log || true
+    WP_PLUGIN_DEVELOPER_EXIT_CODE=$?
+    echo "DEBUG: developer plugin install finished with exit code: ${WP_PLUGIN_DEVELOPER_EXIT_CODE}. Stderr:"
+    cat /tmp/wp_plugin_developer_stderr.log
 fi
 
 # Set proper permissions
@@ -139,3 +172,5 @@ echo "🔧 Admin credentials: admin/admin"
 
 # Keep the container running
 php-fpm
+
+echo "DEBUG: Finished docker-entrypoint-custom.sh"
