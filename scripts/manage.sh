@@ -6,9 +6,19 @@ set -e
 
 # --- Configuration ---
 
+# Load environment variables
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+if [[ -f "$PROJECT_ROOT/.env" ]]; then
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+fi
+
 # Services to check for health.
 # Add any critical services that have a health check defined in docker-compose.yml.
-HEALTH_CHECK_SERVICES=("db-primary" "nginx-wp1" "nginx-wp2")
+HEALTH_CHECK_SERVICES=("db-primary" "nginx-wp1")
 
 # Time to wait for services to become healthy (in seconds).
 HEALTH_CHECK_TIMEOUT=600
@@ -44,15 +54,27 @@ function start_env() {
         
         end_time=$((SECONDS + HEALTH_CHECK_TIMEOUT))
         while [ $SECONDS -lt $end_time ]; do
-            status=$(docker-compose ps -q $service | xargs docker inspect -f '{{.State.Health.Status}}')
+            # Check if service exists first
+            if ! docker-compose ps -q $service >/dev/null 2>&1; then
+                echo -e "\033[1;33mNot found\033[0m"
+                break
+            fi
+            
+            status=$(docker-compose ps -q $service | xargs docker inspect -f '{{.State.Health.Status}}' 2>/dev/null || echo "unknown")
             if [ "$status" == "healthy" ]; then
                 echo -e "\033[1;32mHealthy\033[0m"
                 break
+            elif [ "$status" == "unknown" ]; then
+                # Service might not have health check, check if it's running
+                if docker-compose ps $service | grep -q "Up"; then
+                    echo -e "\033[1;32mRunning\033[0m"
+                    break
+                fi
             fi
             sleep 2
         done
 
-        if [ "$status" != "healthy" ]; then
+        if [ "$status" != "healthy" ] && ! docker-compose ps $service | grep -q "Up"; then
             error "'$service' did not become healthy in time."
             echo "    - Check the logs with: docker-compose logs $service"
             exit 1
@@ -300,10 +322,10 @@ case "$1" in
     
     # Site Management
     create-site)
-        ./scripts/create-site.sh
+        "${SCRIPT_DIR}/manage-sites.sh" create
         ;;
     list-sites)
-        ./scripts/manage-sites.sh list
+        "${SCRIPT_DIR}/manage-sites.sh" list
         ;;
     site-info)
         if [ -z "$2" ]; then
@@ -311,7 +333,7 @@ case "$1" in
             echo "Usage: $0 site-info <site-name>"
             exit 1
         fi
-        ./scripts/manage-sites.sh info "$2"
+        "${SCRIPT_DIR}/manage-sites.sh" info "$2"
         ;;
     
     # Database Management
