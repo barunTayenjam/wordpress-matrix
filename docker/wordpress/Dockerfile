@@ -77,11 +77,6 @@ RUN mkdir -p \
     /var/log/wordpress \
     /run/php
 
-# Copy WordPress optimization scripts
-COPY wp-optimize.sh /usr/local/bin/wp-optimize
-COPY entrypoint.sh /usr/local/bin/docker-entrypoint-custom
-RUN chmod +x /usr/local/bin/wp-optimize /usr/local/bin/docker-entrypoint-custom
-
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
@@ -92,6 +87,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 EXPOSE 80
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint-custom"]
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["php-fpm"]
-

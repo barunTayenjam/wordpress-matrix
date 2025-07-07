@@ -156,8 +156,10 @@ services:
       - ./sakaar:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
       - ./logs/sakaar:/var/log/wordpress
+      - ./docker/wordpress/init-wordpress.sh:/usr/local/bin/init-wordpress.sh
     networks:
       - wp-network
+    command: ["/usr/local/bin/init-wordpress.sh"]
 
   # Nginx proxy for xandar and sakaar
   nginx-wp1:

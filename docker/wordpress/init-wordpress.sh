@@ -1,13 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-echo "DEBUG: Starting docker-entrypoint-custom.sh"
-
-# Call the original WordPress entrypoint script
-/usr/local/bin/docker-entrypoint.sh "$@"
-
-# WordPress Development Environment Entrypoint
-echo "🚀 Starting WordPress Development Environment..."
+echo "DEBUG: Starting init-wordpress.sh"
 
 # Wait for database to be ready
 echo "⏳ Waiting for database connection..."
@@ -169,8 +163,3 @@ echo "⚡ Optimizing WordPress..."
 echo "🎉 WordPress Development Environment is ready!"
 echo "📊 Access your site at: http://xandar.127.0.0.1.nip.io"
 echo "🔧 Admin credentials: admin/admin"
-
-# Keep the container running
-php-fpm
-
-echo "DEBUG: Finished docker-entrypoint-custom.sh"
