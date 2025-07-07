@@ -568,6 +568,11 @@ function start_new_site() {
     local site_name="$1"
     info "Starting site services..."
     
+    # Start supporting services first (if not already running)
+    info "Ensuring supporting services are running..."
+    docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog file-sync
+    
+    # Start the site-specific services
     docker-compose up -d wordpress_${site_name} nginx_${site_name}
     
     # Wait a moment for services to start
@@ -575,6 +580,11 @@ function start_new_site() {
     
     if docker-compose ps wordpress_${site_name} | grep -q "Up"; then
         success "Site services started successfully"
+        echo ""
+        echo "Supporting services available:"
+        echo "• phpMyAdmin: https://phpmyadmin.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+        echo "• MailHog: https://mailhog.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+        echo "• Traefik Dashboard: http://localhost:8080"
     else
         error "Failed to start site services"
         return 1

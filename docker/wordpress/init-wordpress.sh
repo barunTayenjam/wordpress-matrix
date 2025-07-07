@@ -5,8 +5,16 @@ echo "DEBUG: Starting init-wordpress.sh"
 
 # Wait for database to be ready
 echo "⏳ Waiting for database connection..."
-while ! mysqladmin ping -h"$WORDPRESS_DB_HOST" --silent; do
-    sleep 1
+DB_HOST=$(echo "$WORDPRESS_DB_HOST" | cut -d: -f1)
+DB_PORT=$(echo "$WORDPRESS_DB_HOST" | cut -d: -f2)
+if [ "$DB_PORT" = "$DB_HOST" ]; then
+    DB_PORT=3306
+fi
+
+echo "Checking database connectivity to $DB_HOST:$DB_PORT..."
+while ! timeout 1 bash -c "</dev/tcp/$DB_HOST/$DB_PORT" 2>/dev/null; do
+    echo "Database not ready, waiting..."
+    sleep 2
 done
 echo "✅ Database connection established"
 

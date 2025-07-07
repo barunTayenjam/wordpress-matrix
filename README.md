@@ -76,7 +76,7 @@ Create unlimited WordPress development instances on demand:
 ```
 
 ### Site Creation Process
-1. **Run**: `./scripts/create-site.sh`
+1. **Run**: `./scripts/manage.sh create-site`
 2. **Enter**: Site name (e.g., "myproject")
 3. **Choose**: WordPress version and PHP version
 4. **Access**: `https://myproject.127.0.0.1.nip.io`
@@ -114,10 +114,14 @@ The Ultimate WordPress Development Matrix includes a comprehensive suite of code
 
 ### If You Encounter Image Errors
 
-If you have issues with your Docker images, you can use the `fix-images.sh` script to refresh them.
+If you have issues with your Docker images, you can refresh them manually:
 
 ```bash
-./scripts/fix-images.sh
+# Remove and re-pull problematic images
+docker-compose down
+docker system prune -f
+docker-compose pull
+docker-compose up -d
 ```
 
 ---

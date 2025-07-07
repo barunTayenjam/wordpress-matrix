@@ -88,7 +88,7 @@ cmd_setup() {
 # Start command
 cmd_start() {
     log_info "Starting WordPress Development Environment..."
-    ./scripts/dev-start.sh
+    ./scripts/manage.sh start
 }
 
 # Stop command
