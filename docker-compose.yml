@@ -31,7 +31,44 @@ services:
       - TRAEFIK_API_INSECURE=true
     networks:
       - wp-network
-    
+
+  # =============================================================================
+  # NGINX UNIFIED PROXY
+  # =============================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    volumes:
+      # Mount all WordPress site directories for Nginx to serve
+      - ./xandar:/var/www/xandar:ro
+      - ./sakaar:/var/www/sakaar:ro
+      - ./wordpress_wand:/var/www/wordpress_wand:ro
+      - ./wordpress_testsite:/var/www/wordpress_testsite:ro
+      - ./wordpress_portfolio:/var/www/wordpress_portfolio:ro
+      - ./wordpress_demo:/var/www/wordpress_demo:ro
+      - ./wordpress_testfix:/var/www/wordpress_testfix:ro
+      
+      # Dynamic Nginx configuration
+      - ./config/nginx/dynamic-sites.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./logs/nginx:/var/log/nginx
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
+    networks:
+      - wp-network
+    labels:
+      - "traefik.enable=true"
+      # Catch-all rule for all WordPress sites, relying on the HostRegexp
+      - "traefik.http.routers.wordpress-sites.rule=HostRegexp(`{subdomain:[a-z0-9-]+}.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.routers.wordpress-sites.tls=true"
+      - "traefik.http.routers.wordpress-sites.middlewares=security-headers"
+      - "traefik.http.services.wordpress-sites.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # =============================================================================
   # DATABASE
@@ -40,7 +77,6 @@ services:
     image: mysql:8.0
     container_name: wp_mysql
     restart: unless-stopped
-    
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${WORDPRESS_1_DB_NAME}
@@ -65,7 +101,6 @@ services:
     image: redis:7-alpine
     container_name: wp_redis
     restart: unless-stopped
-    
     volumes:
       - redis_data:/data
       - ./config/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
@@ -81,7 +116,6 @@ services:
     image: memcached:alpine
     container_name: wp_memcached
     restart: unless-stopped
-    
     networks:
       - wp-network
 
@@ -90,109 +124,66 @@ services:
   # =============================================================================
   xandar:
     image: wordpress:php${PHP_VERSION}-fpm
-    container_name: wp_site1
+    container_name: xandar
     restart: unless-stopped
-    depends_on:
-      - db-primary
-      - redis
-      - memcached
-    environment:
-      WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: ${WORDPRESS_1_DB_NAME}
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_REDIS_HOST', 'redis');
-        define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', '${WORDPRESS_1_DB_NAME}');
-        define('WP_ENVIRONMENT_TYPE', 'development');
-        define('AUTOMATIC_UPDATER_DISABLED', true);
-        define('WP_AUTO_UPDATE_CORE', false);
-        define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
-        define('WP_DEBUG_LOG', true);
-        define('SCRIPT_DEBUG', true);
-        define('SAVEQUERIES', true);
-        define('WP_MEMORY_LIMIT', '512M');
     volumes:
       - ./xandar:/var/www/html
-      - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/xandar:/var/log/wordpress
     networks:
       - wp-network
 
   sakaar:
     image: wordpress:php${PHP_VERSION}-fpm
-    container_name: wp_site2
+    container_name: sakaar
     restart: unless-stopped
-    depends_on:
-      - db-primary
-      - redis
-      - memcached
-    environment:
-      WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: ${WORDPRESS_2_DB_NAME}
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_REDIS_HOST', 'redis');
-        define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', '${WORDPRESS_2_DB_NAME}');
-        define('WP_ENVIRONMENT_TYPE', 'development');
-        define('AUTOMATIC_UPDATER_DISABLED', true);
-        define('WP_AUTO_UPDATE_CORE', false);
-        define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
-        define('WP_DEBUG_LOG', true);
-        define('SCRIPT_DEBUG', true);
-        define('SAVEQUERIES', true);
-        define('WP_MEMORY_LIMIT', '512M');
     volumes:
       - ./sakaar:/var/www/html
-      - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/sakaar:/var/log/wordpress
-      - ./docker/wordpress/init-wordpress.sh:/usr/local/bin/init-wordpress.sh
     networks:
       - wp-network
-    command: ["/usr/local/bin/init-wordpress.sh"]
 
-  # Nginx proxy for xandar and sakaar
-  nginx-unified:
-    image: nginx:alpine
-    container_name: nginx_unified
+  wordpress_wand:
+    image: wordpress:php8.3-fpm
+    container_name: wordpress_wand
     restart: unless-stopped
     volumes:
-      # Mount all WordPress sites
-      - ./xandar:/var/www/xandar:ro
-      - ./sakaar:/var/www/sakaar:ro
-      - ./wordpress_wand:/var/www/wordpress_wand:ro
-      - ./wordpress_testsite:/var/www/wordpress_testsite:ro
-      - ./wordpress_portfolio:/var/www/wordpress_portfolio:ro
-      - ./wordpress_demo:/var/www/wordpress_demo:ro
-      - ./wordpress_testfix:/var/www/wordpress_testfix:ro
-      # Dynamic nginx configuration
-      - ./config/nginx/dynamic-sites.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./logs/nginx:/var/log/nginx
+      - ./wordpress_wand:/var/www/html
     networks:
       - wp-network
-    labels:
-      - "traefik.enable=true"
-      # Catch-all rule for all WordPress sites
-      - "traefik.http.routers.wordpress-sites.rule=HostRegexp(`{subdomain:[a-z0-9-]+}.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.wordpress-sites.tls=true"
-      - "traefik.http.routers.wordpress-sites.middlewares=security-headers"
-      - "traefik.http.services.wordpress-sites.loadbalancer.server.port=80"
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
+  wordpress_testsite:
+    image: wordpress:php8.3-fpm
+    container_name: wordpress_testsite
+    restart: unless-stopped
+    volumes:
+      - ./wordpress_testsite:/var/www/html
+    networks:
+      - wp-network
+
+  wordpress_portfolio:
+    image: wordpress:php8.3-fpm
+    container_name: wordpress_portfolio
+    restart: unless-stopped
+    volumes:
+      - ./wordpress_portfolio:/var/www/html
+    networks:
+      - wp-network
+
+  wordpress_demo:
+    image: wordpress:php8.3-fpm
+    container_name: wordpress_demo
+    restart: unless-stopped
+    volumes:
+      - ./wordpress_demo:/var/www/html
+    networks:
+      - wp-network
+
+  wordpress_testfix:
+    image: wordpress:php8.3-fpm
+    container_name: wordpress_testfix
+    restart: unless-stopped
+    volumes:
+      - ./wordpress_testfix:/var/www/html
+    networks:
+      - wp-network
 
   # =============================================================================
   # DEVELOPMENT TOOLS
@@ -229,101 +220,6 @@ services:
       - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
 
   # =============================================================================
-  # CODE QUALITY TOOLS
-  # =============================================================================
-  phpcs:
-    build:
-      context: ./docker/phpcs
-      dockerfile: Dockerfile
-    container_name: wp_phpcs
-    restart: "no"
-    volumes:
-      - ./xandar:/data/xandar
-      - ./sakaar:/data/sakaar
-      - ./config/phpcs:/phpcs-config:ro
-    networks:
-      - wp-network
-    command: ["phpcs", "--config-set", "installed_paths", "/phpcs-config"]
-
-  phpstan:
-    image: ghcr.io/phpstan/phpstan:latest-php8.3
-    container_name: wp_phpstan
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-      - ./config/phpstan:/phpstan-config:ro
-      - composer_global_cache:/tmp/composer-cache
-    networks:
-      - wp-network
-    working_dir: /app
-
-  phpmd:
-    image: phpqa/phpmd:latest
-    container_name: wp_phpmd
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-      - ./config/phpmd:/phpmd-config:ro
-    networks:
-      - wp-network
-    working_dir: /app
-
-  psalm:
-    image: phpqa/psalm:latest
-    container_name: wp_psalm
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-      - ./config/psalm:/psalm-config:ro
-      - composer_global_cache:/tmp/composer-cache
-    networks:
-      - wp-network
-    working_dir: /app
-
-  phpunit:
-    image: wordpressdevelop/phpunit:latest
-    container_name: wp_phpunit
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-      - ./config/phpunit:/phpunit-config:ro
-      - ./tests:/app/tests
-      - ./logs/phpunit:/app/tests/logs
-    networks:
-      - wp-network
-    working_dir: /app
-    environment:
-      - XDEBUG_MODE=coverage
-
-  composer:
-    image: composer:2.6
-    container_name: wp_composer
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-    networks:
-      - wp-network
-    working_dir: /app
-
-  node:
-    image: node:20-alpine
-    container_name: wp_node
-    restart: "no"
-    volumes:
-      - ./xandar:/app/xandar
-      - ./sakaar:/app/sakaar
-    networks:
-      - wp-network
-    working_dir: /app
-
-  
-
-  # =============================================================================
   # FILE SYNC & HOT RELOAD
   # =============================================================================
   file-sync:
@@ -342,10 +238,18 @@ services:
       - CHOKIDAR_USEPOLLING=true
       - SYNC_PATHS=/app/xandar,/app/sakaar
       - RELOAD_CONTAINERS=wp_site1,wp_site2
-  # WordPress instance: wand
-  wordpress_wand:
+  
+
+  
+
+  
+
+  
+
+  # WordPress instance: gemini
+  wordpress_gemini:
     image: wordpress:php8.3-fpm
-    container_name: wp_wand
+    container_name: wp_gemini
     restart: unless-stopped
     depends_on:
       - db-primary
@@ -355,14 +259,14 @@ services:
       WORDPRESS_DB_HOST: db-primary:3306
       WORDPRESS_DB_USER: ${MYSQL_USER}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: wand_db
+      WORDPRESS_DB_NAME: gemini_db
       WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
       WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
       WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', 'wand_db');
+        define('WP_CACHE_KEY_SALT', 'gemini_db');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
@@ -373,36 +277,39 @@ services:
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress_wand:/var/www/html
+      - ./wordpress_gemini:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress_wand:/var/log/wordpress
+      - ./logs/wordpress_gemini:/var/log/wordpress
     networks:
       - wp-network
 
-  # Nginx proxy for wand
-  nginx_wand:
+  # Nginx proxy for gemini
+  nginx_gemini:
     image: nginx:alpine
-    container_name: nginx_wand
+    container_name: nginx_gemini
     restart: unless-stopped
     depends_on:
-      - wordpress_wand
+      - wordpress_gemini
     volumes:
-      - ./wordpress_wand:/var/www/html:ro
-      - ./config/nginx/wand.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wordpress_gemini:/var/www/html:ro
+      - ./config/nginx/gemini.conf:/etc/nginx/conf.d/default.conf:ro
       - ./logs/nginx:/var/log/nginx
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
+      - ./wordpress_gemini:/var/www/wordpress_gemini:ro
     networks:
       - wp-network
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wand.rule=Host(`wand.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.wand.tls=true"
-      - "traefik.http.routers.wand.middlewares=security-headers"
-      - "traefik.http.services.wand.loadbalancer.server.port=80"
+      - "traefik.http.routers.gemini.rule=Host(`gemini.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.routers.gemini.tls=true"
+      - "traefik.http.routers.gemini.middlewares=security-headers"
+      - "traefik.http.services.gemini.loadbalancer.server.port=80"
 
-  # WordPress instance: testsite
-  wordpress_testsite:
+  # WordPress instance: gemini
+  wordpress_gemini:
     image: wordpress:php8.3-fpm
-    container_name: wp_testsite
+    container_name: wp_gemini
     restart: unless-stopped
     depends_on:
       - db-primary
@@ -410,56 +317,36 @@ services:
       - memcached
     environment:
       WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: testsite_db
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
+      WORDPRESS_DB_USER: wp_dev_user
+      WORDPRESS_DB_PASSWORD: SecureWP2024!
+      WORDPRESS_DB_NAME: gemini_db
+      WORDPRESS_DEBUG: true
+      WORDPRESS_DEBUG_DISPLAY: true
+      WORDPRESS_DEBUG_LOG: true
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', 'testsite_db');
+        define('WP_CACHE_KEY_SALT', 'gemini_db');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
         define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
+        define('WP_DEBUG_DISPLAY', true);
         define('WP_DEBUG_LOG', true);
         define('SCRIPT_DEBUG', true);
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress_testsite:/var/www/html
+      - ./wordpress_gemini:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress_testsite:/var/log/wordpress
+      - ./logs/wordpress_gemini:/var/log/wordpress
     networks:
       - wp-network
 
-  # Nginx proxy for testsite
-  nginx_testsite:
-    image: nginx:alpine
-    container_name: nginx_testsite
-    restart: unless-stopped
-    depends_on:
-      - wordpress_testsite
-    volumes:
-      - ./wordpress_testsite:/var/www/html:ro
-      - ./config/nginx/testsite.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - wp-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.testsite.rule=Host(`testsite.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.testsite.tls=true"
-      - "traefik.http.routers.testsite.middlewares=security-headers"
-      - "traefik.http.services.testsite.loadbalancer.server.port=80"
-
-  # WordPress instance: portfolio
-  wordpress_portfolio:
+  # WordPress instance: gemini
+  wordpress_gemini:
     image: wordpress:php8.3-fpm
-    container_name: wp_portfolio
+    container_name: wp_gemini
     restart: unless-stopped
     depends_on:
       - db-primary
@@ -467,56 +354,36 @@ services:
       - memcached
     environment:
       WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: portfolio_db
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
+      WORDPRESS_DB_USER: wp_dev_user
+      WORDPRESS_DB_PASSWORD: SecureWP2024!
+      WORDPRESS_DB_NAME: gemini_db
+      WORDPRESS_DEBUG: true
+      WORDPRESS_DEBUG_DISPLAY: true
+      WORDPRESS_DEBUG_LOG: true
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', 'portfolio_db');
+        define('WP_CACHE_KEY_SALT', 'gemini_db');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
         define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
+        define('WP_DEBUG_DISPLAY', true);
         define('WP_DEBUG_LOG', true);
         define('SCRIPT_DEBUG', true);
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress_portfolio:/var/www/html
+      - ./wordpress_gemini:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress_portfolio:/var/log/wordpress
+      - ./logs/wordpress_gemini:/var/log/wordpress
     networks:
       - wp-network
 
-  # Nginx proxy for portfolio
-  nginx_portfolio:
-    image: nginx:alpine
-    container_name: nginx_portfolio
-    restart: unless-stopped
-    depends_on:
-      - wordpress_portfolio
-    volumes:
-      - ./wordpress_portfolio:/var/www/html:ro
-      - ./config/nginx/portfolio.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - wp-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.portfolio.rule=Host(`portfolio.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.portfolio.tls=true"
-      - "traefik.http.routers.portfolio.middlewares=security-headers"
-      - "traefik.http.services.portfolio.loadbalancer.server.port=80"
-
-  # WordPress instance: demo
-  wordpress_demo:
+  # WordPress instance: gemini
+  wordpress_gemini:
     image: wordpress:php8.3-fpm
-    container_name: wp_demo
+    container_name: wp_gemini
     restart: unless-stopped
     depends_on:
       - db-primary
@@ -524,105 +391,28 @@ services:
       - memcached
     environment:
       WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: demo_db
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
+      WORDPRESS_DB_USER: wp_dev_user
+      WORDPRESS_DB_PASSWORD: SecureWP2024!
+      WORDPRESS_DB_NAME: gemini_db
+      WORDPRESS_DEBUG: true
+      WORDPRESS_DEBUG_DISPLAY: true
+      WORDPRESS_DEBUG_LOG: true
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_REDIS_HOST', 'redis');
         define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', 'demo_db');
+        define('WP_CACHE_KEY_SALT', 'gemini_db');
         define('WP_ENVIRONMENT_TYPE', 'development');
         define('AUTOMATIC_UPDATER_DISABLED', true);
         define('WP_AUTO_UPDATE_CORE', false);
         define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
+        define('WP_DEBUG_DISPLAY', true);
         define('WP_DEBUG_LOG', true);
         define('SCRIPT_DEBUG', true);
         define('SAVEQUERIES', true);
         define('WP_MEMORY_LIMIT', '512M');
     volumes:
-      - ./wordpress_demo:/var/www/html
+      - ./wordpress_gemini:/var/www/html
       - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress_demo:/var/log/wordpress
+      - ./logs/wordpress_gemini:/var/log/wordpress
     networks:
       - wp-network
-
-  # Nginx proxy for demo
-  nginx_demo:
-    image: nginx:alpine
-    container_name: nginx_demo
-    restart: unless-stopped
-    depends_on:
-      - wordpress_demo
-    volumes:
-      - ./wordpress_demo:/var/www/html:ro
-      - ./config/nginx/demo.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - wp-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.demo.rule=Host(`demo.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.demo.tls=true"
-      - "traefik.http.routers.demo.middlewares=security-headers"
-      - "traefik.http.services.demo.loadbalancer.server.port=80"
-
-  # WordPress instance: testfix
-  wordpress_testfix:
-    image: wordpress:php8.3-fpm
-    container_name: wp_testfix
-    restart: unless-stopped
-    depends_on:
-      - db-primary
-      - redis
-      - memcached
-    environment:
-      WORDPRESS_DB_HOST: db-primary:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
-      WORDPRESS_DB_NAME: testfix_db
-      WORDPRESS_DEBUG: ${WORDPRESS_DEBUG}
-      WORDPRESS_DEBUG_DISPLAY: ${WORDPRESS_DEBUG_DISPLAY}
-      WORDPRESS_DEBUG_LOG: ${WORDPRESS_DEBUG_LOG}
-      WORDPRESS_CONFIG_EXTRA: |
-        define('WP_REDIS_HOST', 'redis');
-        define('WP_REDIS_PORT', 6379);
-        define('WP_CACHE_KEY_SALT', 'testfix_db');
-        define('WP_ENVIRONMENT_TYPE', 'development');
-        define('AUTOMATIC_UPDATER_DISABLED', true);
-        define('WP_AUTO_UPDATE_CORE', false);
-        define('DISALLOW_FILE_EDIT', false);
-        define('WP_DEBUG_DISPLAY', ${WORDPRESS_DEBUG_DISPLAY});
-        define('WP_DEBUG_LOG', true);
-        define('SCRIPT_DEBUG', true);
-        define('SAVEQUERIES', true);
-        define('WP_MEMORY_LIMIT', '512M');
-    volumes:
-      - ./wordpress_testfix:/var/www/html
-      - ./config/php:/usr/local/etc/php/conf.d:ro
-      - ./logs/wordpress_testfix:/var/log/wordpress
-    networks:
-      - wp-network
-
-  # Nginx proxy for testfix
-  nginx_testfix:
-    image: nginx:alpine
-    container_name: nginx_testfix
-    restart: unless-stopped
-    depends_on:
-      - wordpress_testfix
-    volumes:
-      - ./wordpress_testfix:/var/www/html:ro
-      - ./config/nginx/testfix.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./logs/nginx:/var/log/nginx
-    networks:
-      - wp-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.testfix.rule=Host(`testfix.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.routers.testfix.tls=true"
-      - "traefik.http.routers.testfix.middlewares=security-headers"
-      - "traefik.http.services.testfix.loadbalancer.server.port=80"
