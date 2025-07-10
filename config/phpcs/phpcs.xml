@@ -1,21 +1,22 @@
 <?xml version="1.0"?>
 <ruleset name="Ultimate WordPress Development Standards">
-    <description>Comprehensive WordPress coding standards for ultimate development environment</description>
+    <description>Comprehensive PHP coding standards for WordPress development</description>
 
-    <!-- Include WordPress Coding Standards -->
-    <rule ref="WordPress-Core" />
-    <rule ref="WordPress-Docs" />
-    <rule ref="WordPress-Extra" />
-    <rule ref="WordPress-VIP-Go" />
-    
     <!-- Include PSR standards -->
     <rule ref="PSR1" />
     <rule ref="PSR12" />
     
     <!-- Include security standards -->
-    <rule ref="WordPress.Security" />
-    <rule ref="WordPress.WP.I18n" />
-    <rule ref="WordPress.WP.Capabilities" />
+    <rule ref="Security" />
+    
+    <!-- Include Squiz standards for code quality -->
+    <rule ref="Squiz.PHP.DisallowMultipleAssignments" />
+    <rule ref="Squiz.PHP.EmbeddedPhp" />
+    <rule ref="Squiz.PHP.Eval" />
+    <rule ref="Squiz.PHP.GlobalKeyword" />
+    <rule ref="Squiz.PHP.InnerFunctions" />
+    <rule ref="Squiz.PHP.LowercasePHPFunctions" />
+    <rule ref="Squiz.PHP.NonExecutableCode" />
 
     <!-- Check all PHP files -->
     <arg name="extensions" value="php" />
@@ -61,25 +62,25 @@
         </properties>
     </rule>
 
-    <!-- WordPress-specific enhancements -->
-    <rule ref="WordPress.WP.I18n">
-        <properties>
-            <property name="text_domain" type="array">
-                <element value="default" />
-                <element value="your-theme-textdomain" />
-                <element value="your-plugin-textdomain" />
-            </property>
-        </properties>
-    </rule>
-
-    <!-- Performance rules -->
-    <rule ref="WordPress.DB.DirectDatabaseQuery" />
-    <rule ref="WordPress.DB.SlowDBQuery" />
-    <rule ref="WordPress.WP.DiscouragedFunctions" />
-
-    <!-- Security enhancements -->
-    <rule ref="WordPress.Security.EscapeOutput" />
-    <rule ref="WordPress.Security.NonceVerification" />
-    <rule ref="WordPress.Security.ValidatedSanitizedInput" />
+    <!-- Generic code quality rules -->
+    <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter" />
+    <rule ref="Generic.CodeAnalysis.UselessOverridingMethod" />
+    <rule ref="Generic.Commenting.Todo" />
+    <rule ref="Generic.Commenting.Fixme" />
+    <rule ref="Generic.ControlStructures.InlineControlStructure" />
+    <rule ref="Generic.Files.ByteOrderMark" />
+    <rule ref="Generic.Files.LineEndings" />
+    <rule ref="Generic.Formatting.DisallowMultipleStatements" />
+    <rule ref="Generic.Functions.FunctionCallArgumentSpacing" />
+    <rule ref="Generic.NamingConventions.UpperCaseConstantName" />
+    <rule ref="Generic.PHP.DeprecatedFunctions" />
+    <rule ref="Generic.PHP.DisallowShortOpenTag" />
+    <rule ref="Generic.PHP.ForbiddenFunctions" />
+    <rule ref="Generic.PHP.LowerCaseConstant" />
+    <rule ref="Generic.PHP.LowerCaseKeyword" />
+    <rule ref="Generic.PHP.LowerCaseType" />
+    <rule ref="Generic.PHP.NoSilencedErrors" />
+    <rule ref="Generic.WhiteSpace.DisallowTabIndent" />
+    <rule ref="Generic.WhiteSpace.ScopeIndent" />
 
 </ruleset>

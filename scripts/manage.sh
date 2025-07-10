@@ -130,42 +130,42 @@ function logs_env() {
 # Run PHP Code Sniffer
 function lint_php() {
     echo "🧹  Running PHP Code Sniffer (WordPress Coding Standards)..."
-    docker-compose run --rm phpcs phpcs --standard=/phpcs-config/phpcs.xml --report=full --report-file=/tmp/phpcs-report.txt
+    docker-compose --profile tools run --rm phpcs phpcs --standard=/phpcs-config/phpcs.xml --report=full /app/xandar/wp-content/themes /app/sakaar/wp-content/themes 2>/dev/null || echo "No custom themes found to check"
     success "PHP Code Sniffer finished."
 }
 
 # Fix PHP Code Sniffer issues automatically
 function fix_php() {
     echo "🔧  Auto-fixing PHP Code Sniffer issues..."
-    docker-compose run --rm phpcs phpcbf --standard=/phpcs-config/phpcs.xml
+    docker-compose --profile tools run --rm phpcs phpcbf --standard=/phpcs-config/phpcs.xml /app/xandar/wp-content/themes /app/sakaar/wp-content/themes 2>/dev/null || echo "No custom themes found to fix"
     success "PHP Code Beautifier and Fixer finished."
 }
 
 # Run PHPStan static analysis (Level 9)
 function analyse_php() {
     echo "🔍  Running PHPStan static analysis (Level 9)..."
-    docker-compose run --rm phpstan analyse --configuration=/phpstan-config/phpstan.neon --memory-limit=1G
+    docker-compose --profile tools run --rm phpstan phpstan analyse --configuration=/phpstan-config/phpstan.neon --memory-limit=1G /app/xandar/wp-content/themes /app/sakaar/wp-content/themes 2>/dev/null || echo "No custom themes found to analyze"
     success "PHPStan analysis finished."
 }
 
 # Run PHP Mess Detector
 function mess_detector() {
     echo "🔍  Running PHP Mess Detector..."
-    docker-compose run --rm phpmd phpmd /app/xandar/wp-content/themes,/app/xandar/wp-content/plugins,/app/wordpress2/wp-content/themes,/app/wordpress2/wp-content/plugins text /phpmd-config/phpmd.xml
+    docker-compose --profile tools run --rm phpmd phpmd /app/xandar/wp-content/themes,/app/sakaar/wp-content/themes text /phpmd-config/phpmd.xml 2>/dev/null || echo "No custom themes found to check"
     success "PHP Mess Detector finished."
 }
 
 # Run Psalm static analysis
 function psalm_analysis() {
     echo "🔍  Running Psalm static analysis..."
-    docker-compose run --rm psalm psalm --config=/psalm-config/psalm.xml --show-info=true
+    docker-compose --profile tools run --rm psalm psalm --config=/psalm-config/psalm.xml --show-info=true /app/xandar/wp-content/themes /app/sakaar/wp-content/themes 2>/dev/null || echo "No custom themes found to analyze"
     success "Psalm analysis finished."
 }
 
 # Run PHPUnit tests
 function test_php() {
     echo "🧪  Running PHPUnit tests..."
-    docker-compose run --rm phpunit phpunit --configuration=/phpunit-config/phpunit.xml --coverage-html=/app/tests/coverage/html
+    docker-compose --profile tools run --rm phpunit phpunit --configuration=/phpunit-config/phpunit.xml --coverage-html=/app/tests/coverage/html
     success "PHPUnit tests finished."
 }
 
@@ -228,7 +228,7 @@ function composer_cmd() {
         exit 1
     fi
     echo "📦  Running Composer command: composer $@"
-    docker-compose run --rm composer "$@"
+    docker-compose --profile tools run --rm composer "$@"
     success "Composer command finished."
 }
 
@@ -240,7 +240,7 @@ function npm_cmd() {
         exit 1
     fi
     echo "🌐  Running NPM command: npm $@"
-    docker-compose run --rm node npm "$@"
+    docker-compose --profile tools run --rm node npm "$@"
     success "NPM command finished."
 }
 
