@@ -56,15 +56,16 @@ function get_wordpress_sites() {
     # Get predefined sites from docker-compose.yml and actual directories
     local sites=()
     
-    # Check for xandar and sakaar (predefined sites)
+    # Check for xandar (predefined site)
     if [[ -d "$PROJECT_ROOT/xandar" ]]; then
         sites+=("xandar")
     fi
-    if [[ -d "$PROJECT_ROOT/sakaar" ]]; then
-        sites+=("sakaar")
-    fi
     
-    # Check for dynamically created sites (wordpress_* pattern)
+    # Check for dynamically created sites (asgard and wordpress_* pattern)
+    if [[ -d "$PROJECT_ROOT/asgard" ]]; then
+        sites+=("asgard")
+    fi
+
     if ls "$PROJECT_ROOT"/wordpress_* >/dev/null 2>&1; then
         for dir in "$PROJECT_ROOT"/wordpress_*; do
             if [[ -d "$dir" ]]; then
@@ -86,8 +87,8 @@ function get_running_sites() {
     if docker-compose ps xandar 2>/dev/null | grep -E "(Up|Restarting)" >/dev/null; then
         running_sites+=("xandar")
     fi
-    if docker-compose ps sakaar 2>/dev/null | grep -E "(Up|Restarting)" >/dev/null; then
-        running_sites+=("sakaar")
+    if docker-compose ps asgard 2>/dev/null | grep -E "(Up|Restarting)" >/dev/null; then
+        running_sites+=("asgard")
     fi
     
     # Check dynamic sites
@@ -108,7 +109,7 @@ function site_exists() {
     local site_name="$1"
     
     # Check for predefined sites
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         [[ -d "$PROJECT_ROOT/$site_name" ]]
     else
         # Check for dynamic sites
@@ -120,7 +121,7 @@ function service_running() {
     local site_name="$1"
     
     # Check for predefined sites
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         # Check if the container is running (Up) or restarting
         docker-compose ps "$site_name" 2>/dev/null | grep -E "(Up|Restarting)" >/dev/null
     else
@@ -132,18 +133,22 @@ function service_running() {
 function get_service_names() {
     local site_name="$1"
     
-    if [[ "$site_name" == "xandar" ]]; then
-        echo "xandar nginx-wp1"
-    elif [[ "$site_name" == "sakaar" ]]; then
-        echo "sakaar nginx-wp1"
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
+        echo "$site_name"
     else
-        echo "wordpress_$site_name nginx_$site_name"
+        echo "wordpress_$site_name"
     fi
 }
 
 function get_site_url() {
     local site_name="$1"
-    echo "https://${site_name}.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+    local port_var_name="$(echo ${site_name} | tr '[:lower:]' '[:upper:]')_PORT"
+    local port=$(eval echo "\$port_var_name")
+    if [[ -z "$port" ]]; then
+        echo "http://localhost:????" # Fallback if port not found
+    else
+        echo "http://localhost:$port"
+    fi
 }
 
 # --- Site Management Functions ---
@@ -222,7 +227,7 @@ function start_site() {
     local services=($(get_service_names "$site_name"))
     
     # Start the site services
-    docker-compose up -d "${services[@]}"
+    docker-compose up -d "$site_name"
     
     # Wait a moment and check status
     sleep 5
@@ -265,12 +270,7 @@ function stop_site() {
     # Get the correct service names
     local services=($(get_service_names "$site_name"))
     
-    # For predefined sites, only stop the WordPress service, not nginx
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
-        docker-compose stop "$site_name"
-    else
-        docker-compose stop "${services[@]}"
-    fi
+    docker-compose stop "${services[@]}"
     
     success "Site '$site_name' stopped successfully"
 }
@@ -299,7 +299,7 @@ function remove_site() {
     fi
     
     # Prevent removal of predefined sites
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         error "Cannot remove predefined site '$site_name'"
         echo "Use 'stop' command instead to stop the site."
         return 1
@@ -316,9 +316,6 @@ function remove_site() {
     echo "This will remove:"
     echo "• WordPress files: ./wordpress_$site_name/"
     echo "• Database: ${site_name}_db"
-    echo "• Nginx configuration"
-    echo "• Docker services"
-    echo "• Log files"
     echo ""
     
     read -p "Are you sure you want to remove '$site_name'? [y/N]: " confirm
@@ -351,7 +348,6 @@ function remove_site() {
     info "Removing files..."
     rm -rf "$PROJECT_ROOT/wordpress_$site_name"
     rm -rf "$PROJECT_ROOT/logs/wordpress_$site_name"
-    rm -f "$PROJECT_ROOT/config/nginx/${site_name}.conf"
     
     success "Site '$site_name' removed successfully"
 }
@@ -391,12 +387,31 @@ function validate_site_name_for_creation() {
     fi
     
     # Check for predefined site conflicts
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         error "Cannot use reserved site name '$site_name'"
         return 1
     fi
     
     return 0
+}
+
+function get_next_available_port() {
+    local max_port=8000
+    # Read docker-compose.yml to find the highest port used by WordPress services
+    local compose_content=$(cat "$COMPOSE_FILE")
+    
+    # Regex to find ports in the format "XXXX:80"
+    # This will capture the external port number
+    while IFS= read -r line; do
+        if [[ $line =~ -\ "([0-9]+):80" ]]; then
+            local current_port=${BASH_REMATCH[1]}
+            if (( current_port > max_port )); then
+                max_port=$current_port
+            fi
+        fi
+    done <<< "$compose_content"
+    
+    echo $((max_port + 1))
 }
 
 function create_site_directory() {
@@ -410,81 +425,25 @@ function create_site_directory() {
     success "Created directory: wordpress_$site_name"
 }
 
-function create_nginx_config() {
-    local site_name="$1"
-    info "Creating Nginx configuration..."
-    
-    local nginx_config="$PROJECT_ROOT/config/nginx/${site_name}.conf"
-    
-    cat > "$nginx_config" << EOF
-server {
-    listen 80;
-    server_name ${site_name}.${DOMAIN_SUFFIX:-127.0.0.1.nip.io};
-    root /var/www/html;
-    index index.php index.html index.htm;
 
-    # Site: $site_name
-    # Created: $(date)
-    
-    # Security headers
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header X-Content-Type-Options "nosniff" always;
-
-    # WordPress specific rules
-    location = /favicon.ico {
-        log_not_found off;
-        access_log off;
-    }
-
-    location = /robots.txt {
-        allow all;
-        log_not_found off;
-        access_log off;
-    }
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$args;
-    }
-
-    location ~ \.php$ {
-        include fastcgi_params;
-        fastcgi_intercept_errors on;
-        fastcgi_pass wordpress_${site_name}:9000;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        fastcgi_param PATH_INFO \$fastcgi_path_info;
-        fastcgi_read_timeout 300;
-    }
-
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # Deny access to sensitive files
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
-    
-    success "Created Nginx config: ${site_name}.conf"
-}
 
 function update_env_file() {
     local site_name="$1"
+    local port_number="$2"
     info "Updating environment file..."
     
     # Add database configuration to .env
     echo "" >> "$PROJECT_ROOT/.env"
-    echo "# Database for $site_name" >> "$PROJECT_ROOT/.env"
+    echo "# Configuration for $site_name" >> "$PROJECT_ROOT/.env"
     echo "$(echo ${site_name} | tr '[:lower:]' '[:upper:]')_DB_NAME=${site_name}_db" >> "$PROJECT_ROOT/.env"
+    echo "$(echo ${site_name} | tr '[:lower:]' '[:upper:]')_PORT=${port_number}" >> "$PROJECT_ROOT/.env"
     
     success "Updated .env file"
 }
 
 function generate_docker_service() {
     local site_name="$1"
+    local port_number="$2"
     info "Adding Docker services..."
     
     # Create temporary file with new services
@@ -573,7 +532,7 @@ function start_new_site() {
     docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog file-sync
     
     # Start the site-specific services
-    docker-compose up -d wordpress_${site_name} nginx_${site_name}
+    docker-compose up -d wordpress_${site_name}
     
     # Wait a moment for services to start
     sleep 5
@@ -582,8 +541,8 @@ function start_new_site() {
         success "Site services started successfully"
         echo ""
         echo "Supporting services available:"
-        echo "• phpMyAdmin: https://phpmyadmin.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
-        echo "• MailHog: https://mailhog.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+        echo "• phpMyAdmin: http://localhost:8080/phpmyadmin"
+        echo "• MailHog: http://localhost:8025"
         echo "• Traefik Dashboard: http://localhost:8080"
     else
         error "Failed to start site services"
@@ -603,13 +562,14 @@ function setup_wordpress() {
 
 function show_creation_completion() {
     local site_name="$1"
+    local site_url=$(get_site_url "$site_name")
     header "Site Creation Complete!"
     
     echo "Your new WordPress site '$site_name' has been created successfully!"
     echo ""
     echo "Site Details:"
     echo "  Name: $site_name"
-    echo "  URL: https://${site_name}.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+    echo "  URL: $site_url"
     echo "  Directory: ./wordpress_${site_name}/"
     echo "  Database: ${site_name}_db"
     echo ""
@@ -620,7 +580,7 @@ function show_creation_completion() {
     echo "  Remove:  ./scripts/manage-sites.sh remove $site_name"
     echo ""
     echo "Next Steps:"
-    echo "1. Visit https://${site_name}.${DOMAIN_SUFFIX:-127.0.0.1.nip.io} to access your site"
+    echo "1. Visit $site_url to access your site"
     echo "2. Complete WordPress installation"
     echo "3. Start developing!"
 }
@@ -659,6 +619,7 @@ function create_site() {
     # Set defaults
     local wp_version="latest"
     local php_version="${PHP_VERSION:-8.3}"
+    local port=$(get_next_available_port)
     
     # Show configuration
     echo ""
@@ -666,7 +627,8 @@ function create_site() {
     echo "  Name: $site_name"
     echo "  WordPress: $wp_version"
     echo "  PHP: $php_version"
-    echo "  URL: https://${site_name}.${DOMAIN_SUFFIX:-127.0.0.1.nip.io}"
+    echo "  Port: $port"
+    echo "  URL: http://localhost:$port"
     echo ""
     
     # Confirm creation if not provided as argument
@@ -685,9 +647,12 @@ function create_site() {
     header "Creating WordPress Site: $site_name"
     
     create_site_directory "$site_name"
-    create_nginx_config "$site_name"
-    update_env_file "$site_name"
-    generate_docker_service "$site_name"
+    update_env_file "$site_name" "$port"
+    # Reload environment variables to include the new site's port
+    set -a
+    source "$PROJECT_ROOT/.env"
+    set +a
+    generate_docker_service "$site_name" "$port"
     create_database "$site_name"
     start_new_site "$site_name"
     setup_wordpress "$site_name"
@@ -716,7 +681,7 @@ function show_site_info() {
     echo -e "${CYAN}Basic Information:${NC}"
     echo "• Site Name: $site_name"
     
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         echo "• Directory: ./$site_name/"
         echo "• Type: Predefined site"
     else
@@ -733,7 +698,7 @@ function show_site_info() {
     echo -e "${CYAN}Status:${NC}"
     if service_running "$site_name"; then
         echo -e "• WordPress Container: ${GREEN}Running${NC}"
-        if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+        if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
             echo -e "• Nginx Container: ${GREEN}Running (shared)${NC}"
         else
             echo -e "• Nginx Container: ${GREEN}Running${NC}"
@@ -747,7 +712,7 @@ function show_site_info() {
     # File info
     echo -e "${CYAN}File Information:${NC}"
     local site_dir=""
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         site_dir="$PROJECT_ROOT/$site_name"
     else
         site_dir="$PROJECT_ROOT/wordpress_$site_name"
@@ -760,12 +725,12 @@ function show_site_info() {
     
     if [[ -f "$PROJECT_ROOT/config/nginx/${site_name}.conf" ]]; then
         echo "• Nginx Config: ./config/nginx/${site_name}.conf"
-    elif [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    elif [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         echo "• Nginx Config: ./config/nginx/unified-wordpress.conf (shared)"
     fi
     
     local log_dir=""
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         log_dir="$PROJECT_ROOT/logs/$site_name"
     else
         log_dir="$PROJECT_ROOT/logs/wordpress_$site_name"
@@ -781,8 +746,8 @@ function show_site_info() {
     local db_name=""
     if [[ "$site_name" == "xandar" ]]; then
         db_name="${WORDPRESS_1_DB_NAME:-xandar}"
-    elif [[ "$site_name" == "sakaar" ]]; then
-        db_name="${WORDPRESS_2_DB_NAME:-sakaar}"
+    elif [[ "$site_name" == "asgard" ]]; then
+        db_name="asgard_db"
     else
         db_name="${site_name}_db"
     fi
@@ -806,18 +771,19 @@ function show_site_info() {
     echo "• Start: ./scripts/manage-sites.sh start $site_name"
     echo "• Stop: ./scripts/manage-sites.sh stop $site_name"
     echo "• Restart: ./scripts/manage-sites.sh restart $site_name"
-    if [[ "$site_name" != "xandar" && "$site_name" != "sakaar" ]]; then
+    if [[ "$site_name" != "xandar" && "$site_name" != "asgard" ]]; then
         echo "• Remove: ./scripts/manage-sites.sh remove $site_name"
     fi
     
     local service_name=""
-    if [[ "$site_name" == "xandar" || "$site_name" == "sakaar" ]]; then
+    if [[ "$site_name" == "xandar" || "$site_name" == "asgard" ]]; then
         service_name="$site_name"
     else
         service_name="wordpress_$site_name"
     fi
     echo "• Logs: ./scripts/manage.sh logs $service_name"
     echo ""
+}
 }
 
 function show_help() {
@@ -845,14 +811,14 @@ function show_help() {
             echo "  • $site"
         done
     else
-        echo "  • No sites found. Use './scripts/manage.sh start' to start predefined sites."
+        echo "  • No sites found. Use './scripts/manage.sh start xandar' to start the xandar site."
     fi
     echo ""
     echo -e "${CYAN}Examples:${NC}"
     echo "  $0 list"
     echo "  $0 create myproject"
     echo "  $0 start xandar"
-    echo "  $0 stop sakaar"
+    echo "  $0 stop asgard"
     echo "  $0 info xandar"
     echo "  $0 remove myproject"
     echo ""
