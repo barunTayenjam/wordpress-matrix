@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.sql
+*.tar.gz
+
+# Environment files
+.env*
+
+# WordPress uploads and cache
+wordpress*/wp-content/uploads/
+wordpress*/wp-content/cache/
+wordpress*/wp-content/backup*/
+
+# Node modules
+node_modules/
+npm-debug.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+tmp/
+temp/
+*.tmp
