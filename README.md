@@ -21,11 +21,31 @@ cd wordpress-matrix
 This command will start all the necessary services and run health checks to ensure everything is running correctly.
 
 ### 3. Access Your Sites
-- **WordPress 1**: [http://xandar.127.0.0.1.nip.io](http://xandar.127.0.0.1.nip.io)
-- **WordPress 2**: [http://sakaar.127.0.0.1.nip.io](http://sakaar.127.0.0.1.nip.io)
-- **Traefik Dashboard**: [http://traefik.127.0.0.1.nip.io](http://traefik.127.0.0.1.nip.io)
-- **phpMyAdmin**: [http://phpmyadmin.127.0.0.1.nip.io](http://phpmyadmin.127.0.0.1.nip.io)
-- **MailHog**: [http://mailhog.127.0.0.1.nip.io](http://mailhog.127.0.0.1.nip.io)
+
+#### 🌐 Domain-based Access (via Traefik)
+- **xandar**: [https://xandar.127.0.0.1.nip.io](https://xandar.127.0.0.1.nip.io)
+- **sakaar**: [https://sakaar.127.0.0.1.nip.io](https://sakaar.127.0.0.1.nip.io)
+- **wand**: [https://wand.127.0.0.1.nip.io](https://wand.127.0.0.1.nip.io)
+- **testsite**: [https://testsite.127.0.0.1.nip.io](https://testsite.127.0.0.1.nip.io)
+- **portfolio**: [https://portfolio.127.0.0.1.nip.io](https://portfolio.127.0.0.1.nip.io)
+- **demo**: [https://demo.127.0.0.1.nip.io](https://demo.127.0.0.1.nip.io)
+- **testfix**: [https://testfix.127.0.0.1.nip.io](https://testfix.127.0.0.1.nip.io)
+- **gemini**: [https://gemini.127.0.0.1.nip.io](https://gemini.127.0.0.1.nip.io)
+
+#### 🔌 Port-based Direct Access (for development/debugging)
+- **xandar**: [http://localhost:8001](http://localhost:8001)
+- **sakaar**: [http://localhost:8002](http://localhost:8002)
+- **wand**: [http://localhost:8003](http://localhost:8003)
+- **testsite**: [http://localhost:8004](http://localhost:8004)
+- **portfolio**: [http://localhost:8005](http://localhost:8005)
+- **demo**: [http://localhost:8006](http://localhost:8006)
+- **testfix**: [http://localhost:8007](http://localhost:8007)
+- **gemini**: [http://localhost:8008](http://localhost:8008)
+
+#### 🛠️ Management Tools
+- **Traefik Dashboard**: [http://localhost:8080](http://localhost:8080)
+- **phpMyAdmin**: [https://phpmyadmin.127.0.0.1.nip.io](https://phpmyadmin.127.0.0.1.nip.io)
+- **MailHog**: [https://mailhog.127.0.0.1.nip.io](https://mailhog.127.0.0.1.nip.io)
 
 ### Default Credentials
 - **WordPress Admin**: `admin` / `admin`
@@ -37,6 +57,26 @@ This command will start all the necessary services and run health checks to ensu
 ## 🛠️ Environment Management
 
 Use the `manage.sh` script to control your environment. This is the central tool for all operations.
+
+## 🔄 Dual Access Methods
+
+This WordPress Matrix provides **two ways** to access your sites:
+
+### 🌐 Domain-based Access (Production-like)
+- **URL Pattern**: `https://{sitename}.127.0.0.1.nip.io`
+- **Routing**: Traefik → Nginx → WordPress
+- **Features**: SSL termination, load balancing, production-like setup
+- **Use Case**: Testing in production-like environment
+
+### 🔌 Port-based Direct Access (Development)
+- **URL Pattern**: `http://localhost:{port}`
+- **Routing**: Direct Nginx → WordPress (bypasses Traefik)
+- **Features**: Direct access, faster debugging, no SSL overhead
+- **Use Case**: Development, debugging, testing individual sites
+
+**Port Assignments:**
+- xandar: 8001 | sakaar: 8002 | wand: 8003 | testsite: 8004
+- portfolio: 8005 | demo: 8006 | testfix: 8007 | gemini: 8008
 
 ```bash
 # Start the environment (with health checks)
@@ -50,6 +90,9 @@ Use the `manage.sh` script to control your environment. This is the central tool
 
 # Check the status of all services
 ./scripts/manage.sh status
+
+# Check port-based access status
+./scripts/manage.sh port-status
 
 # View the logs of a specific service
 ./scripts/manage.sh logs xandar

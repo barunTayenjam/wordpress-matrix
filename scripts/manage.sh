@@ -18,7 +18,7 @@ fi
 
 # Services to check for health.
 # Add any critical services that have a health check defined in docker-compose.yml.
-HEALTH_CHECK_SERVICES=("db-primary" "nginx-wp1")
+HEALTH_CHECK_SERVICES=("db-primary" "nginx" "redis" "nginx-xandar" "nginx-sakaar" "nginx-wand" "nginx-testsite" "nginx-portfolio" "nginx-demo" "nginx-testfix" "nginx-gemini")
 
 # Time to wait for services to become healthy (in seconds).
 HEALTH_CHECK_TIMEOUT=600
@@ -85,10 +85,30 @@ function start_env() {
 
     echo "
 🌐  Access your services at:"
-    echo "    - WordPress 1: https://xandar.${DOMAIN_SUFFIX}"
-    echo "    - WordPress 2: https://sakaar.${DOMAIN_SUFFIX}"
+    echo "    === Domain-based Access (via Traefik) ==="
+    echo "    - xandar:      https://xandar.${DOMAIN_SUFFIX}"
+    echo "    - sakaar:      https://sakaar.${DOMAIN_SUFFIX}"
+    echo "    - wand:        https://wand.${DOMAIN_SUFFIX}"
+    echo "    - testsite:    https://testsite.${DOMAIN_SUFFIX}"
+    echo "    - portfolio:   https://portfolio.${DOMAIN_SUFFIX}"
+    echo "    - demo:        https://demo.${DOMAIN_SUFFIX}"
+    echo "    - testfix:     https://testfix.${DOMAIN_SUFFIX}"
+    echo "    - gemini:      https://gemini.${DOMAIN_SUFFIX}"
+    echo ""
+    echo "    === Port-based Direct Access ==="
+    echo "    - xandar:      http://localhost:${XANDAR_PORT}"
+    echo "    - sakaar:      http://localhost:${SAKAAR_PORT}"
+    echo "    - wand:        http://localhost:${WAND_PORT}"
+    echo "    - testsite:    http://localhost:${TESTSITE_PORT}"
+    echo "    - portfolio:   http://localhost:${PORTFOLIO_PORT}"
+    echo "    - demo:        http://localhost:${DEMO_PORT}"
+    echo "    - testfix:     http://localhost:${TESTFIX_PORT}"
+    echo "    - gemini:      http://localhost:${GEMINI_PORT}"
+    echo ""
+    echo "    === Management Tools ==="
     echo "    - phpMyAdmin:  https://phpmyadmin.${DOMAIN_SUFFIX}"
     echo "    - MailHog:     https://mailhog.${DOMAIN_SUFFIX}"
+    echo "    - Traefik:     http://localhost:8080"
 }
 
 # Stop the environment.
@@ -267,6 +287,40 @@ function restore_db() {
     success "Database restored from ${BACKUP_FILE}."
 }
 
+# Show port status for all WordPress sites
+function port_status() {
+    echo "🔌  WordPress Sites Port Status:"
+    echo ""
+    
+    # Define sites and their ports (compatible with older bash)
+    sites="xandar:${XANDAR_PORT} sakaar:${SAKAAR_PORT} wand:${WAND_PORT} testsite:${TESTSITE_PORT} portfolio:${PORTFOLIO_PORT} demo:${DEMO_PORT} testfix:${TESTFIX_PORT} gemini:${GEMINI_PORT}"
+    
+    for site_port in $sites; do
+        site=$(echo $site_port | cut -d: -f1)
+        port=$(echo $site_port | cut -d: -f2)
+        container="nginx-${site}"
+        
+        # Check if container is running
+        if docker-compose ps -q "$container" >/dev/null 2>&1 && docker-compose ps "$container" | grep -q "Up"; then
+            # Test if port is accessible
+            if curl -s -o /dev/null -w "%{http_code}" "http://localhost:${port}/health" 2>/dev/null | grep -q "200"; then
+                echo "    ✅  $site: http://localhost:$port (Healthy)"
+            else
+                echo "    ⚠️   $site: http://localhost:$port (Container up, but not responding)"
+            fi
+        else
+            echo "    ❌  $site: http://localhost:$port (Container not running)"
+        fi
+    done
+    
+    echo ""
+    echo "🌐  Domain-based access (via Traefik):"
+    for site_port in $sites; do
+        site=$(echo $site_port | cut -d: -f1)
+        echo "    🔗  $site: https://$site.${DOMAIN_SUFFIX}"
+    done
+}
+
 # --- Main Script ---
 
 case "$1" in
@@ -281,6 +335,9 @@ case "$1" in
         ;;
     status)
         status_env
+        ;;
+    port-status)
+        port_status
         ;;
     logs)
         logs_env "$2"
@@ -351,6 +408,7 @@ case "$1" in
         echo "   stop           - Stop the development environment"
         echo "   restart        - Restart the development environment"
         echo "   status         - Show status of all services"
+        echo "   port-status    - Show port-based access status for all sites"
         echo "   logs [service] - Show logs for a service"
         echo ""
         echo "🌐  Site Management:"
