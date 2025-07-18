@@ -221,7 +221,7 @@ function start_site() {
     
     # Start supporting services first (if not already running)
     info "Ensuring supporting services are running..."
-    docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog file-sync
+    docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog
     
     # Get the correct service names for the site
     local services=($(get_service_names "$site_name"))
@@ -397,20 +397,13 @@ function validate_site_name_for_creation() {
 
 function get_next_available_port() {
     local max_port=8000
-    # Read docker-compose.yml to find the highest port used by WordPress services
-    local compose_content=$(cat "$COMPOSE_FILE")
-    
-    # Regex to find ports in the format "XXXX:80"
-    # This will capture the external port number
-    while IFS= read -r line; do
-        if [[ $line =~ -\ "([0-9]+):80" ]]; then
-            local current_port=${BASH_REMATCH[1]}
-            if (( current_port > max_port )); then
-                max_port=$current_port
-            fi
-        fi
-    done <<< "$compose_content"
-    
+    # Extract all port numbers from docker-compose.yml and find the maximum
+    local ports=$(grep -E 'ports: *- *"[0-9]+:80"' "$COMPOSE_FILE" | sed -E 's/.*"([0-9]+):80".*/\1/' | sort -nr)
+
+    if [[ -n "$ports" ]]; then
+        max_port=$(echo "$ports" | head -n 1)
+    fi
+
     echo $((max_port + 1))
 }
 
@@ -423,6 +416,20 @@ function create_site_directory() {
     mkdir -p "$PROJECT_ROOT/logs/wordpress_$site_name"
     
     success "Created directory: wordpress_$site_name"
+}
+
+function copy_wordpress_core() {
+    local site_name="$1"
+    info "Copying WordPress core files..."
+    local site_dir="$PROJECT_ROOT/wordpress_$site_name"
+
+    # Use a temporary container to copy WordPress files
+    local temp_container_name="wp_temp_copy_$(date +%s)"
+    docker run --rm --name "$temp_container_name" \
+        -v "$site_dir":/var/www/html \
+        wordpress:latest bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
+
+    success "Copied WordPress core files to wordpress_$site_name"
 }
 
 
@@ -454,6 +461,8 @@ function generate_docker_service() {
     image: wordpress:php${PHP_VERSION:-8.3}-fpm
     container_name: wp_${site_name}
     restart: unless-stopped
+    ports:
+      - "${port_number}:80"
     depends_on:
       - db-primary
       - redis
@@ -529,7 +538,7 @@ function start_new_site() {
     
     # Start supporting services first (if not already running)
     info "Ensuring supporting services are running..."
-    docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog file-sync
+    docker-compose up -d traefik db-primary redis memcached phpmyadmin mailhog
     
     # Start the site-specific services
     docker-compose up -d wordpress_${site_name}
@@ -553,11 +562,41 @@ function start_new_site() {
 function setup_wordpress() {
     local site_name="$1"
     info "Setting up WordPress files..."
-    
-    # Wait for WordPress container to be ready
-    sleep 10
-    
-    success "WordPress setup completed"
+
+    local wp_container_name="wordpress_${site_name}"
+    local site_url="http://localhost:$(eval echo "${site_name^^}_PORT")" # Get port from .env
+
+    # Wait for WordPress container to be ready and database connection to be established
+    info "Waiting for WordPress container and database to be ready..."
+    local retries=30
+    local count=0
+    while ! docker-compose exec -T "$wp_container_name" wp db check 2>/dev/null; do
+        if [[ $count -ge $retries ]]; then
+            error "WordPress container or database not ready after multiple retries."
+            return 1
+        fi
+        sleep 5
+        count=$((count + 1))
+        info "Retrying... ($count/$retries)"
+    done
+    success "WordPress container and database are ready."
+
+    # Check if WordPress is already installed
+    if docker-compose exec -T "$wp_container_name" wp core is-installed 2>/dev/null; then
+        warning "WordPress is already installed on $site_name. Skipping installation."
+        return 0
+    fi
+
+    info "Installing WordPress core..."
+    docker-compose exec -T "$wp_container_name" wp core install \
+        --url="$site_url" \
+        --title="${site_name^} Development Site" \
+        --admin_user="admin" \
+        --admin_password="password" \
+        --admin_email="admin@example.com" \
+        --skip-email
+
+    success "WordPress setup completed for $site_name"
 }
 
 function show_creation_completion() {
@@ -647,6 +686,7 @@ function create_site() {
     header "Creating WordPress Site: $site_name"
     
     create_site_directory "$site_name"
+    copy_wordpress_core "$site_name"
     update_env_file "$site_name" "$port"
     # Reload environment variables to include the new site's port
     set -a
@@ -783,7 +823,6 @@ function show_site_info() {
     fi
     echo "• Logs: ./scripts/manage.sh logs $service_name"
     echo ""
-}
 }
 
 function show_help() {
