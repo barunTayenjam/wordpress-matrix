@@ -564,13 +564,19 @@ function setup_wordpress() {
     info "Setting up WordPress files..."
 
     local wp_container_name="wordpress_${site_name}"
-    local site_url="http://localhost:$(eval echo "${site_name^^}_PORT")" # Get port from .env
+    local site_url="http://localhost:$(eval echo "\$$(echo ${site_name} | tr '[:lower:]' '[:upper:]')_PORT")" # Get port from .env
 
     # Wait for WordPress container to be ready and database connection to be established
     info "Waiting for WordPress container and database to be ready..."
     local retries=30
     local count=0
-    while ! docker-compose exec -T "$wp_container_name" wp db check 2>/dev/null; do
+    # Use WP-CLI container with the specific site's volume and database
+    while ! docker-compose run --rm -v "$PROJECT_ROOT/wordpress_${site_name}:/var/www/html" \
+        -e WORDPRESS_DB_NAME="${site_name}_db" \
+        -e WORDPRESS_DB_HOST="db-primary:3306" \
+        -e WORDPRESS_DB_USER="${MYSQL_USER}" \
+        -e WORDPRESS_DB_PASSWORD="${MYSQL_PASSWORD}" \
+        wp-cli wp --path="/var/www/html" --allow-root db check 2>/dev/null; do
         if [[ $count -ge $retries ]]; then
             error "WordPress container or database not ready after multiple retries."
             return 1
@@ -582,13 +588,23 @@ function setup_wordpress() {
     success "WordPress container and database are ready."
 
     # Check if WordPress is already installed
-    if docker-compose exec -T "$wp_container_name" wp core is-installed 2>/dev/null; then
+    if docker-compose run --rm -v "$PROJECT_ROOT/wordpress_${site_name}:/var/www/html" \
+        -e WORDPRESS_DB_NAME="${site_name}_db" \
+        -e WORDPRESS_DB_HOST="db-primary:3306" \
+        -e WORDPRESS_DB_USER="${MYSQL_USER}" \
+        -e WORDPRESS_DB_PASSWORD="${MYSQL_PASSWORD}" \
+        wp-cli wp --path="/var/www/html" --allow-root core is-installed 2>/dev/null; then
         warning "WordPress is already installed on $site_name. Skipping installation."
         return 0
     fi
 
     info "Installing WordPress core..."
-    docker-compose exec -T "$wp_container_name" wp core install \
+    docker-compose run --rm -v "$PROJECT_ROOT/wordpress_${site_name}:/var/www/html" \
+        -e WORDPRESS_DB_NAME="${site_name}_db" \
+        -e WORDPRESS_DB_HOST="db-primary:3306" \
+        -e WORDPRESS_DB_USER="${MYSQL_USER}" \
+        -e WORDPRESS_DB_PASSWORD="${MYSQL_PASSWORD}" \
+        wp-cli wp --path="/var/www/html" --allow-root core install \
         --url="$site_url" \
         --title="${site_name^} Development Site" \
         --admin_user="admin" \
