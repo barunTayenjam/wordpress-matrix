@@ -1,235 +1,246 @@
-# 🚀 WordPress Matrix
+# 📚 Documentation Index
 
-*A streamlined and powerful WordPress development environment.*
+Welcome to the WordPress Development Platform documentation! This comprehensive guide will help you get the most out of your world-class development environment.
 
-This repository provides a lightweight, developer-focused setup for everyday coding. It's built on Docker for speed, reliability, and consistency, and it includes all the essential tools for modern WordPress development.
+## 🚀 Getting Started
 
----
+### Quick Start
+1. **[Quick Reference Guide](QUICK_REFERENCE.md)** - Essential commands and URLs
+2. **[Complete Usage Guide](USAGE_GUIDE.md)** - Detailed usage instructions
+3. **[WordPress Instance Management](WORDPRESS_INSTANCES.md)** - Add/remove WordPress sites
 
-## 🚀 Quick Start
-
-### 1. Clone the Repository
+### First Time Setup
 ```bash
+# Clone and setup
 git clone <repository-url>
-cd wordpress-matrix
+cd wp-dev-platform
+./wp-dev setup
+
+# Start environment
+./wp-dev start
+
+# Access your sites
+# WordPress 1: https://xandar.127.0.0.1.nip.io
+# WordPress 2: https://sakaar.127.0.0.1.nip.io
 ```
 
-### 2. Start the Environment
+## 📖 Documentation Structure
+
+### Core Guides
+- **[Usage Guide](USAGE_GUIDE.md)** - Complete day-to-day usage instructions
+- **[Quick Reference](QUICK_REFERENCE.md)** - Commands, URLs, and troubleshooting
+- **[Architecture Overview](ARCHITECTURE.md)** - System design and components
+
+### Specialized Topics
+- **[WordPress Instance Management](WORDPRESS_INSTANCES.md)** - Add, remove, and manage WordPress sites
+- **[Security Guide](SECURITY.md)** - Security features and best practices *(Coming Soon)*
+- **[Performance Tuning](PERFORMANCE.md)** - Optimization techniques *(Coming Soon)*
+
+## 🎯 Common Tasks
+
+### Daily Development
 ```bash
-./scripts/manage.sh start
-```
-This command will start all the necessary services and run health checks to ensure everything is running correctly.
+# Start your day
+./wp-dev status
+./wp-dev start
 
-### 3. Access Your Sites
+# Access tools
+./wp-dev shell wpcli              # WordPress CLI
+./wp-dev shell composer           # PHP dependencies
+./wp-dev shell node               # JavaScript tools
 
-#### 🌐 Domain-based Access (via Traefik)
-- **xandar**: [https://xandar.127.0.0.1.nip.io](https://xandar.127.0.0.1.nip.io)
-- **sakaar**: [https://sakaar.127.0.0.1.nip.io](https://sakaar.127.0.0.1.nip.io)
-- **wand**: [https://wand.127.0.0.1.nip.io](https://wand.127.0.0.1.nip.io)
-- **testsite**: [https://testsite.127.0.0.1.nip.io](https://testsite.127.0.0.1.nip.io)
-- **portfolio**: [https://portfolio.127.0.0.1.nip.io](https://portfolio.127.0.0.1.nip.io)
-- **demo**: [https://demo.127.0.0.1.nip.io](https://demo.127.0.0.1.nip.io)
-- **testfix**: [https://testfix.127.0.0.1.nip.io](https://testfix.127.0.0.1.nip.io)
-- **gemini**: [https://gemini.127.0.0.1.nip.io](https://gemini.127.0.0.1.nip.io)
-
-#### 🔌 Port-based Direct Access (for development/debugging)
-- **xandar**: [http://localhost:8001](http://localhost:8001)
-- **sakaar**: [http://localhost:8002](http://localhost:8002)
-- **wand**: [http://localhost:8003](http://localhost:8003)
-- **testsite**: [http://localhost:8004](http://localhost:8004)
-- **portfolio**: [http://localhost:8005](http://localhost:8005)
-- **demo**: [http://localhost:8006](http://localhost:8006)
-- **testfix**: [http://localhost:8007](http://localhost:8007)
-- **gemini**: [http://localhost:8008](http://localhost:8008)
-
-#### 🛠️ Management Tools
-- **Traefik Dashboard**: [http://localhost:8080](http://localhost:8080)
-- **phpMyAdmin**: [https://phpmyadmin.127.0.0.1.nip.io](https://phpmyadmin.127.0.0.1.nip.io)
-- **MailHog**: [https://mailhog.127.0.0.1.nip.io](https://mailhog.127.0.0.1.nip.io)
-
-### Default Credentials
-- **WordPress Admin**: `admin` / `admin`
-- **MySQL Root**: `SecureRoot2024!`
-- **phpMyAdmin**: `root` / `SecureRoot2024!`
-
----
-
-## 🛠️ Environment Management
-
-Use the `manage.sh` script to control your environment. This is the central tool for all operations.
-
-## 🔄 Dual Access Methods
-
-This WordPress Matrix provides **two ways** to access your sites:
-
-### 🌐 Domain-based Access (Production-like)
-- **URL Pattern**: `https://{sitename}.127.0.0.1.nip.io`
-- **Routing**: Traefik → Nginx → WordPress
-- **Features**: SSL termination, load balancing, production-like setup
-- **Use Case**: Testing in production-like environment
-
-### 🔌 Port-based Direct Access (Development)
-- **URL Pattern**: `http://localhost:{port}`
-- **Routing**: Direct Nginx → WordPress (bypasses Traefik)
-- **Features**: Direct access, faster debugging, no SSL overhead
-- **Use Case**: Development, debugging, testing individual sites
-
-**Port Assignments:**
-- xandar: 8001 | sakaar: 8002 | wand: 8003 | testsite: 8004
-- portfolio: 8005 | demo: 8006 | testfix: 8007 | gemini: 8008
-
-```bash
-# Start the environment (with health checks)
-./scripts/manage.sh start
-
-# Stop the environment
-./scripts/manage.sh stop
-
-# Restart the environment
-./scripts/manage.sh restart
-
-# Check the status of all services
-./scripts/manage.sh status
-
-# Check port-based access status
-./scripts/manage.sh port-status
-
-# View the logs of a specific service
-./scripts/manage.sh logs xandar
+# Monitor performance
+./wp-dev monitor                  # Open Grafana
+./wp-dev logs -f xandar       # Follow logs
 ```
 
-## 🌐 Dynamic Site Management
-
-Create unlimited WordPress development instances on demand:
-
+### WordPress Management
 ```bash
-# Create a new WordPress site (interactive)
-./scripts/manage.sh create-site
+# Install plugins/themes
+./wp-dev shell wpcli
+wp plugin install query-monitor --activate --path=/var/www/html/xandar
 
-# List all WordPress sites
-./scripts/manage.sh list-sites
+# Database operations
+wp db export backup.sql --path=/var/www/html/xandar
+wp db import backup.sql --path=/var/www/html/sakaar
 
-# Get information about a specific site
-./scripts/manage.sh site-info myproject
-
-# Advanced site management
-./scripts/manage-sites.sh start myproject    # Start a site
-./scripts/manage-sites.sh stop myproject     # Stop a site
-./scripts/manage-sites.sh remove myproject   # Remove a site
+# Cache management
+wp cache flush --path=/var/www/html/xandar
+wp redis flush --path=/var/www/html/xandar
 ```
 
-### Site Creation Process
-1. **Run**: `./scripts/manage.sh create-site`
-2. **Enter**: Site name (e.g., "myproject")
-3. **Choose**: WordPress version and PHP version
-4. **Access**: `https://myproject.127.0.0.1.nip.io`
-
-Each site gets:
-- ✅ Dedicated WordPress container
-- ✅ Nginx proxy with SSL
-- ✅ Separate database
-- ✅ Code quality integration
-- ✅ Health monitoring
-
-## 🎯 Code Quality Tools
-
-The Ultimate WordPress Development Matrix includes a comprehensive suite of code quality tools that work across all your sites:
-
+### Instance Management
 ```bash
-# Run all quality checks (recommended before commits)
-./scripts/manage.sh quality
+# Create new WordPress site
+./wp-dev instances create blog 6.3
 
-# Individual tools
-./scripts/manage.sh lint      # PHP Code Sniffer (WordPress Standards)
-./scripts/manage.sh fix       # Auto-fix PHPCS issues
-./scripts/manage.sh analyse   # PHPStan Level 9 static analysis
-./scripts/manage.sh phpmd     # PHP Mess Detector
-./scripts/manage.sh psalm     # Psalm static analysis
-./scripts/manage.sh test      # PHPUnit tests with coverage
+# List all sites
+./wp-dev instances list
 
-# Quick check (PHPCS + PHPStan only)
-./scripts/manage.sh quick-check
-
-# Development tools
-./scripts/manage.sh composer install  # Composer commands
-./scripts/manage.sh npm install       # NPM commands
+# Remove a site
+./wp-dev instances remove blog
 ```
 
-### If You Encounter Image Errors
-
-If you have issues with your Docker images, you can refresh them manually:
-
+### Backup & Restore
 ```bash
-# Remove and re-pull problematic images
-docker-compose down
+# Create backups
+./wp-dev backup xandar
+
+# List available backups
+./wp-dev restore xandar list
+
+# Restore from backup
+./wp-dev restore xandar 20231201_120000
+```
+
+## 🔧 Advanced Features
+
+### Monitoring & Analytics
+- **Grafana Dashboards**: https://grafana.127.0.0.1.nip.io
+- **Prometheus Metrics**: https://prometheus.127.0.0.1.nip.io
+- **Real-time Logs**: `./wp-dev logs -f`
+
+### Development Tools
+- **XDebug**: Pre-configured for step-through debugging
+- **Hot Reload**: Automatic browser refresh on file changes
+- **Code Quality**: PHPStan and PHPCS integration
+- **Performance Profiling**: Built-in WordPress profiling
+
+### Security Features
+- **Automatic HTTPS**: Let's Encrypt SSL certificates
+- **Security Headers**: OWASP recommended headers
+- **Rate Limiting**: DDoS and brute-force protection
+- **Access Control**: Authentication for admin tools
+
+## 🌐 Access URLs
+
+| Service | URL | Purpose |
+|---------|-----|---------|
+| WordPress 1 | https://xandar.127.0.0.1.nip.io | Primary development site |
+| WordPress 2 | https://sakaar.127.0.0.1.nip.io | Secondary development site |
+| PHPMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | Database management |
+| MailHog | https://mailhog.127.0.0.1.nip.io | Email testing |
+| Grafana | https://grafana.127.0.0.1.nip.io | Performance monitoring |
+| Traefik | https://traefik.127.0.0.1.nip.io | Reverse proxy dashboard |
+| Prometheus | https://prometheus.127.0.0.1.nip.io | Metrics collection |
+
+## 🛠️ Troubleshooting
+
+### Quick Fixes
+```bash
+# Services won't start
 docker system prune -f
-docker-compose pull
-docker-compose up -d
+./wp-dev start
+
+# Database issues
+./wp-dev restart db-primary
+
+# Permission problems
+sudo chown -R $USER:$USER xandar sakaar
+
+# Clear all caches
+./wp-dev shell wpcli
+wp cache flush --all-sites
 ```
 
+### Getting Help
+1. **Check Status**: `./wp-dev status`
+2. **View Logs**: `./wp-dev logs`
+3. **Review Documentation**: Browse `/docs` folder
+4. **Community Support**: GitHub issues and discussions
+
+## 📊 Performance Monitoring
+
+### Key Metrics to Watch
+- **Response Time**: < 200ms for optimal performance
+- **Error Rate**: < 1% for healthy applications
+- **Memory Usage**: < 80% of allocated resources
+- **Cache Hit Rate**: > 90% for optimal caching
+
+### Monitoring Tools
+- **Grafana**: Visual dashboards and alerts
+- **Prometheus**: Raw metrics and queries
+- **WordPress Profiler**: Built-in performance analysis
+- **Database Monitoring**: MySQL performance metrics
+
+## 🔒 Security Best Practices
+
+### Default Security Features
+- ✅ Automatic HTTPS with Let's Encrypt
+- ✅ Security headers (HSTS, CSP, XSS protection)
+- ✅ Rate limiting and DDoS protection
+- ✅ Container isolation and network security
+- ✅ Regular security updates
+
+### Recommended Practices
+- Change default passwords in `.env.local`
+- Use strong authentication for admin tools
+- Regularly update WordPress core and plugins
+- Monitor security logs and alerts
+- Backup data regularly
+
+## 🚀 Performance Optimization
+
+### Built-in Optimizations
+- **Multi-layer Caching**: OPcache, Redis, Memcached
+- **Database Optimization**: MySQL 8.0 with replication
+- **Web Server**: Nginx with optimized configuration
+- **Compression**: Gzip and asset optimization
+- **Resource Management**: Container limits and monitoring
+
+### Performance Tips
+- Use object caching for database queries
+- Optimize images and assets
+- Monitor and optimize slow queries
+- Use CDN for static assets
+- Regular database maintenance
+
+## 📈 Scaling Your Environment
+
+### Horizontal Scaling
+- Add more WordPress instances
+- Implement load balancing
+- Use database read replicas
+- Distribute cache across nodes
+
+### Vertical Scaling
+- Increase container resources
+- Optimize database configuration
+- Tune cache settings
+- Monitor resource usage
+
+## 🔄 Maintenance
+
+### Regular Tasks
+- **Daily**: Monitor performance and logs
+- **Weekly**: Review security alerts and updates
+- **Monthly**: Database optimization and cleanup
+- **Quarterly**: Full system backup and disaster recovery testing
+
+### Automated Tasks
+- **Backups**: Daily at 2 AM
+- **Log Rotation**: Automatic cleanup
+- **Health Checks**: Continuous monitoring
+- **Security Updates**: Automatic container updates
+
+## 📞 Support
+
+### Self-Help Resources
+1. **Documentation**: Complete guides in `/docs`
+2. **Quick Reference**: Essential commands and URLs
+3. **Troubleshooting**: Common issues and solutions
+4. **Architecture**: System design and components
+
+### Community Support
+- **GitHub Issues**: Bug reports and feature requests
+- **Discussions**: Community Q&A and tips
+- **Documentation**: Contributions welcome
+
+### Professional Support
+For enterprise support and custom development, contact the development team.
+
 ---
 
-## ✨ Features
+**Happy Developing! 🎉**
 
-### **Core WordPress Development**
-- **WordPress**: Two instances for multi-site development
-- **Nginx**: High-performance web server with unified configuration
-- **MySQL**: The world's most popular open-source database
-- **Redis & Memcached**: For powerful caching
-- **WP-CLI**: Manage your WordPress sites from the command line
-- **XDebug**: Step-by-step debugging with VS Code integration
-
-### **Code Quality Suite (Level 9)**
-- **PHP Code Sniffer**: WordPress coding standards enforcement
-- **PHPStan**: Level 9 static analysis with WordPress rules
-- **PHP Mess Detector**: Code smell and complexity analysis
-- **Psalm**: Advanced static analysis and type checking
-- **PHPUnit**: Unit testing with WordPress test framework
-
-### **Development Tools**
-- **MailHog**: E-mail testing tool
-- **phpMyAdmin**: Web-based database management
-- **Hot Reload**: Automatic browser refreshing on file changes
-- **Composer**: PHP dependency management
-- **Node.js/NPM**: Frontend build tools and package management
-
----
-
-## 📚 Detailed Documentation
-
-For more in-depth information, please refer to the `docs` directory:
-
-- **[Site Management](docs/SITE_MANAGEMENT.md)** - Dynamic site creation and management
-- **[Code Quality Tools](docs/CODE_QUALITY.md)** - Comprehensive guide to all quality tools
-- **[Debugging with XDebug](docs/DEBUGGING.md)** - Step-by-step debugging setup
-- **[Platform Compatibility](docs/PLATFORM_COMPATIBILITY.md)** - System requirements
-- **[Usage Guide](docs/USAGE_GUIDE.md)** - Complete usage instructions
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Command reference
-- **[Architecture Overview](ARCHITECTURE.md)** - System architecture details
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please follow these steps:
-
-1. Fork the repository.
-2. Create a new feature branch.
-3. Make your changes and commit them.
-4. If applicable, add tests to cover your changes.
-5. Submit a pull request.
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-A special thanks to **Rovo Dev** for the original architecture and to all the open-source communities that make this project possible.
-
----
-
-**Originally architected by Rovo Dev - Senior Architect**  
-**Maintained and enhanced by Barun**
-
-For support, please open an issue or contact the development team.
+This platform provides everything you need for professional WordPress development. Explore the documentation, experiment with features, and build amazing WordPress sites!
