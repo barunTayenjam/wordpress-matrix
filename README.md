@@ -81,6 +81,24 @@ wp redis flush --path=/var/www/html/xandar
 ./wp-dev instances remove blog
 ```
 
+### Code Quality
+```bash
+# Run all quality checks
+./wp-dev quality
+
+# Lint code with PHPCS
+./wp-dev lint
+
+# Auto-fix PHPCS issues
+./wp-dev fix
+
+# Run static analysis with PHPStan
+./wp-dev analyse
+
+# Run PHPUnit tests
+./wp-dev test
+```
+
 ### Backup & Restore
 ```bash
 # Create backups

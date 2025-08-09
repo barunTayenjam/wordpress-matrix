@@ -59,6 +59,13 @@ Instance Management:
   instances list                     List all instances
   instances status                   Show instance status
 
+Code Quality:
+  quality       Run all quality checks
+  lint          Lint code with PHPCS
+  fix           Auto-fix PHPCS issues
+  analyse       Run static analysis with PHPStan
+  test          Run PHPUnit tests
+
 Examples:
   ./wp-dev setup                    # Initial setup
   1. $0 start              # Start the environment
@@ -233,6 +240,36 @@ cmd_instances() {
     ./scripts/manage-instances.sh "$@"
 }
 
+# Quality command
+cmd_quality() {
+    log_info "Running all quality checks..."
+    ./scripts/manage.sh quality
+}
+
+# Lint command
+cmd_lint() {
+    log_info "Linting code with PHPCS..."
+    ./scripts/manage.sh lint
+}
+
+# Fix command
+cmd_fix() {
+    log_info "Auto-fixing PHPCS issues..."
+    ./scripts/manage.sh fix
+}
+
+# Analyse command
+cmd_analyse() {
+    log_info "Running static analysis with PHPStan..."
+    ./scripts/manage.sh analyse
+}
+
+# Test command
+cmd_test() {
+    log_info "Running PHPUnit tests..."
+    ./scripts/manage.sh test
+}
+
 # Main command dispatcher
 main() {
     if [ $# -eq 0 ]; then
@@ -282,6 +319,21 @@ main() {
             ;;
         instances)
             cmd_instances "$@"
+            ;;
+        quality)
+            cmd_quality "$@"
+            ;;
+        lint)
+            cmd_lint "$@"
+            ;;
+        fix)
+            cmd_fix "$@"
+            ;;
+        analyse)
+            cmd_analyse "$@"
+            ;;
+        test)
+            cmd_test "$@"
             ;;
         help|--help|-h)
             show_help
