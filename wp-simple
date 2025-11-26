@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 DOMAIN_SUFFIX="127.0.0.1.nip.io"
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+DOCKER_COMPOSE="docker-compose"  # Default fallback
 
 # Colors for output
 RED='\033[0;31m'
@@ -27,6 +28,16 @@ if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
     source "$PROJECT_ROOT/.env"
     set +a
+fi
+
+# Use podman-compose instead of docker-compose
+if command -v podman-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE="podman-compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE="docker-compose"
+else
+    log_error "Neither docker-compose nor podman-compose found"
+    exit 1
 fi
 
 # Main help
@@ -127,13 +138,13 @@ create_site() {
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
     
-    # Copy WordPress files using Docker
+    # Copy WordPress files using Podman
     log_info "Installing WordPress..."
-    docker run --rm -v "$site_dir":/var/www/html wordpress:latest \
+    podman run --rm -v "$site_dir":/var/www/html wordpress:latest \
         bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     
-    # Add to docker-compose.yml
-    log_info "Adding services to docker-compose.yml..."
+    # Add to $DOCKER_COMPOSE.yml
+    log_info "Adding services to $DOCKER_COMPOSE.yml..."
     cat >> "$COMPOSE_FILE" << EOF
 
   # WordPress site: $site_name
@@ -174,15 +185,15 @@ create_site() {
 EOF
     
     # Create database
-    if docker-compose ps db 2>/dev/null | grep -q "Up"; then
-        docker-compose exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+    if $DOCKER_COMPOSE ps db 2>/dev/null | grep -q "Up"; then
+        $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
             -e "CREATE DATABASE IF NOT EXISTS ${site_name}_db;" 2>/dev/null || true
     fi
     
     # Add to .env
     echo "" >> "$PROJECT_ROOT/.env"
     echo "# Site: $site_name" >> "$PROJECT_ROOT/.env"
-    echo "${site_name^^}_PORT=$port" >> "$PROJECT_ROOT/.env"
+    echo "$(echo "$site_name" | tr '[:lower:]' '[:upper:]')_PORT=$port" >> "$PROJECT_ROOT/.env"
     
     log_success "Site '$site_name' created successfully"
     echo "URL: http://localhost:$port"
@@ -191,7 +202,7 @@ EOF
     # Offer to start the site
     read -p "Start the site now? [Y/n]: " confirm
     if [[ ! "$confirm" =~ ^[Nn]$ ]]; then
-        docker-compose up -d wp_$site_name nginx_$site_name
+        $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name
         log_success "Site '$site_name' started"
     fi
 }
@@ -211,11 +222,11 @@ list_sites() {
     echo "────────────────────────────────────────────────────────────────────────"
     
     for site in "${sites[@]}"; do
-        local port_var="${site^^}_PORT"
+        local port_var="$(echo "$site" | tr '[:lower:]' '[:upper:]')_PORT"
         local port=$(eval echo "\$$port_var")
         local status="Stopped"
         
-        if docker-compose ps "wp_$site" 2>/dev/null | grep -q "Up"; then
+        if podman ps --format "{{.Names}}" | grep -q "wp_$site"; then
             status="Running"
         fi
         
@@ -229,13 +240,13 @@ list_sites() {
 # Start environment
 start_env() {
     log_info "Starting WordPress environment..."
-    docker-compose up -d db redis
+    $DOCKER_COMPOSE up -d db redis
     sleep 3
     
     # Start all WordPress sites
     for site in $(get_sites); do
         log_info "Starting $site..."
-        docker-compose up -d "wp_$site" "nginx_$site" 2>/dev/null || true
+        $DOCKER_COMPOSE up -d "wp_$site" "nginx_$site" 2>/dev/null || true
     done
     
     log_success "Environment started"
@@ -247,7 +258,7 @@ start_env() {
 # Stop environment
 stop_env() {
     log_info "Stopping WordPress environment..."
-    docker-compose down
+    $DOCKER_COMPOSE down
     log_success "Environment stopped"
 }
 
@@ -255,7 +266,7 @@ stop_env() {
 show_status() {
     log_info "System Status:"
     echo ""
-    docker-compose ps
+    $DOCKER_COMPOSE ps
     echo ""
     list_sites
 }
@@ -266,15 +277,15 @@ show_logs() {
     
     if [[ -n "$service" ]]; then
         if [[ "$service" == "db" ]]; then
-            docker-compose logs -f db
+            $DOCKER_COMPOSE logs -f db
         elif [[ "$service" == "nginx" ]]; then
-            docker-compose logs -f traefik
+            $DOCKER_COMPOSE logs -f traefik
         else
-            docker-compose logs -f "wp_$service" "nginx_$service" 2>/dev/null || \
-            docker-compose logs -f "$service"
+            $DOCKER_COMPOSE logs -f "wp_$service" "nginx_$service" 2>/dev/null || \
+            $DOCKER_COMPOSE logs -f "$service"
         fi
     else
-        docker-compose logs -f
+        $DOCKER_COMPOSE logs -f
     fi
 }
 
@@ -298,16 +309,16 @@ remove_site() {
     log_info "Removing site '$site_name'..."
     
     # Stop services
-    docker-compose stop "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
-    docker-compose rm -f "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+    $DOCKER_COMPOSE stop "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+    $DOCKER_COMPOSE rm -f "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
     
     # Remove files
     rm -rf "$PROJECT_ROOT/wp_$site_name"
     rm -rf "$PROJECT_ROOT/logs/wp_$site_name"
     
     # Remove database
-    if docker-compose ps db 2>/dev/null | grep -q "Up"; then
-        docker-compose exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+    if $DOCKER_COMPOSE ps db 2>/dev/null | grep -q "Up"; then
+        $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
             -e "DROP DATABASE IF EXISTS ${site_name}_db;" 2>/dev/null || true
     fi
     
@@ -318,13 +329,13 @@ remove_site() {
 run_checks() {
     log_info "Running code quality checks..."
     
-    # Check if code quality containers exist in docker-compose
+    # Check if code quality containers exist in $DOCKER_COMPOSE
     if ! grep -q "phpcs" "$COMPOSE_FILE" 2>/dev/null; then
         log_warning "Code quality tools not configured"
         return
     fi
     
-    docker-compose run --rm phpcs phpcs --standard=WordPress \
+    $DOCKER_COMPOSE run --rm phpcs phpcs --standard=WordPress \
         ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ 2>/dev/null || \
     log_info "Run 'wp-simple setup' to install code quality tools"
 }
@@ -342,14 +353,14 @@ access_shell() {
             fi
             
             # Use first available site
-            docker-compose exec "wp_${sites[0]}" bash 2>/dev/null || \
+            $DOCKER_COMPOSE exec "wp_${sites[0]}" bash 2>/dev/null || \
             log_error "WordPress container not running"
             ;;
         "db"|"database")
-            docker-compose exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
+            $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
             ;;
         "nginx"|"proxy")
-            docker-compose exec traefik sh 2>/dev/null || \
+            $DOCKER_COMPOSE exec traefik sh 2>/dev/null || \
             log_error "Traefik container not running"
             ;;
         *)
@@ -398,9 +409,9 @@ EOF
         log_success "Created .env file"
     fi
     
-    # Create simplified docker-compose.yml if not exists
-    if [[ ! -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        cat > "$PROJECT_ROOT/docker-compose.yml" << EOF
+    # Create simplified $DOCKER_COMPOSE.yml if not exists
+    if [[ ! -f "$PROJECT_ROOT/$DOCKER_COMPOSE.yml" ]]; then
+        cat > "$PROJECT_ROOT/$DOCKER_COMPOSE.yml" << EOF
 version: '3.8'
 
 networks:
@@ -458,7 +469,7 @@ services:
 volumes:
   wp_db_data:
 EOF
-        log_success "Created docker-compose.yml"
+        log_success "Created $DOCKER_COMPOSE.yml"
     fi
     
     # Create config directories
