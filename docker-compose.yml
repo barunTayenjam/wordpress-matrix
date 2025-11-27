@@ -19,6 +19,7 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - wp_db_data:/var/lib/mysql
+      - ./mysql-entrypoint.sh:/docker-entrypoint-initdb.d/init.sh:ro
     networks:
       - wp-net
     healthcheck:
@@ -35,13 +36,80 @@ services:
       - wp-net
     command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
-  # phpMyAdmin
+  # Reverse proxy with SSL
+  traefik:
+    image: traefik:v2.10
+    container_name: wp_traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./ssl-certs:/etc/ssl/certs:ro
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=false"
+      - "--providers.docker.network=wp-net"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--certificatesresolvers.local.acme.tlschallenge=true"
+      - "--certificatesresolvers.local.acme.email=${SSL_EMAIL:-admin@localhost}"
+      - "--certificatesresolvers.local.acme.storage=/etc/ssl/certs/acme.json"
+      - "--serverstransport.insecureskipverify=true"
+    networks:
+      - wp-net
+    labels:
+      - "traefik.enable=true"
+
+  # Code Quality Tools
+  phpcs:
+    image: wpengine/phpcs:latest
+    container_name: wp_phpcs
+    volumes:
+      - ./:/workspace:ro
+    networks:
+      - wp-net
+    profiles:
+      - tools
+    command: ["tail", "-f", "/dev/null"]
+
+  phpstan:
+    image: phpstan/phpstan:latest
+    container_name: wp_phpstan
+    volumes:
+      - ./:/project:ro
+    networks:
+      - wp-net
+    profiles:
+      - tools
+    command: ["tail", "-f", "/dev/null"]
+
+  # Development Tools
+  wp-cli:
+    image: wordpress:cli
+    container_name: wp_cli
+    volumes:
+      - ./wp_:/var/www/html:rw
+    networks:
+      - wp-net
+    profiles:
+      - tools
+    command: ["tail", "-f", "/dev/null"]
+
+
+  # Database admin panel
   phpmyadmin:
     image: phpmyadmin:latest
     container_name: wp_phpmyadmin
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "81:80"  # Fallback direct access
     environment:
       PMA_HOST: db
       PMA_USER: ${MYSQL_USER:-wp_user}
@@ -51,76 +119,50 @@ services:
       - wp-net
     depends_on:
       - db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phpmyadmin.rule=Host(`phpmyadmin.127.0.0.1.nip.io`)"
+      - "traefik.http.routers.phpmyadmin.entrypoints=web,websecure"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
-  # Nginx web server for testsite
-  nginx_testsite:
-    image: nginx:alpine
-    container_name: wp_nginx_testsite
-    restart: unless-stopped
-    ports:
-      - "8001:80"
-    volumes:
-      - ./wp_testsite:/var/www/html
-      - ./config/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - wp-net
-    depends_on:
-      - wp_testsite
 
-  # WordPress site: testsite
-  wp_testsite:
+  # WordPress site: finalsite
+  wp_finalsite:
     image: wordpress:php8.3-fpm
-    container_name: wp_testsite
+    container_name: wp_finalsite
     restart: unless-stopped
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: ${MYSQL_USER:-wp_user}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: testsite_db
+      WORDPRESS_DB_NAME: finalsite_db
       WORDPRESS_DEBUG: ${WP_DEBUG:-true}
     volumes:
-      - ./wp_testsite:/var/www/html
+      - ./wp_finalsite:/var/www/html
     networks:
       - wp-net
     depends_on:
       db:
         condition: service_healthy
 
-volumes:
-  wp_db_data:
-    driver: local
-  # WordPress site: mynewsite
-  wp_mynewsite:
-    image: wordpress:php8.3-fpm
-    container_name: wp_mynewsite
-    restart: unless-stopped
-    ports:
-      - "8001:80"
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: ${MYSQL_USER:-wp_user}
-      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: mynewsite_db
-      WORDPRESS_DEBUG: ${WP_DEBUG:-true}
-    volumes:
-      - ./wp_mynewsite:/var/www/html
-    networks:
-      - wp-net
-
-  nginx_mynewsite:
+  nginx_finalsite:
     image: nginx:alpine
-    container_name: nginx_mynewsite
+    container_name: nginx_finalsite
     restart: unless-stopped
     ports:
-      - "9001:80"
+      - "82:80"  # Fallback direct port mapping
     depends_on:
-      - wp_mynewsite
+      - wp_finalsite
     volumes:
-      - ./wp_mynewsite:/var/www/html:ro
-      - ./config/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wp_finalsite:/var/www/html:ro
+      - /Users/barun.tayenjam/Documents/Code/wordpress-matrix/config/nginx/finalsite.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - wp-net
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mynewsite.rule=Host(`mynewsite.127.0.0.1.nip.io`)"
+      - "traefik.http.routers.finalsite.rule=Host(`finalsite.127.0.0.1.nip.io`)"
+      - "traefik.http.routers.finalsite.entrypoints=web,websecure"
+      - "traefik.http.services.finalsite.loadbalancer.server.port=80"
 
+volumes:
+  wp_db_data:
