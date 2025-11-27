@@ -1,246 +1,342 @@
-# 📚 Documentation Index
+# 🚀 WordPress Development Platform v1.0
 
-Welcome to the WordPress Development Platform documentation! This comprehensive guide will help you get the most out of your world-class development environment.
+A sophisticated WordPress development environment supporting both **Docker** and **Podman** runtimes with automatic detection, comprehensive code quality tools, and simplified management.
 
-## 🚀 Getting Started
+## ✨ Key Features
 
-### Quick Start
-1. **[Quick Reference Guide](QUICK_REFERENCE.md)** - Essential commands and URLs
-2. **[Complete Usage Guide](USAGE_GUIDE.md)** - Detailed usage instructions
-3. **[WordPress Instance Management](WORDPRESS_INSTANCES.md)** - Add/remove WordPress sites
+- **🔄 Dual Runtime Support**: Works with Docker and Podman (auto-detects available runtime)
+- **⚡ Simplified Management**: All-in-one `wp-simple` script for easy site management
+- **🧪 Code Quality Tools**: PHPStan Level 9, PHP CodeSniffer, Psalm, PHPMD
+- **🌐 Multi-Site Environment**: Create and manage multiple WordPress instances
+- **🔒 SSL/TLS Support**: Automatic HTTPS with Traefik reverse proxy
+- **📊 Development Tools**: Database management, email testing, monitoring
+- **🧪 Automated Testing**: Comprehensive test suite with integration tests
 
-### First Time Setup
+## 🚀 Quick Start
+
+### Option 1: Simplified Platform (Recommended)
 ```bash
 # Clone and setup
-git clone <repository-url>
-cd wp-dev-platform
-./wp-dev setup
+git clone https://github.com/barunTayenjam/wordpress-matrix.git
+cd wordpress-matrix
+git checkout v1.0
 
-# Start environment
-./wp-dev start
+# Quick setup
+cp .env.simple .env
+chmod +x wp-simple
+./wp-simple setup
 
-# Access your sites
-# WordPress 1: https://xandar.127.0.0.1.nip.io
-# WordPress 2: https://sakaar.127.0.0.1.nip.io
+# Create your first site
+./wp-simple create mysite
+./wp-simple start
+
+# Access your site
+# Local: http://localhost:8001
+# Domain: https://mysite.127.0.0.1.nip.io
 ```
 
-## 📖 Documentation Structure
+### Option 2: Advanced Platform
+```bash
+# Clone and setup
+git clone https://github.com/barunTayenjam/wordpress-matrix.git
+cd wordpress-matrix
+git checkout v1.0
 
-### Core Guides
-- **[Usage Guide](USAGE_GUIDE.md)** - Complete day-to-day usage instructions
-- **[Quick Reference](QUICK_REFERENCE.md)** - Commands, URLs, and troubleshooting
+# Setup with Podman/Docker detection
+chmod +x wp-podman
+./wp-podman setup
+
+# Create and start sites
+./wp-podman create mysite
+./wp-podman start
+```
+
+### Option 3: Legacy Platform
+```bash
+# Clone and setup
+git clone https://github.com/barunTayenjam/wordpress-matrix.git
+cd wordpress-matrix
+git checkout v1.0
+
+# Traditional setup
+./wp-dev setup
+./wp-dev start
+```
+
+## 📖 Documentation
+
+### v1.0 Platform Guides
+- **[Simplified Platform Guide](README_SIMPLIFIED.md)** - Complete simplified platform documentation
+- **[Quick Reference](QUICK_REFERENCE.md)** - Essential commands and URLs
+- **[Usage Guide](USAGE_GUIDE.md)** - Detailed usage instructions
 - **[Architecture Overview](ARCHITECTURE.md)** - System design and components
 
-### Specialized Topics
-- **[WordPress Instance Management](WORDPRESS_INSTANCES.md)** - Add, remove, and manage WordPress sites
-- **[Security Guide](SECURITY.md)** - Security features and best practices *(Coming Soon)*
-- **[Performance Tuning](PERFORMANCE.md)** - Optimization techniques *(Coming Soon)*
+### Management Scripts
+- **[AGENTS.md](AGENTS.md)** - Complete guide for agents and developers
+- **[WordPress Instance Management](WORDPRESS_INSTANCES.md)** - Add/remove WordPress sites
+- **[Code Quality Guide](CODE_QUALITY.md)** - PHPStan, PHPCS, and testing
+- **[Platform Compatibility](PLATFORM_COMPATIBILITY.md)** - Docker/Podman compatibility
+- **[Debugging Guide](DEBUGGING.md)** - Troubleshooting and debugging
+
+### Advanced Topics
+- **[Port Access Guide](PORT_ACCESS_GUIDE.md)** - Port management and access
+- **[Site Management](SITE_MANAGEMENT.md)** - Advanced site management
 
 ## 🎯 Common Tasks
 
-### Daily Development
+### Simplified Platform (wp-simple)
 ```bash
-# Start your day
-./wp-dev status
-./wp-dev start
+# Site management
+./wp-simple create blog          # Create new site
+./wp-simple list                 # List all sites
+./wp-simple start                # Start all sites
+./wp-simple stop                 # Stop all sites
+./wp-simple remove blog          # Remove site
 
-# Access tools
-./wp-dev shell wpcli              # WordPress CLI
-./wp-dev shell composer           # PHP dependencies
-./wp-dev shell node               # JavaScript tools
-
-# Monitor performance
-./wp-dev monitor                  # Open Grafana
-./wp-dev logs -f xandar       # Follow logs
+# Development
+./wp-simple shell wp             # Access WordPress CLI
+./wp-simple check                # Run code quality checks
+./wp-simple logs blog            # View site logs
+./wp-simple url blog             # Show site URLs
 ```
 
-### WordPress Management
+### Podman-First Platform (wp-podman)
 ```bash
+# Runtime detection
+./wp-podman runtime              # Show which runtime is used
+
+# Site management
+./wp-podman create blog          # Create new site
+./wp-podman start               # Start environment
+./wp-podman list                # List sites
+
+# Code quality
+./wp-podman lint                # PHP CodeSniffer
+./wp-podman analyse             # PHPStan analysis
+./wp-podman quality             # All quality checks
+```
+
+### WordPress CLI Operations
+```bash
+# Access WordPress CLI
+./wp-simple shell wp
+# or
+./wp-podman shell wp
+
 # Install plugins/themes
-./wp-dev shell wpcli
-wp plugin install query-monitor --activate --path=/var/www/html/xandar
+wp plugin install query-monitor --activate --path=/var/www/html/mysite
 
 # Database operations
-wp db export backup.sql --path=/var/www/html/xandar
-wp db import backup.sql --path=/var/www/html/sakaar
+wp db export backup.sql --path=/var/www/html/mysite
+wp db import backup.sql --path=/var/www/html/mysite
 
 # Cache management
-wp cache flush --path=/var/www/html/xandar
-wp redis flush --path=/var/www/html/xandar
-```
-
-### Instance Management
-```bash
-# Create new WordPress site
-./wp-dev instances create blog 6.3
-
-# List all sites
-./wp-dev instances list
-
-# Remove a site
-./wp-dev instances remove blog
-```
-
-### Backup & Restore
-```bash
-# Create backups
-./wp-dev backup xandar
-
-# List available backups
-./wp-dev restore xandar list
-
-# Restore from backup
-./wp-dev restore xandar 20231201_120000
+wp cache flush --path=/var/www/html/mysite
 ```
 
 ## 🔧 Advanced Features
 
-### Monitoring & Analytics
-- **Grafana Dashboards**: https://grafana.127.0.0.1.nip.io
-- **Prometheus Metrics**: https://prometheus.127.0.0.1.nip.io
-- **Real-time Logs**: `./wp-dev logs -f`
+### Code Quality & Testing
+- **PHPStan Level 9**: Strict static analysis with WordPress globals
+- **PHP CodeSniffer**: WordPress coding standards enforcement
+- **Psalm**: Type checking and static analysis
+- **PHP Mess Detector**: Code quality analysis
+- **Automated Testing**: Integration tests and test runners
+- **Quality Reports**: Comprehensive code quality reporting
+
+### Runtime Support
+- **Docker**: Full Docker and docker-compose support
+- **Podman**: Native Podman and podman-compose support
+- **Auto-Detection**: Automatically detects and uses available runtime
+- **Runtime Switching**: Seamless switching between Docker and Podman
 
 ### Development Tools
-- **XDebug**: Pre-configured for step-through debugging
-- **Hot Reload**: Automatic browser refresh on file changes
-- **Code Quality**: PHPStan and PHPCS integration
-- **Performance Profiling**: Built-in WordPress profiling
+- **WordPress CLI**: Pre-configured WP-CLI access
+- **Database Management**: phpMyAdmin integration
+- **Email Testing**: MailHog for development email testing
+- **SSL/TLS**: Automatic HTTPS with Traefik
+- **Reverse Proxy**: Traefik with domain-based routing
+- **Hot Reload**: File change detection and auto-refresh
 
-### Security Features
-- **Automatic HTTPS**: Let's Encrypt SSL certificates
-- **Security Headers**: OWASP recommended headers
-- **Rate Limiting**: DDoS and brute-force protection
-- **Access Control**: Authentication for admin tools
+### Container Services
+- **MySQL 8.0**: Primary database with health checks
+- **Redis**: In-memory caching and session storage
+- **Nginx**: High-performance web server
+- **PHP-FPM**: PHP 8.3 with WordPress optimizations
+- **Traefik**: Modern reverse proxy and load balancer
 
 ## 🌐 Access URLs
 
+### Dynamic Sites (Simplified Platform)
+| Site Type | URL Pattern | Example |
+|-----------|-------------|---------|
+| WordPress Sites | `https://<sitename>.127.0.0.1.nip.io` | `https://blog.127.0.0.1.nip.io` |
+| Local Access | `http://localhost:<port>` | `http://localhost:8001` |
+
+### Management Tools
+| Service | URL | Purpose |
+|---------|-----|---------|
+| phpMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | Database management |
+| MailHog | https://mailhog.127.0.0.1.nip.io | Email testing |
+| Traefik Dashboard | http://localhost:8080 | Reverse proxy management |
+
+### Legacy Sites (Advanced Platform)
 | Service | URL | Purpose |
 |---------|-----|---------|
 | WordPress 1 | https://xandar.127.0.0.1.nip.io | Primary development site |
 | WordPress 2 | https://sakaar.127.0.0.1.nip.io | Secondary development site |
-| PHPMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | Database management |
-| MailHog | https://mailhog.127.0.0.1.nip.io | Email testing |
-| Grafana | https://grafana.127.0.0.1.nip.io | Performance monitoring |
-| Traefik | https://traefik.127.0.0.1.nip.io | Reverse proxy dashboard |
-| Prometheus | https://prometheus.127.0.0.1.nip.io | Metrics collection |
+
+### Getting Site URLs
+```bash
+# Show all site URLs
+./wp-simple url
+
+# Show specific site URL
+./wp-simple url mysite
+
+# List sites with URLs
+./wp-simple list
+```
 
 ## 🛠️ Troubleshooting
 
 ### Quick Fixes
 ```bash
-# Services won't start
-docker system prune -f
-./wp-dev start
+# Services won't start (Simplified)
+./wp-simple clean
+./wp-simple start
+
+# Services won't start (Podman)
+./wp-podman clean
+./wp-podman start
+
+# Runtime issues
+./wp-podman runtime              # Check which runtime is used
 
 # Database issues
-./wp-dev restart db-primary
+./wp-simple restart db           # Simplified
+./wp-podman stop && ./wp-podman start  # Podman
 
 # Permission problems
-sudo chown -R $USER:$USER xandar sakaar
+sudo chown -R $USER:$USER wp_*
 
 # Clear all caches
-./wp-dev shell wpcli
+./wp-simple shell wp
 wp cache flush --all-sites
 ```
 
 ### Getting Help
-1. **Check Status**: `./wp-dev status`
-2. **View Logs**: `./wp-dev logs`
-3. **Review Documentation**: Browse `/docs` folder
-4. **Community Support**: GitHub issues and discussions
+1. **Check Status**: `./wp-simple status` or `./wp-podman status`
+2. **View Logs**: `./wp-simple logs` or `./wp-podman logs`
+3. **Runtime Info**: `./wp-podman runtime`
+4. **Review Documentation**: Browse `/docs` folder and `README_SIMPLIFIED.md`
+5. **Community Support**: GitHub issues and discussions
 
-## 📊 Performance Monitoring
+### Common Issues
+- **Port Conflicts**: Use `./wp-simple create` to auto-assign ports
+- **Runtime Detection**: Install either Docker or Podman (scripts auto-detect)
+- **Permission Errors**: Ensure proper ownership of WordPress directories
+- **Database Connection**: Check if database container is running
 
-### Key Metrics to Watch
-- **Response Time**: < 200ms for optimal performance
-- **Error Rate**: < 1% for healthy applications
-- **Memory Usage**: < 80% of allocated resources
-- **Cache Hit Rate**: > 90% for optimal caching
+## 🧪 Testing & Quality Assurance
 
-### Monitoring Tools
-- **Grafana**: Visual dashboards and alerts
-- **Prometheus**: Raw metrics and queries
-- **WordPress Profiler**: Built-in performance analysis
-- **Database Monitoring**: MySQL performance metrics
+### Running Tests
+```bash
+# Run all tests
+./tests/test-runner.sh all
 
-## 🔒 Security Best Practices
+# Run specific test categories
+./tests/test-runner.sh unit
+./tests/test-runner.sh integration
 
-### Default Security Features
-- ✅ Automatic HTTPS with Let's Encrypt
-- ✅ Security headers (HSTS, CSP, XSS protection)
-- ✅ Rate limiting and DDoS protection
-- ✅ Container isolation and network security
-- ✅ Regular security updates
+# Test Podman compatibility
+./test-wp-podman.sh
+```
 
-### Recommended Practices
-- Change default passwords in `.env.local`
-- Use strong authentication for admin tools
-- Regularly update WordPress core and plugins
-- Monitor security logs and alerts
-- Backup data regularly
+### Code Quality Checks
+```bash
+# Simplified platform
+./wp-simple check                # Quick checks
+./wp-simple quality              # Comprehensive checks
 
-## 🚀 Performance Optimization
+# Podman platform
+./wp-podman quick-check          # Essential checks
+./wp-podman quality              # All quality tools
 
-### Built-in Optimizations
-- **Multi-layer Caching**: OPcache, Redis, Memcached
-- **Database Optimization**: MySQL 8.0 with replication
-- **Web Server**: Nginx with optimized configuration
-- **Compression**: Gzip and asset optimization
-- **Resource Management**: Container limits and monitoring
+# Individual tools
+./wp-podman lint                 # PHP CodeSniffer
+./wp-podman analyse              # PHPStan Level 9
+./wp-podman phpmd                # PHP Mess Detector
+./wp-podman psalm                # Psalm analysis
+```
 
-### Performance Tips
-- Use object caching for database queries
-- Optimize images and assets
-- Monitor and optimize slow queries
-- Use CDN for static assets
-- Regular database maintenance
+## 🔄 Runtime Comparison
 
-## 📈 Scaling Your Environment
+| Feature | Docker | Podman | Auto-Detection |
+|---------|--------|--------|----------------|
+| Container Runtime | ✅ | ✅ | ✅ |
+| Compose Support | ✅ | ✅ | ✅ |
+| Rootless Mode | ❌ | ✅ | ✅ |
+| System Integration | ✅ | ✅ | ✅ |
+| Performance | High | High | Auto-Optimized |
 
-### Horizontal Scaling
-- Add more WordPress instances
-- Implement load balancing
-- Use database read replicas
-- Distribute cache across nodes
+## 📦 Platform Versions
 
-### Vertical Scaling
-- Increase container resources
-- Optimize database configuration
-- Tune cache settings
-- Monitor resource usage
+### v1.0 Features
+- ✅ Dual runtime support (Docker + Podman)
+- ✅ Simplified management scripts
+- ✅ Comprehensive code quality tools
+- ✅ Automated testing suite
+- ✅ SSL/TLS with Traefik
+- ✅ Multi-site WordPress support
+- ✅ Database management tools
+- ✅ Development shell access
 
-## 🔄 Maintenance
+### Choosing the Right Version
+- **Simplified (`wp-simple`)**: Quick setup, fewer commands, ideal for most users
+- **Podman-First (`wp-podman`)**: Advanced features, runtime flexibility, power users
+- **Legacy (`wp-dev`)**: Existing installations, complex enterprise setups
 
-### Regular Tasks
-- **Daily**: Monitor performance and logs
-- **Weekly**: Review security alerts and updates
-- **Monthly**: Database optimization and cleanup
-- **Quarterly**: Full system backup and disaster recovery testing
+## 🚀 Getting Started Checklist
 
-### Automated Tasks
-- **Backups**: Daily at 2 AM
-- **Log Rotation**: Automatic cleanup
-- **Health Checks**: Continuous monitoring
-- **Security Updates**: Automatic container updates
+### First-Time Setup
+- [ ] Clone repository: `git clone https://github.com/barunTayenjam/wordpress-matrix.git`
+- [ ] Checkout v1.0: `git checkout v1.0`
+- [ ] Choose platform: `wp-simple` (recommended) or `wp-podman`
+- [ ] Run setup: `./wp-simple setup` or `./wp-podman setup`
+- [ ] Create first site: `./wp-simple create mysite`
+- [ ] Start environment: `./wp-simple start`
+- [ ] Access site: `https://mysite.127.0.0.1.nip.io`
 
-## 📞 Support
+### Development Workflow
+- [ ] Install code quality tools: `./wp-simple check`
+- [ ] Access WordPress CLI: `./wp-simple shell wp`
+- [ ] Monitor logs: `./wp-simple logs`
+- [ ] Run tests: `./tests/test-runner.sh all`
 
-### Self-Help Resources
-1. **Documentation**: Complete guides in `/docs`
-2. **Quick Reference**: Essential commands and URLs
-3. **Troubleshooting**: Common issues and solutions
-4. **Architecture**: System design and components
+## 📞 Support & Community
 
-### Community Support
-- **GitHub Issues**: Bug reports and feature requests
-- **Discussions**: Community Q&A and tips
-- **Documentation**: Contributions welcome
+### Documentation
+- **[Simplified Platform Guide](README_SIMPLIFIED.md)** - Complete simplified documentation
+- **[AGENTS.md](AGENTS.md)** - Developer and agent guide
+- **[Code Quality Guide](CODE_QUALITY.md)** - PHPStan, testing, and quality tools
 
-### Professional Support
-For enterprise support and custom development, contact the development team.
+### Getting Help
+1. **Check Runtime**: `./wp-podman runtime` (shows Docker/Podman status)
+2. **Status Check**: `./wp-simple status` or `./wp-podman status`
+3. **Review Logs**: `./wp-simple logs` or `./wp-podman logs`
+4. **Browse Documentation**: Check `/docs` folder and README files
+5. **GitHub Issues**: Report bugs and request features
+
+### Community
+- **GitHub Discussions**: Community Q&A and tips
+- **Issues & PRs**: Bug reports and contributions welcome
+- **Documentation**: Contributions to docs appreciated
 
 ---
 
-**Happy Developing! 🎉**
+## 🎉 Happy Developing with WordPress Platform v1.0!
 
-This platform provides everything you need for professional WordPress development. Explore the documentation, experiment with features, and build amazing WordPress sites!
+This platform provides everything you need for professional WordPress development with both Docker and Podman support. Start with the simplified platform for quick results, or explore advanced features as needed.
+
+**Quick Start**: `git clone && ./wp-simple setup && ./wp-simple create mysite && ./wp-simple start`
