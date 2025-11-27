@@ -4,7 +4,16 @@
 .env.local
 .env.production
 
-# WordPress files
+# WordPress files - exclude all core WordPress directories and files
+xandar/
+sakaar/
+wordpress_sakaar2/
+wordpress_sakaar9/
+wp_blogsite/
+wp_mynewsite/
+wp_mytestsite/
+wp_testsite/
+asgard/
 xandar/wp-config.php
 sakaar/wp-config.php
 xandar/wp-content/uploads/
