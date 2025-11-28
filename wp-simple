@@ -72,12 +72,16 @@ Code Quality:
 Development:
   shell <service>   Access container shell (wp, db, nginx)
   url <name>        Show site URLs
+  import-db <n> <f> Import SQL dump (site name, file path)
+  export-db <n> [f] Export database (site name, optional file)
 
 Examples:
   ./wp-simple create blog      # Create new site
   ./wp-simple start            # Start everything
   ./wp-simple check            # Run quality checks
   ./wp-simple shell wp         # Access WordPress CLI
+  ./wp-simple import-db blog dump.sql  # Import database
+  ./wp-simple export-db blog backup.sql # Export database
 
 EOF
 }
@@ -190,8 +194,19 @@ EOF_NGINX
     awk '/^volumes:/ {exit} {if (!/^volumes:/) print}' "$COMPOSE_FILE" > "$temp_file"
 
     # Add the new services (with optional host port mapping as fallback)
-    # Get next available port for direct access fallback
-    local port=$(get_next_port)
+    # Use semantic port assignment starting from 8100 for WordPress sites
+    # Find available port starting from 8100
+    local port=8100
+    while $DOCKER_COMPOSE port nginx_${site_name} 80 &>/dev/null || \
+          docker port nginx_${site_name} 80 &>/dev/null || \
+          (netstat -an | grep -q ":$port "); do
+        port=$((port + 1))
+        # Safety check to avoid infinite loop
+        if [[ $port -gt 8200 ]]; then
+            log_warning "High port assignment detected, using: $port"
+            break
+        fi
+    done
 
     cat >> "$temp_file" << EOF
 
@@ -219,7 +234,7 @@ EOF_NGINX
     container_name: nginx_$site_name
     restart: unless-stopped
     ports:
-      - "$port:80"  # Fallback direct port mapping
+      - "$port:80"  # Semantic direct port mapping (8100+ range)
     depends_on:
       - wp_$site_name
     volumes:
@@ -227,11 +242,6 @@ EOF_NGINX
       - $nginx_conf_path:/etc/nginx/conf.d/default.conf:ro
     networks:
       - wp-net
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.$site_name.rule=Host(\`$site_name.$DOMAIN_SUFFIX\`)"
-      - "traefik.http.routers.$site_name.entrypoints=web,websecure"
-      - "traefik.http.services.$site_name.loadbalancer.server.port=80"
 
 EOF
 
@@ -248,9 +258,8 @@ EOF
     fi
 
     log_success "Site '$site_name' created successfully"
-    echo "URL: http://$site_name.$DOMAIN_SUFFIX"  # Updated URL to reflect Traefik routing
-    echo "Domain: https://$site_name.$DOMAIN_SUFFIX"
-    echo "Direct: http://localhost:$port"  # Fallback direct access
+    echo "Direct: http://localhost:$port"  # Direct access via semantic port
+    echo "Database: http://localhost:8200"  # phpMyAdmin access
 
     # Offer to start the site
     read -p "Start the site now? [Y/n]: " confirm
@@ -277,13 +286,23 @@ list_sites() {
     for site in "${sites[@]}"; do
         local status="Stopped"
 
+        # Get the port for the site by examining the compose file
+        local port="????"
+        if [[ -f "$COMPOSE_FILE" ]]; then
+            # Extract port from nginx service definition
+            port=$(grep -A 10 "nginx_$site:" "$COMPOSE_FILE" | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+            if [[ -z "$port" || "$port" == "" ]]; then
+                port="????"
+            fi
+        fi
+
         if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_$site"; then
             status="Running"
         fi
 
         printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
-            "http://$site.$DOMAIN_SUFFIX" \
-            "https://$site.$DOMAIN_SUFFIX"
+            "http://localhost:$port" \
+            "phpMyAdmin: http://localhost:8200"
     done
     echo ""
 }
@@ -291,7 +310,7 @@ list_sites() {
 # Start environment
 start_env() {
     log_info "Starting WordPress environment..."
-    $DOCKER_COMPOSE up -d db redis traefik phpmyadmin 2>/dev/null || true
+    $DOCKER_COMPOSE up -d db redis phpmyadmin 2>/dev/null || true
     sleep 3
 
     # Start all WordPress sites
@@ -454,15 +473,23 @@ show_urls() {
 
     if [[ -n "$site_name" ]]; then
         if site_exists "$site_name"; then
-            echo "Local: http://$site_name.$DOMAIN_SUFFIX"
-            echo "Domain: https://$site_name.$DOMAIN_SUFFIX"
+            # Get the port for the site by examining the compose file
+            local port="????"
+            if [[ -f "$COMPOSE_FILE" ]]; then
+                port=$(grep -A 10 "nginx_$site_name:" "$COMPOSE_FILE" | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+                if [[ -z "$port" || "$port" == "" ]]; then
+                    port="????"
+                fi
+            fi
+            echo "Access: http://localhost:$port"
+            echo "Database: http://localhost:8200"
         else
             log_error "Site '$site_name' not found"
         fi
     else
-        echo "Base URLs:"
-        echo "WordPress sites: https://<site>.$DOMAIN_SUFFIX"
-        echo "Database admin: https://phpmyadmin.$DOMAIN_SUFFIX"
+        echo "Services:"
+        echo "WordPress sites: http://localhost:[assigned_port]"
+        echo "Database admin: http://localhost:8200"
         echo "Email viewer: https://mailhog.$DOMAIN_SUFFIX"
     fi
 }
@@ -595,44 +622,44 @@ install_env() {
         return 1
     fi
 
-    # Copy the simple compose file to main compose file if it doesn't exist
-    if [[ ! -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        cp "$PROJECT_ROOT/docker-compose.simple.yml" "$PROJECT_ROOT/docker-compose.yml"
-        log_success "Created docker-compose.yml from simple template"
-    fi
+    # Always create or overwrite the compose file with Traefik-free version
+    cat > "$PROJECT_ROOT/docker-compose.yml" << 'EOF'
+version: '3.8'
 
-    # Enhance Traefik configuration for better Docker Compose compatibility
-    if [[ -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        # Use awk to add the necessary parameters for better Docker Compose integration
-        local temp_file=$(mktemp)
-        awk '
-        /--providers.docker=true/ && !added {
-            print $0
-            print "      - \"--providers.docker.swarmMode=false\""
-            print "      - \"--providers.docker.network=wp-net\""
-            added = 1
-            next
-        }
-        { print }
-        ' "$PROJECT_ROOT/docker-compose.yml" > "$temp_file" && mv "$temp_file" "$PROJECT_ROOT/docker-compose.yml" || true
+networks:
+  wp-net:
+    driver: bridge
 
-        # Add phpMyAdmin service if not already present
-        if ! grep -q "phpmyadmin:" "$PROJECT_ROOT/docker-compose.yml"; then
-            # Get next available port for phpMyAdmin
-            local phpmyadmin_port=$(get_next_port)
-            # Make sure it's not 8080 which is used by Traefik dashboard
-            while [[ $phpmyadmin_port -eq 8080 ]]; do
-                phpmyadmin_port=$((phpmyadmin_port + 1))
-            done
+services:
+  # Database
+  db:
+    image: mysql:8.0
+    container_name: wp_db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: wp_main
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    networks:
+      - wp-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
-            # Create a temporary file and reconstruct the compose file properly
-            local temp_file=$(mktemp)
-
-            # Copy everything before volumes section (excluding the line with volumes:)
-            awk '/^volumes:/ {exit} {if (!/^volumes:/) print}' "$PROJECT_ROOT/docker-compose.yml" > "$temp_file"
-
-            # Add the phpMyAdmin service
-            cat >> "$temp_file" << PHPMYADMIN_EOF
+  # Cache
+  redis:
+    image: redis:alpine
+    container_name: wp_redis
+    restart: unless-stopped
+    networks:
+      - wp-net
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
 
   # Database admin panel
   phpmyadmin:
@@ -640,34 +667,21 @@ install_env() {
     container_name: wp_phpmyadmin
     restart: unless-stopped
     ports:
-      - "$phpmyadmin_port:80"  # Fallback direct access
+      - "8200:80"  # Direct access to phpMyAdmin
     environment:
       PMA_HOST: db
-      PMA_USER: \${MYSQL_USER:-wp_user}
-      PMA_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
-      MYSQL_ROOT_PASSWORD: \${MYSQL_ROOT_PASSWORD:-root}
+      PMA_USER: ${MYSQL_USER:-wp_user}
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
     networks:
       - wp-net
     depends_on:
       - db
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.phpmyadmin.rule=Host(\`phpmyadmin.127.0.0.1.nip.io\`)"
-      - "traefik.http.routers.phpmyadmin.entrypoints=web,websecure"
-      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
 
-PHPMYADMIN_EOF
-
-            # Add the volumes section
-            sed -n '/^volumes:/,$p' "$PROJECT_ROOT/docker-compose.yml" >> "$temp_file"
-
-            # Replace the original file
-            mv "$temp_file" "$PROJECT_ROOT/docker-compose.yml"
-
-            # Output the information
-            log_info "phpMyAdmin available at: http://localhost:$phpmyadmin_port"
-        fi
-    fi
+volumes:
+  wp_db_data:
+EOF
+    log_success "Created Traefik-free docker-compose.yml"
 
     # Run setup if .env doesn't exist
     if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
@@ -733,6 +747,76 @@ PHPMYADMIN_EOF
     echo ""
     log_info "Note: If Traefik dashboard is needed, it should be available at http://localhost:8080"
     log_success "Installation complete! 🚀"
+}
+
+# Database import function
+import_db() {
+    local site_name="$1"
+    local dump_file="$2"
+
+    if [[ -z "$site_name" || -z "$dump_file" ]]; then
+        log_error "Usage: ./wp-simple import-db <site-name> </path/to/dump.sql>"
+        return 1
+    fi
+
+    if [[ ! -f "$dump_file" ]]; then
+        log_error "Dump file not found: $dump_file"
+        return 1
+    fi
+
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+
+    local db_name="${site_name}_db"
+    log_info "Importing database for '$site_name' ($db_name)..."
+
+    # Import the SQL dump
+    cat "$dump_file" | docker-compose exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name"
+
+    if [[ $? -eq 0 ]]; then
+        log_success "Database imported successfully for '$site_name'"
+    else
+        log_error "Failed to import database for '$site_name'"
+        return 1
+    fi
+}
+
+# Database export function
+export_db() {
+    local site_name="$1"
+    local output_file="$2"
+
+    if [[ -z "$site_name" ]]; then
+        log_error "Usage: ./wp-simple export-db <site-name> [/path/to/output.sql]"
+        return 1
+    fi
+
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+
+    local db_name="${site_name}_db"
+
+    if [[ -z "$output_file" ]]; then
+        output_file="${site_name}_$(date +%Y%m%d_%H%M%S).sql"
+        log_info "Exporting database for '$site_name' to $output_file..."
+    else
+        log_info "Exporting database for '$site_name' to $output_file..."
+    fi
+
+    # Export the database
+    docker-compose exec db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
+
+    if [[ $? -eq 0 ]]; then
+        log_success "Database exported successfully to '$output_file'"
+        echo "File size: $(du -h "$output_file" | cut -f1)"
+    else
+        log_error "Failed to export database for '$site_name'"
+        return 1
+    fi
 }
 
 # Clean up
@@ -809,6 +893,12 @@ main() {
             ;;
         "install")
             install_env "$@"
+            ;;
+        "import-db")
+            import_db "$@"
+            ;;
+        "export-db")
+            export_db "$@"
             ;;
         "help"|"-h"|"--help")
             show_help
