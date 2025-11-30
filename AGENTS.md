@@ -4,28 +4,22 @@ This document serves as a comprehensive guide for agents working with the WordPr
 
 ## Project Overview
 
-This is a sophisticated WordPress development environment that supports multiple WordPress instances with Docker, designed for professional WordPress development. The platform includes code quality tools, monitoring, caching layers, and automated management scripts.
+This is a streamlined WordPress development environment that supports multiple WordPress instances with Docker, designed for professional WordPress development. The platform includes code quality tools, monitoring, caching layers, and simplified management.
 
 ## Directory Structure
 
 ```
 wordpress-matrix/
-├── asgard/                    # WordPress instance files
-├── wordpress_sakaar2/         # Another WordPress instance
-├── wordpress_*/                # Dynamically created WordPress sites
-├── backup/                    # Documentation and backup files
+├── wp_*/                      # Dynamically created WordPress sites
 ├── config/                    # Configuration files for services
 │   ├── nginx/                 # Nginx configurations
+│   ├── phpcs/                 # PHP CodeSniffer config
 │   ├── phpstan/              # PHPStan static analysis config
 │   ├── phpunit/              # PHPUnit testing config
-│   ├── redis/                # Redis cache configuration
-│   ├── security/              # Security scan configurations
-│   └── traefik/              # Reverse proxy settings
+│   └── redis/                # Redis cache configuration
 ├── docker/                    # Docker-related files
-├── docs/                      # Comprehensive documentation
-├── scripts/                   # Management and utility scripts
+├── docs/                      # Documentation
 ├── ssl-certs/                 # SSL certificates
-├── tests/                     # Test files
 └── logs/                      # Log files for all services
 ```
 
@@ -33,42 +27,40 @@ wordpress-matrix/
 
 ### Environment Management
 ```bash
-./wp-dev setup          # Initial setup of the environment
-./wp-dev start           # Start all services
-./wp-dev stop            # Stop all services
-./wp-dev restart         # Restart all services
-./wp-dev status          # Show status of all services
-./wp-dev clean           # Clean up unused Docker resources
+./wp-simple setup          # Initial setup of the environment
+./wp-simple start           # Start all services
+./wp-simple stop            # Stop all services
+./wp-simple restart         # Restart all services
+./wp-simple status          # Show status of all services
+./wp-simple clean           # Clean up unused Docker resources
 ```
 
 ### Site Management
 ```bash
-./scripts/manage-sites.sh list                    # List all WordPress sites
-./scripts/manage-sites.sh create <site-name>      # Create new WordPress site
-./scripts/manage-sites.sh start <site-name>       # Start specific site
-./scripts/manage-sites.sh stop <site-name>        # Stop specific site
-./scripts/manage-sites.sh remove <site-name>      # Remove site (non-predefined)
-./scripts/manage-sites.sh info <site-name>        # Show site details
+./wp-simple list                    # List all WordPress sites
+./wp-simple create <site-name>      # Create new WordPress site
+./wp-simple start <site-name>       # Start specific site
+./wp-simple stop <site-name>        # Stop specific site
+./wp-simple remove <site-name>      # Remove site
+./wp-simple info <site-name>        # Show site details
 ```
 
 ### Code Quality Tools
 ```bash
-./scripts/manage.sh lint           # Run PHP CodeSniffer (WordPress standards)
-./scripts/manage.sh fix            # Auto-fix CodeSniffer issues
-./scripts/manage.sh analyse         # Run PHPStan static analysis (Level 9)
-./scripts/manage.sh phpmd          # Run PHP Mess Detector
-./scripts/manage.sh psalm          # Run Psalm static analysis
-./scripts/manage.sh test           # Run PHPUnit tests
-./scripts/manage.sh quality        # Run all quality checks
-./scripts/manage.sh quick-check    # Run essential checks only
+./wp-simple lint           # Run PHP CodeSniffer (WordPress standards)
+./wp-simple fix            # Auto-fix CodeSniffer issues
+./wp-simple analyse         # Run PHPStan static analysis
+./wp-simple test           # Run PHPUnit tests
+./wp-simple quality        # Run all quality checks
+./wp-simple check          # Run essential checks only
 ```
 
 ### Development Tools
 ```bash
-./wp-dev shell wpcli              # Access WP-CLI container
-./wp-dev shell composer           # Access Composer container
-./wp-dev shell node               # Access Node.js container
-./scripts/manage.sh logs <service> # View service logs
+./wp-simple shell wpcli              # Access WP-CLI container
+./wp-simple shell composer           # Access Composer container
+./wp-simple shell node               # Access Node.js container
+./wp-simple logs <service>           # View service logs
 ```
 
 ## Key Configuration Files

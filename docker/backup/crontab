@@ -1,8 +1,0 @@
-# WordPress Development Environment Backup Crontab
-# This will be replaced by the actual schedule from environment variables
-
-# Default: Daily at 2 AM
-0 2 * * * /usr/local/bin/backup-all.sh
-
-# Weekly cleanup at 3 AM on Sundays
-0 3 * * 0 /usr/local/bin/cleanup-old-backups.sh
