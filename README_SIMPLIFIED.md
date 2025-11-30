@@ -5,7 +5,7 @@ A streamlined version of the WordPress Development Platform that maintains core 
 ## Key Simplifications
 
 ### 🚀 Single Command Interface
-- Consolidated all functionality into one script: `wp-simple`
+- Consolidated all functionality into one script: `matrix`
 - Reduced command complexity from multiple scripts to single entry point
 - Intuitive command structure with helpful output
 
@@ -33,16 +33,16 @@ A streamlined version of the WordPress Development Platform that maintains core 
 # 1. Initial setup
 cp .env.simple .env
 cp docker-compose.simple.yml docker-compose.yml
-./wp-simple setup
+./matrix setup
 
 # 2. Create your first site
-./wp-simple create myblog
+./matrix create myblog
 
 # 3. Start everything
-./wp-simple start
+./matrix start
 
 # 4. Check status
-./wp-simple status
+./matrix status
 
 # 5. Access your site
 # http://localhost:8001 or https://myblog.127.0.0.1.nip.io
@@ -52,37 +52,37 @@ cp docker-compose.simple.yml docker-compose.yml
 
 ### Site Management
 ```bash
-./wp-simple create <name>    # Create new WordPress site
-./wp-simple list              # List all sites
-./wp-simple start <name>      # Start specific site
-./wp-simple stop <name>       # Stop specific site
-./wp-simple remove <name>      # Remove site
-./wp-simple info <name>       # Show site details
+./matrix create <name>    # Create new WordPress site
+./matrix list              # List all sites
+./matrix start <name>      # Start specific site
+./matrix stop <name>       # Stop specific site
+./matrix remove <name>      # Remove site
+./matrix info <name>       # Show site details
 ```
 
 ### Environment Management
 ```bash
-./wp-simple start             # Start all services
-./wp-simple stop              # Stop all services
-./wp-simple restart           # Restart all services
-./wp-simple status            # Show system status
-./wp-simple logs [site]       # Show logs
-./wp-simple clean             # Clean up resources
+./matrix start             # Start all services
+./matrix stop              # Stop all services
+./matrix restart           # Restart all services
+./matrix status            # Show system status
+./matrix logs [site]       # Show logs
+./matrix clean             # Clean up resources
 ```
 
 ### Code Quality
 ```bash
-./wp-simple check             # Run quality checks
-./wp-simple test              # Run tests
-./wp-simple fix               # Auto-fix issues
+./matrix check             # Run quality checks
+./matrix test              # Run tests
+./matrix fix               # Auto-fix issues
 ```
 
 ### Development Tools
 ```bash
-./wp-simple shell wp          # Access WordPress CLI
-./wp-simple shell db          # Access database
-./wp-simple shell nginx       # Access proxy
-./wp-simple url <name>        # Show site URLs
+./matrix shell wp          # Access WordPress CLI
+./matrix shell db          # Access database
+./matrix shell nginx       # Access proxy
+./matrix url <name>        # Show site URLs
 ```
 
 ## Architecture Overview
@@ -175,12 +175,12 @@ If you prefer manual migration:
 
 3. **Run simplified setup**
    ```bash
-   ./wp-simple setup
+   ./matrix setup
    ```
 
 4. **Recreate sites as needed**
    ```bash
-   ./wp-simple create <site-name>
+   ./matrix create <site-name>
    ```
 
 ## Code Quality Tools
@@ -193,8 +193,8 @@ The simplified version maintains essential code quality:
 
 Run with:
 ```bash
-./wp-simple check    # All quality checks
-./wp-simple fix       # Auto-fix issues
+./matrix check    # All quality checks
+./matrix fix       # Auto-fix issues
 ```
 
 ## Monitoring
@@ -220,9 +220,9 @@ Basic monitoring included:
 
 1. **Try the simplified version**
    ```bash
-   ./wp-simple setup
-   ./wp-simple create test
-   ./wp-simple start
+   ./matrix setup
+   ./matrix create test
+   ./matrix start
    ```
 
 2. **Migrate your existing sites**
