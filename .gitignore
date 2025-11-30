@@ -89,7 +89,7 @@ wp-cache/
 sess_*
 
 # WordPress Matrix: Keep core app files, exclude content
-!wp-simple
+!matrix
 !docker-compose.yml
 !docker-compose.simple.yml
 !docker-compose.test.yml

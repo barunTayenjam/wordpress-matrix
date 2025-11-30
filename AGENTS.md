@@ -27,40 +27,40 @@ wordpress-matrix/
 
 ### Environment Management
 ```bash
-./wp-simple setup          # Initial setup of the environment
-./wp-simple start           # Start all services
-./wp-simple stop            # Stop all services
-./wp-simple restart         # Restart all services
-./wp-simple status          # Show status of all services
-./wp-simple clean           # Clean up unused Docker resources
+./matrix setup          # Initial setup of the environment
+./matrix start           # Start all services
+./matrix stop            # Stop all services
+./matrix restart         # Restart all services
+./matrix status          # Show status of all services
+./matrix clean           # Clean up unused Docker resources
 ```
 
 ### Site Management
 ```bash
-./wp-simple list                    # List all WordPress sites
-./wp-simple create <site-name>      # Create new WordPress site
-./wp-simple start <site-name>       # Start specific site
-./wp-simple stop <site-name>        # Stop specific site
-./wp-simple remove <site-name>      # Remove site
-./wp-simple info <site-name>        # Show site details
+./matrix list                    # List all WordPress sites
+./matrix create <site-name>      # Create new WordPress site
+./matrix start <site-name>       # Start specific site
+./matrix stop <site-name>        # Stop specific site
+./matrix remove <site-name>      # Remove site
+./matrix info <site-name>        # Show site details
 ```
 
 ### Code Quality Tools
 ```bash
-./wp-simple lint           # Run PHP CodeSniffer (WordPress standards)
-./wp-simple fix            # Auto-fix CodeSniffer issues
-./wp-simple analyse         # Run PHPStan static analysis
-./wp-simple test           # Run PHPUnit tests
-./wp-simple quality        # Run all quality checks
-./wp-simple check          # Run essential checks only
+./matrix lint           # Run PHP CodeSniffer (WordPress standards)
+./matrix fix            # Auto-fix CodeSniffer issues
+./matrix analyse         # Run PHPStan static analysis
+./matrix test           # Run PHPUnit tests
+./matrix quality        # Run all quality checks
+./matrix check          # Run essential checks only
 ```
 
 ### Development Tools
 ```bash
-./wp-simple shell wpcli              # Access WP-CLI container
-./wp-simple shell composer           # Access Composer container
-./wp-simple shell node               # Access Node.js container
-./wp-simple logs <service>           # View service logs
+./matrix shell wpcli              # Access WP-CLI container
+./matrix shell composer           # Access Composer container
+./matrix shell node               # Access Node.js container
+./matrix logs <service>           # View service logs
 ```
 
 ## Key Configuration Files
@@ -235,7 +235,7 @@ sudo chown -R $USER:$USER <site_directory>
 For reduced complexity and easier onboarding, a simplified version is available:
 
 ### Key Files
-- `wp-simple` - All-in-one management script
+- `matrix` - All-in-one management script
 - `docker-compose.simple.yml` - Streamlined Docker configuration
 - `.env.simple` - Simplified environment template
 - `README_SIMPLIFIED.md` - Complete simplified version guide
@@ -244,26 +244,26 @@ For reduced complexity and easier onboarding, a simplified version is available:
 ```bash
 cp .env.simple .env
 cp docker-compose.simple.yml docker-compose.yml
-chmod +x wp-simple
-./wp-simple setup
-./wp-simple create mysite
-./wp-simple start
+chmod +x matrix
+./matrix setup
+./matrix create mysite
+./matrix start
 ```
 
 ### Main Benefits
 - 70% fewer commands to learn
-- Single entry point (`wp-simple`)
+- Single entry point (`matrix`)
 - Lower resource usage
 - Faster setup and startup
 - Better error messages
 
 ### Core Commands
 ```bash
-./wp-simple create <name>    # Create site
-./wp-simple list              # List sites
-./wp-simple start             # Start all
-./wp-simple check             # Code quality
-./wp-simple shell wp          # WordPress CLI
+./matrix create <name>    # Create site
+./matrix list              # List sites
+./matrix start             # Start all
+./matrix check             # Code quality
+./matrix shell wp          # WordPress CLI
 ```
 
 Choose the simplified version for:

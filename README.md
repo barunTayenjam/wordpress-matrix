@@ -4,7 +4,7 @@ A streamlined WordPress development environment with Docker support, comprehensi
 
 ## ✨ Key Features
 
-- **⚡ Simplified Management**: All-in-one `wp-simple` script for easy site management
+- **⚡ Simplified Management**: All-in-one `matrix` script for easy site management
 - **🧪 Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
 - **🌐 Multi-Site Environment**: Create and manage multiple WordPress instances
 - **🔒 SSL/TLS Support**: Automatic HTTPS with Traefik reverse proxy
@@ -21,12 +21,12 @@ cd wordpress-matrix
 # Quick setup
 cp .env.simple .env
 cp docker-compose.simple.yml docker-compose.yml
-chmod +x wp-simple
-./wp-simple setup
+chmod +x matrix
+./matrix setup
 
 # Create your first site
-./wp-simple create mysite
-./wp-simple start
+./matrix create mysite
+./matrix start
 
 # Access your site
 # Local: http://localhost:8001
@@ -46,23 +46,23 @@ chmod +x wp-simple
 ### Site Management
 ```bash
 # Site management
-./wp-simple create blog          # Create new site
-./wp-simple list                 # List all sites
-./wp-simple start                # Start all sites
-./wp-simple stop                 # Stop all sites
-./wp-simple remove blog          # Remove site
+./matrix create blog          # Create new site
+./matrix list                 # List all sites
+./matrix start                # Start all sites
+./matrix stop                 # Stop all sites
+./matrix remove blog          # Remove site
 
 # Development
-./wp-simple shell wp             # Access WordPress CLI
-./wp-simple check                # Run code quality checks
-./wp-simple logs blog            # View site logs
-./wp-simple url blog             # Show site URLs
+./matrix shell wp             # Access WordPress CLI
+./matrix check                # Run code quality checks
+./matrix logs blog            # View site logs
+./matrix url blog             # Show site URLs
 ```
 
 ### WordPress CLI Operations
 ```bash
 # Access WordPress CLI
-./wp-simple shell wp
+./matrix shell wp
 # or
 ./wp-podman shell wp
 
@@ -116,13 +116,13 @@ wp cache flush --path=/var/www/html/mysite
 ### Getting Site URLs
 ```bash
 # Show all site URLs
-./wp-simple url
+./matrix url
 
 # Show specific site URL
-./wp-simple url mysite
+./matrix url mysite
 
 # List sites with URLs
-./wp-simple list
+./matrix list
 ```
 
 ## 🛠️ Troubleshooting
@@ -130,28 +130,28 @@ wp cache flush --path=/var/www/html/mysite
 ### Quick Fixes
 ```bash
 # Services won't start
-./wp-simple clean
-./wp-simple start
+./matrix clean
+./matrix start
 
 # Database issues
-./wp-simple restart db
+./matrix restart db
 
 # Permission problems
 sudo chown -R $USER:$USER wp_*
 
 # Clear all caches
-./wp-simple shell wp
+./matrix shell wp
 wp cache flush --all-sites
 ```
 
 ### Getting Help
-1. **Check Status**: `./wp-simple status`
-2. **View Logs**: `./wp-simple logs`
+1. **Check Status**: `./matrix status`
+2. **View Logs**: `./matrix logs`
 3. **Review Documentation**: Browse `/docs` folder and `README_SIMPLIFIED.md`
 4. **Community Support**: GitHub issues and discussions
 
 ### Common Issues
-- **Port Conflicts**: Use `./wp-simple create` to auto-assign ports
+- **Port Conflicts**: Use `./matrix create` to auto-assign ports
 - **Permission Errors**: Ensure proper ownership of WordPress directories
 - **Database Connection**: Check if database container is running
 
@@ -159,14 +159,14 @@ wp cache flush --all-sites
 
 ### Code Quality Checks
 ```bash
-./wp-simple check                # Quick checks
-./wp-simple quality              # Comprehensive checks
+./matrix check                # Quick checks
+./matrix quality              # Comprehensive checks
 ```
 
 ### Individual Tools
 ```bash
-./wp-simple lint                 # PHP CodeSniffer
-./wp-simple analyse              # PHPStan analysis
+./matrix lint                 # PHP CodeSniffer
+./matrix analyse              # PHPStan analysis
 ```
 
 ## 🚀 Getting Started Checklist
@@ -174,15 +174,15 @@ wp cache flush --all-sites
 ### First-Time Setup
 - [ ] Clone repository: `git clone https://github.com/barunTayenjam/wordpress-matrix.git`
 - [ ] Copy configurations: `cp .env.simple .env && cp docker-compose.simple.yml docker-compose.yml`
-- [ ] Run setup: `./wp-simple setup`
-- [ ] Create first site: `./wp-simple create mysite`
-- [ ] Start environment: `./wp-simple start`
+- [ ] Run setup: `./matrix setup`
+- [ ] Create first site: `./matrix create mysite`
+- [ ] Start environment: `./matrix start`
 - [ ] Access site: `https://mysite.127.0.0.1.nip.io`
 
 ### Development Workflow
-- [ ] Install code quality tools: `./wp-simple check`
-- [ ] Access WordPress CLI: `./wp-simple shell wp`
-- [ ] Monitor logs: `./wp-simple logs`
+- [ ] Install code quality tools: `./matrix check`
+- [ ] Access WordPress CLI: `./matrix shell wp`
+- [ ] Monitor logs: `./matrix logs`
 
 ## 📞 Support & Community
 
@@ -191,8 +191,8 @@ wp cache flush --all-sites
 - **[Code Quality Guide](docs/CODE_QUALITY.md)** - PHPStan, testing, and quality tools
 
 ### Getting Help
-1. **Status Check**: `./wp-simple status`
-2. **Review Logs**: `./wp-simple logs`
+1. **Status Check**: `./matrix status`
+2. **Review Logs**: `./matrix logs`
 3. **Browse Documentation**: Check `/docs` folder and README files
 4. **GitHub Issues**: Report bugs and request features
 
@@ -205,4 +205,4 @@ wp cache flush --all-sites
 
 ## 🎉 Happy Developing with WordPress Platform!
 
-**Quick Start**: `git clone && cp .env.simple .env && cp docker-compose.simple.yml docker-compose.yml && ./wp-simple setup && ./wp-simple create mysite && ./wp-simple start`
+**Quick Start**: `git clone && cp .env.simple .env && cp docker-compose.simple.yml docker-compose.yml && ./matrix setup && ./matrix create mysite && ./matrix start`

@@ -45,7 +45,7 @@ show_help() {
     cat << EOF
 🚀 Simplified WordPress Development Platform
 
-Usage: ./wp-simple <command> [options]
+Usage: ./matrix <command> [options]
 
 Site Management:
   create <name>     Create new WordPress site
@@ -76,12 +76,12 @@ Development:
   export-db <n> [f] Export database (site name, optional file)
 
 Examples:
-  ./wp-simple create blog      # Create new site
-  ./wp-simple start            # Start everything
-  ./wp-simple check            # Run quality checks
-  ./wp-simple shell wp         # Access WordPress CLI
-  ./wp-simple import-db blog dump.sql  # Import database
-  ./wp-simple export-db blog backup.sql # Export database
+  ./matrix create blog      # Create new site
+  ./matrix start            # Start everything
+  ./matrix check            # Run quality checks
+  ./matrix shell wp         # Access WordPress CLI
+  ./matrix import-db blog dump.sql  # Import database
+  ./matrix export-db blog backup.sql # Export database
 
 EOF
 }
@@ -197,9 +197,9 @@ EOF_NGINX
     # Use semantic port assignment starting from 8100 for WordPress sites
     # Find available port starting from 8100
     local port=8100
-    while $DOCKER_COMPOSE port nginx_${site_name} 80 &>/dev/null || \
-          docker port nginx_${site_name} 80 &>/dev/null || \
-          (netstat -an | grep -q ":$port "); do
+    # Check existing port mappings in compose file
+    while grep -q "\"$port:80\"" "$COMPOSE_FILE" 2>/dev/null || \
+          (ss -tln 2>/dev/null | grep -q ":$port "); do
         port=$((port + 1))
         # Safety check to avoid infinite loop
         if [[ $port -gt 8200 ]]; then
@@ -409,7 +409,12 @@ show_logs() {
         if [[ "$service" == "db" ]]; then
             $DOCKER_COMPOSE logs -f db
         elif [[ "$service" == "nginx" ]]; then
-            $DOCKER_COMPOSE logs -f traefik
+            local nginx_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            if [[ ${#nginx_containers[@]} -gt 0 ]]; then
+                $DOCKER_COMPOSE logs -f "${nginx_containers[0]}"
+            else
+                log_error "No nginx containers running"
+            fi
         else
             $DOCKER_COMPOSE logs -f "wp_$service" "nginx_$service" 2>/dev/null || \
             $DOCKER_COMPOSE logs -f "$service"
@@ -532,8 +537,17 @@ access_shell() {
             $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
             ;;
         "nginx"|"proxy")
-            $DOCKER_COMPOSE exec traefik sh 2>/dev/null || \
-            log_error "Traefik container not running"
+            local nginx_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            if [[ ${#nginx_containers[@]} -eq 0 ]]; then
+                log_error "No nginx containers running"
+                return 1
+            fi
+            
+            # Use first running nginx container
+            local container_name="${nginx_containers[0]}"
+            echo "Accessing container: $container_name"
+            $DOCKER_COMPOSE exec "$container_name" sh || \
+            log_error "Failed to access nginx container"
             ;;
         *)
             log_error "Unknown service: $service"
@@ -622,28 +636,6 @@ services:
     networks:
       - wp-net
 
-  # Reverse proxy
-  traefik:
-    image: traefik:v2.10
-    container_name: wp_traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-      - "--serverstransport.insecureskipverify=true"
-    networks:
-      - wp-net
-
 volumes:
   wp_db_data:
 EOF
@@ -683,7 +675,7 @@ EOF
         # This is for the main project directory if needed
     fi
 
-    log_success "Setup complete! Run './wp-simple start' to begin"
+    log_success "Setup complete! Run './matrix start' to begin"
 }
 
 # Install complete WordPress environment with one command
@@ -764,24 +756,9 @@ EOF
         setup_env
     fi
 
-    # Start the base services (db, redis, traefik)
+    # Start the base services (db, redis)
     log_info "Starting base services..."
-    if ! $DOCKER_COMPOSE up -d db redis traefik; then
-        # If traefik fails due to port conflicts, try to stop conflicting containers first
-        log_warning "Traefik failed to start, checking for conflicting containers..."
-        docker ps --format "table {{.Names}}\t{{.Ports}}" | grep -E "(traefik|80->|443->|8080->)" || true
-
-        # Try to stop any existing traefik containers
-        docker stop $(docker ps -q --filter "name=traefik") 2>/dev/null || true
-        docker stop $(docker ps -q --filter "name=wp_traefik") 2>/dev/null || true
-
-        # Retry starting services
-        log_info "Retrying to start services..."
-        $DOCKER_COMPOSE up -d db redis traefik || {
-            log_warning "Could not start Traefik (port may be in use), starting other services..."
-            $DOCKER_COMPOSE up -d db redis
-        }
-    fi
+    $DOCKER_COMPOSE up -d db redis
 
     # Wait for database to be ready
     log_info "Waiting for database to be ready..."
@@ -818,10 +795,8 @@ EOF
     log_success "WordPress environment installed successfully!"
     echo ""
     echo "Your site is available at:"
-    echo "  http://$site_name.$DOMAIN_SUFFIX"
-    echo "  https://$site_name.$DOMAIN_SUFFIX"
+    echo "  http://localhost:[port]"
     echo ""
-    log_info "Note: If Traefik dashboard is needed, it should be available at http://localhost:8080"
     log_success "Installation complete! 🚀"
 }
 
@@ -831,7 +806,7 @@ import_db() {
     local dump_file="$2"
 
     if [[ -z "$site_name" || -z "$dump_file" ]]; then
-        log_error "Usage: ./wp-simple import-db <site-name> </path/to/dump.sql>"
+        log_error "Usage: ./matrix import-db <site-name> </path/to/dump.sql>"
         return 1
     fi
 
@@ -849,7 +824,7 @@ import_db() {
     log_info "Importing database for '$site_name' ($db_name)..."
 
     # Import the SQL dump
-    cat "$dump_file" | docker-compose exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name"
+    cat "$dump_file" | $DOCKER_COMPOSE exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database imported successfully for '$site_name'"
@@ -865,7 +840,7 @@ export_db() {
     local output_file="$2"
 
     if [[ -z "$site_name" ]]; then
-        log_error "Usage: ./wp-simple export-db <site-name> [/path/to/output.sql]"
+        log_error "Usage: ./matrix export-db <site-name> [/path/to/output.sql]"
         return 1
     fi
 
@@ -884,7 +859,7 @@ export_db() {
     fi
 
     # Export the database
-    docker-compose exec db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
+    $DOCKER_COMPOSE exec db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database exported successfully to '$output_file'"
@@ -901,8 +876,8 @@ clean_env() {
     read -p "Continue? [y/N]: " confirm
 
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        docker system prune -f
-        docker volume prune -f
+        $DOCKER_COMPOSE system prune -f 2>/dev/null || docker system prune -f
+        $DOCKER_COMPOSE volume prune -f 2>/dev/null || docker volume prune -f
         log_success "Cleanup complete"
     fi
 }
