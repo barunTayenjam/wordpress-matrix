@@ -100,5 +100,6 @@ services:
       - tools
     command: ["tail", "-f", "/dev/null"]
 
+
 volumes:
   wp_db_data:

@@ -431,9 +431,22 @@ run_checks() {
         return
     fi
     
+    # Start code quality tools if not running
+    $DOCKER_COMPOSE --profile tools up -d phpcs phpstan 2>/dev/null || true
+    
+    # Run PHP CodeSniffer
+    log_info "Running PHP CodeSniffer..."
     $DOCKER_COMPOSE run --rm phpcs phpcs --standard=WordPress \
         ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ 2>/dev/null || \
-    log_info "Run 'wp-simple setup' to install code quality tools"
+    log_warning "PHP CodeSniffer check completed with issues"
+    
+    # Run PHPStan
+    log_info "Running PHPStan..."
+    $DOCKER_COMPOSE run --rm phpstan phpstan analyse \
+        ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ --level=5 2>/dev/null || \
+    log_warning "PHPStan check completed with issues"
+    
+    log_info "Code quality checks completed"
 }
 
 # Access shell
@@ -442,15 +455,18 @@ access_shell() {
     
     case "$service" in
         "wp"|"wordpress")
-            local sites=($(get_sites))
-            if [[ ${#sites[@]} -eq 0 ]]; then
-                log_error "No WordPress sites found"
+            # Get running WordPress containers (exclude db)
+            local running_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^wp_" | grep -v "wp_db" || true))
+            if [[ ${#running_containers[@]} -eq 0 ]]; then
+                log_error "No WordPress containers running"
                 return 1
             fi
             
-            # Use first available site
-            $DOCKER_COMPOSE exec "wp_${sites[0]}" bash 2>/dev/null || \
-            log_error "WordPress container not running"
+            # Use first running WordPress container
+            local container_name="${running_containers[0]}"
+            echo "Accessing container: $container_name"
+            $DOCKER_COMPOSE exec "$container_name" bash || \
+            log_error "Failed to access WordPress container"
             ;;
         "db"|"database")
             $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
