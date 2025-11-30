@@ -1,0 +1,56 @@
+version: '3.8'
+
+networks:
+  wp-net:
+    driver: bridge
+
+services:
+  # Database
+  db:
+    image: mysql:8.0
+    container_name: wp_db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: wp_main
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    networks:
+      - wp-net
+
+  # Cache
+  redis:
+    image: redis:alpine
+    container_name: wp_redis
+    restart: unless-stopped
+    networks:
+      - wp-net
+
+  # Reverse proxy
+  traefik:
+    image: traefik:v2.10
+    container_name: wp_traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--serverstransport.insecureskipverify=true"
+    networks:
+      - wp-net
+
+volumes:
+  wp_db_data:
