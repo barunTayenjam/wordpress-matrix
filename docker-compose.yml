@@ -196,5 +196,6 @@ services:
     networks:
       - wp-net
 
+
 volumes:
   wp_db_data:

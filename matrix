@@ -289,7 +289,7 @@ list_sites() {
             local port="????"
             if [[ -f "$COMPOSE_FILE" ]]; then
                 # Extract port from nginx service definition
-                port=$(grep -A 10 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
+                port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
                 if [[ -z "$port" || "$port" == "" ]]; then
                     port="????"
                 fi
@@ -520,8 +520,8 @@ access_shell() {
     
     case "$service" in
         "wp"|"wordpress")
-            # Get running WordPress containers (exclude db)
-            local running_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^wp_" | grep -v "wp_db" || true))
+            # Get running WordPress containers (exclude db, redis, and other services)
+            local running_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^wp_" | grep -vE "wp_db|wp_redis|wp_phpmyadmin|wp_phpcs|wp_phpstan|wp_cli" || true))
             if [[ ${#running_containers[@]} -eq 0 ]]; then
                 log_error "No WordPress containers running"
                 return 1
@@ -566,7 +566,7 @@ show_urls() {
             # Get the port for the site by examining the compose file
             local port="????"
             if [[ -f "$COMPOSE_FILE" ]]; then
-                port=$(grep -A 10 "nginx_$site_name:" "$COMPOSE_FILE" | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+                port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
                 if [[ -z "$port" || "$port" == "" ]]; then
                     port="????"
                 fi
