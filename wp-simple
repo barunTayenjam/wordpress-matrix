@@ -173,7 +173,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass wp_container_name:9000;  # To be replaced with actual wp service name
+        fastcgi_pass wp_$site_name:9000;  # Connect to WordPress container
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
@@ -234,7 +234,7 @@ EOF_NGINX
     container_name: nginx_$site_name
     restart: unless-stopped
     ports:
-      - "$port:80"  # Semantic direct port mapping (8100+ range)
+      - "$port:80"  # Direct port mapping for reliable access
     depends_on:
       - wp_$site_name
     volumes:
@@ -288,8 +288,8 @@ list_sites() {
             # Get the port for the site by examining the compose file
             local port="????"
             if [[ -f "$COMPOSE_FILE" ]]; then
-                # Extract port from nginx service definition with timeout
-                port=$(timeout 2 grep -A 10 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
+                # Extract port from nginx service definition
+                port=$(grep -A 10 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
                 if [[ -z "$port" || "$port" == "" ]]; then
                     port="????"
                 fi
@@ -301,7 +301,7 @@ list_sites() {
 
             printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
                 "http://localhost:$port" \
-                "https://$site.127.0.0.1.nip.io"
+                "Direct port access only"
         done
         echo ""
     fi
@@ -337,14 +337,7 @@ list_sites() {
         "http://localhost:8200" \
         "Database Management"
     
-    # Traefik Dashboard
-    local traefik_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_traefik"; then
-        traefik_status="Running"
-    fi
-    printf "%-15s %-10s %-30s %-30s\n" "Traefik" "$traefik_status" \
-        "http://localhost:8080" \
-        "Reverse Proxy Dashboard"
+
     
     # Code Quality Tools
     local phpcs_status="Stopped"
