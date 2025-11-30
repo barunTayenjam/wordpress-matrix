@@ -269,41 +269,108 @@ EOF
     fi
 }
 
-# List all sites
+# List all sites and services
 list_sites() {
-    log_info "WordPress Sites:"
+    log_info "WordPress Sites & Services:"
     echo ""
     
+    # Get WordPress sites
     local sites=($(get_sites))
-    if [[ ${#sites[@]} -eq 0 ]]; then
-        log_warning "No sites found"
-        return
+    
+    # Show WordPress sites
+    if [[ ${#sites[@]} -gt 0 ]]; then
+        printf "%-15s %-10s %-30s %-30s\n" "WordPress Site" "Status" "Local URL" "Domain URL"
+        echo "────────────────────────────────────────────────────────────────────────"
+        
+        for site in "${sites[@]}"; do
+            local status="Stopped"
+
+            # Get the port for the site by examining the compose file
+            local port="????"
+            if [[ -f "$COMPOSE_FILE" ]]; then
+                # Extract port from nginx service definition with timeout
+                port=$(timeout 2 grep -A 10 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
+                if [[ -z "$port" || "$port" == "" ]]; then
+                    port="????"
+                fi
+            fi
+
+            if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_$site"; then
+                status="Running"
+            fi
+
+            printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
+                "http://localhost:$port" \
+                "https://$site.127.0.0.1.nip.io"
+        done
+        echo ""
     fi
     
-    printf "%-15s %-10s %-30s %-30s\n" "Site" "Status" "Local URL" "Domain URL"
+    # Show Management Services
+    printf "%-15s %-10s %-30s %-30s\n" "Service" "Status" "Local URL" "Description"
     echo "────────────────────────────────────────────────────────────────────────"
     
-    for site in "${sites[@]}"; do
-        local status="Stopped"
-
-        # Get the port for the site by examining the compose file
-        local port="????"
-        if [[ -f "$COMPOSE_FILE" ]]; then
-            # Extract port from nginx service definition
-            port=$(grep -A 10 "nginx_$site:" "$COMPOSE_FILE" | grep -oE '\- "[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
-            if [[ -z "$port" || "$port" == "" ]]; then
-                port="????"
-            fi
-        fi
-
-        if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_$site"; then
-            status="Running"
-        fi
-
-        printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
-            "http://localhost:$port" \
-            "phpMyAdmin: http://localhost:8200"
-    done
+    # Database
+    local db_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_db"; then
+        db_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "Database" "$db_status" \
+        "http://localhost:3306" \
+        "MySQL Database Server"
+    
+    # Redis Cache
+    local redis_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_redis"; then
+        redis_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "Redis Cache" "$redis_status" \
+        "Internal" \
+        "In-memory Cache"
+    
+    # phpMyAdmin
+    local phpmyadmin_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpmyadmin"; then
+        phpmyadmin_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "phpMyAdmin" "$phpmyadmin_status" \
+        "http://localhost:8200" \
+        "Database Management"
+    
+    # Traefik Dashboard
+    local traefik_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_traefik"; then
+        traefik_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "Traefik" "$traefik_status" \
+        "http://localhost:8080" \
+        "Reverse Proxy Dashboard"
+    
+    # Code Quality Tools
+    local phpcs_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpcs"; then
+        phpcs_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "PHP CodeSniffer" "$phpcs_status" \
+        "Tools Profile" \
+        "Code Quality - WordPress Standards"
+    
+    local phpstan_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpstan"; then
+        phpstan_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "PHPStan" "$phpstan_status" \
+        "Tools Profile" \
+        "Code Quality - Static Analysis"
+    
+    local wpcli_status="Stopped"
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_cli"; then
+        wpcli_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "WP-CLI" "$wpcli_status" \
+        "Tools Profile" \
+        "WordPress Command Line"
+    
     echo ""
 }
 
