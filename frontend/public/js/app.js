@@ -110,7 +110,7 @@ async function quickAction(action) {
 
 // Site actions
 async function siteAction(action, siteName) {
-  if (action === 'remove') {
+  if (action === 'remove' || action === 'delete') {
     if (!confirm(`Are you sure you want to remove site "${siteName}"? This action cannot be undone.`)) {
       return;
     }
@@ -188,6 +188,49 @@ async function createSite() {
     console.error('Error creating site:', error);
     showNotification('Network error while creating site', 'danger');
     hideLoading();
+  }
+}
+
+// Frontend management
+async function frontendAction(action) {
+  try {
+    showLoading();
+    const response = await fetch(`/api/frontend/${action}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      showNotification(`Frontend "${action}" executed successfully`, 'success');
+      // Update frontend status display
+      updateFrontendStatus(action, data.output);
+    } else {
+      showNotification(`Frontend "${action}" failed: ${data.error}`, 'danger');
+    }
+    
+    hideLoading();
+  } catch (error) {
+    console.error('Error executing frontend action:', error);
+    showNotification('Network error while executing frontend command', 'danger');
+    hideLoading();
+  }
+}
+
+// Update frontend status display
+function updateFrontendStatus(action, output) {
+  const statusDiv = document.getElementById('frontend-status');
+  if (!statusDiv) return;
+  
+  if (action === 'status') {
+    statusDiv.innerHTML = output;
+  } else if (action === 'stop') {
+    statusDiv.innerHTML = '<span class="badge bg-danger">Stopped</span>';
+  } else if (action === 'start' || action === 'restart') {
+    statusDiv.innerHTML = '<span class="badge bg-success">Running (http://localhost:3000)</span>';
   }
 }
 

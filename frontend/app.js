@@ -199,6 +199,34 @@ app.post('/api/environment/:action', async (req, res) => {
   }
 });
 
+// Frontend management endpoint
+app.post('/api/frontend/:action', async (req, res) => {
+  const { action } = req.params;
+
+  if (!['start', 'stop', 'restart', 'status'].includes(action)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid action'
+    });
+  }
+
+  try {
+    const result = await executeMatrix('frontend', [action]);
+    
+    res.json({
+      success: result.success,
+      output: result.stdout,
+      error: result.stderr,
+      exitCode: result.exitCode
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/api/status', async (req, res) => {
   try {
     const result = await executeMatrix('status');

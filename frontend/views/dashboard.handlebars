@@ -104,8 +104,8 @@
             <button class="btn btn-sm btn-info" onclick="siteAction('info', '{{name}}')">
               <i class="bi bi-info"></i> Info
             </button>
-            <button class="btn btn-sm btn-danger" onclick="siteAction('remove', '{{name}}')">
-              <i class="bi bi-trash"></i> Remove
+            <button class="btn btn-sm btn-danger" onclick="siteAction('delete', '{{name}}')">
+              <i class="bi bi-trash"></i> Delete
             </button>
           </div>
         </div>
@@ -148,6 +148,46 @@
           {{/each}}
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- Frontend Tab -->
+  <div class="tab-pane fade" id="frontend">
+    <h3>Frontend Management</h3>
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Web Interface</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>Status</h6>
+            <div id="frontend-status">Checking...</div>
+            <div class="mt-2">
+              <a href="http://localhost:3000" target="_blank" class="btn btn-primary">
+                <i class="bi bi-box-arrow-up-right"></i> Open Frontend
+              </a>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <h6>Controls</h6>
+            <div class="d-grid gap-2">
+              <button class="btn btn-success" onclick="frontendAction('start')">
+                <i class="bi bi-play-fill"></i> Start
+              </button>
+              <button class="btn btn-danger" onclick="frontendAction('stop')">
+                <i class="bi bi-stop-fill"></i> Stop
+              </button>
+              <button class="btn btn-secondary" onclick="frontendAction('restart')">
+                <i class="bi bi-arrow-clockwise"></i> Restart
+              </button>
+              <button class="btn btn-info" onclick="frontendAction('status')">
+                <i class="bi bi-info-circle"></i> Status
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

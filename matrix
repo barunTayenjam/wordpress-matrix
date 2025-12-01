@@ -57,10 +57,10 @@ Site Management:
 
 Environment Management:
   install [name]    One-command install (creates site and starts services)
-  start             Start all sites and services
-  stop              Stop all services
-  restart           Restart all services
-  status            Show system status
+  start             Start all sites, services, and frontend
+  stop              Stop all services and frontend
+  restart           Restart all services and frontend
+  status            Show system status including frontend
   logs [site]       Show logs (all or specific site)
   clean             Clean up unused resources
 
@@ -74,14 +74,20 @@ Development:
   url <name>        Show site URLs
   import-db <n> <f> Import SQL dump (site name, file path)
   export-db <n> [f] Export database (site name, optional file)
+  frontend <action> Manage frontend (start|stop|restart|status)
 
 Examples:
   ./matrix create blog      # Create new site
-  ./matrix start            # Start everything
+  ./matrix start            # Start everything including frontend
   ./matrix check            # Run quality checks
   ./matrix shell wp         # Access WordPress CLI
   ./matrix import-db blog dump.sql  # Import database
   ./matrix export-db blog backup.sql # Export database
+
+Frontend:
+  ./matrix start            # Starts frontend at http://localhost:3000
+  ./matrix status            # Shows frontend status
+  ./matrix stop            # Stops frontend with other services
 
 EOF
 }
@@ -373,6 +379,12 @@ start_env() {
     $DOCKER_COMPOSE up -d db redis phpmyadmin 2>/dev/null || true
     sleep 3
 
+    # Start frontend if available
+    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
+        log_info "Starting frontend..."
+        $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
+    fi
+
     # Start all WordPress sites
     for site in $(get_sites); do
         log_info "Starting $site..."
@@ -383,11 +395,22 @@ start_env() {
     echo ""
     echo "Access URLs:"
     list_sites | grep -E "(Running|http|https)"
+    
+    # Show frontend URL
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
+        echo "Frontend: http://localhost:3000"
+    fi
 }
 
 # Stop environment
 stop_env() {
     log_info "Stopping WordPress environment..."
+    
+    # Stop frontend first if running
+    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
+        $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
+    fi
+    
     $DOCKER_COMPOSE down
     log_success "Environment stopped"
 }
@@ -398,6 +421,16 @@ show_status() {
     echo ""
     $DOCKER_COMPOSE ps
     echo ""
+    
+    # Show frontend status if available
+    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
+        if $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
+            echo "Frontend: Running (http://localhost:3000)"
+        else
+            echo "Frontend: Stopped"
+        fi
+    fi
+    
     list_sites
 }
 
@@ -882,6 +915,52 @@ clean_env() {
     fi
 }
 
+# Frontend management
+manage_frontend() {
+    local action="$1"
+    
+    if [[ -z "$action" ]]; then
+        log_error "Usage: ./matrix frontend <start|stop|restart|status>"
+        return 1
+    fi
+    
+    if [[ ! -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
+        log_error "Frontend configuration not found"
+        return 1
+    fi
+    
+    case "$action" in
+        "start")
+            log_info "Starting frontend..."
+            # Use plain docker-compose to avoid network issues
+            docker-compose -f docker-compose.frontend.yml up -d 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
+            log_success "Frontend started: http://localhost:3000"
+            ;;
+        "stop")
+            log_info "Stopping frontend..."
+            docker-compose -f docker-compose.frontend.yml down 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
+            log_success "Frontend stopped"
+            ;;
+        "restart")
+            log_info "Restarting frontend..."
+            docker-compose -f docker-compose.frontend.yml restart 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml restart 2>/dev/null || true
+            log_success "Frontend restarted: http://localhost:3000"
+            ;;
+        "status")
+            if docker-compose -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend" || $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend"; then
+                log_success "Frontend running: http://localhost:3000"
+            else
+                log_info "Frontend stopped"
+            fi
+            ;;
+        *)
+            log_error "Unknown action: $action"
+            log_info "Available: start, stop, restart, status"
+            return 1
+            ;;
+    esac
+}
+
 # Main command dispatcher
 main() {
     if [[ $# -eq 0 ]]; then
@@ -950,6 +1029,9 @@ main() {
             ;;
         "export-db")
             export_db "$@"
+            ;;
+        "frontend")
+            manage_frontend "$@"
             ;;
         "help"|"-h"|"--help")
             show_help
