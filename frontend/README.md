@@ -26,7 +26,7 @@ npm start
 
 3. Open your browser:
 ```
-http://localhost:3000
+http://localhost:8000
 ```
 
 ## API Endpoints
@@ -64,7 +64,7 @@ npm start
 ## Configuration
 
 The frontend uses environment variables:
-- `PORT` - Frontend server port (default: 3000)
+- `PORT` - Frontend server port (default: 8000)
 - Matrix script path is relative to the parent directory
 
 ## Browser Support

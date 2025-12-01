@@ -2,7 +2,7 @@ const http = require('http');
 
 const options = {
   hostname: 'localhost',
-  port: 3000,
+  port: 8000,
   path: '/api/sites',
   method: 'GET',
   timeout: 2000
