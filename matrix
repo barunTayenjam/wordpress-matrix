@@ -292,12 +292,13 @@ list_sites() {
             local status="Stopped"
 
             # Get the port for the site by examining the compose file
-            local port="????"
+            local port="Not configured"
             if [[ -f "$COMPOSE_FILE" ]]; then
-                # Extract port from nginx service definition
-                port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
+                if grep -q "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null; then
+                    port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
+                fi
                 if [[ -z "$port" || "$port" == "" ]]; then
-                    port="????"
+                    port="Not configured"
                 fi
             fi
 
@@ -305,8 +306,12 @@ list_sites() {
                 status="Running"
             fi
 
+            local port_str="Not configured"
+            if [[ "$port" != "Not configured" ]]; then
+                port_str="http://localhost:$port"
+            fi
             printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
-                "http://localhost:$port" \
+                "$port_str" \
                 "Direct port access only"
         done
         echo ""
@@ -597,17 +602,23 @@ show_urls() {
     if [[ -n "$site_name" ]]; then
         if site_exists "$site_name"; then
             # Get the port for the site by examining the compose file
-            local port="????"
+            local port=""
             if [[ -f "$COMPOSE_FILE" ]]; then
-                port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
-                if [[ -z "$port" || "$port" == "" ]]; then
-                    port="????"
+                if grep -q "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null; then
+                    port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
                 fi
             fi
-            echo "Access: http://localhost:$port"
-            echo "Database: http://localhost:8200"
+            if [[ -z "$port" || "$port" == "" ]]; then
+                echo "Site '$site_name' exists but is not configured in docker-compose.yml"
+                echo "Use './matrix create $site_name' to configure it properly"
+                return 0
+            else
+                echo "Access: http://localhost:$port"
+                echo "Database: http://localhost:8200"
+            fi
         else
             log_error "Site '$site_name' not found"
+            return 1
         fi
     else
         echo "Services:"
