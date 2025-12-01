@@ -21,6 +21,10 @@ services:
       - wp_db_data:/var/lib/mysql
     networks:
       - wp-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
 
   # Cache
   redis:
@@ -29,28 +33,7 @@ services:
     restart: unless-stopped
     networks:
       - wp-net
-
-  # Reverse proxy
-  traefik:
-    image: traefik:v2.10
-    container_name: wp_traefik
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    command:
-      - "--api.dashboard=true"
-      - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
-      - "--serverstransport.insecureskipverify=true"
-    networks:
-      - wp-net
+    command: redis-server --maxmemory ${REDIS_MAXMEMORY:-256mb} --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
 
 volumes:
   wp_db_data:
