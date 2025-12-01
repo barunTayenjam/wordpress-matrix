@@ -10,9 +10,8 @@ RUN npm install
 # Copy application files
 COPY . .
 
-# Make matrix script executable
-COPY ../matrix /matrix
-RUN chmod +x /matrix
+# Mount matrix script from host at runtime instead of build time
+# The script will be mounted as a volume in docker-compose
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs

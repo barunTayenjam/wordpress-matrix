@@ -19,3 +19,9 @@ services:
       - ./matrix:/matrix:ro  # Mount matrix script as read-only
     working_dir: /app
     command: npm run dev
+    networks:
+      - wp-net
+
+networks:
+  wp-net:
+    external: true  # Use the existing network from main platform
