@@ -1,0 +1,21 @@
+<div class="container text-center mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">
+          <i class="bi bi-exclamation-triangle"></i> Error
+        </h4>
+        <p class="mb-0">{{error}}</p>
+        <hr>
+        <div class="d-flex justify-content-center">
+          <button class="btn btn-primary" onclick="history.back()">
+            <i class="bi bi-arrow-left"></i> Go Back
+          </button>
+          <button class="btn btn-secondary ms-2" onclick="location.reload()">
+            <i class="bi bi-arrow-clockwise"></i> Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
