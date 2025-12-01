@@ -230,7 +230,7 @@ function updateFrontendStatus(action, output) {
   } else if (action === 'stop') {
     statusDiv.innerHTML = '<span class="badge bg-danger">Stopped</span>';
   } else if (action === 'start' || action === 'restart') {
-    statusDiv.innerHTML = '<span class="badge bg-success">Running (http://localhost:3000)</span>';
+    statusDiv.innerHTML = '<span class="badge bg-success">Running (http://localhost:8000)</span>';
   }
 }
 

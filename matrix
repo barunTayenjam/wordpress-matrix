@@ -85,7 +85,7 @@ Examples:
   ./matrix export-db blog backup.sql # Export database
 
 Frontend:
-  ./matrix start            # Starts frontend at http://localhost:3000
+  ./matrix start            # Starts frontend at http://localhost:8000
   ./matrix status            # Shows frontend status
   ./matrix stop            # Stops frontend with other services
 
@@ -398,7 +398,7 @@ start_env() {
     
     # Show frontend URL
     if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-        echo "Frontend: http://localhost:3000"
+        echo "Frontend: http://localhost:8000"
     fi
 }
 
@@ -425,7 +425,7 @@ show_status() {
     # Show frontend status if available
     if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
         if $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-            echo "Frontend: Running (http://localhost:3000)"
+            echo "Frontend: Running (http://localhost:8000)"
         else
             echo "Frontend: Stopped"
         fi
@@ -934,7 +934,7 @@ manage_frontend() {
             log_info "Starting frontend..."
             # Use plain docker-compose to avoid network issues
             docker-compose -f docker-compose.frontend.yml up -d 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
-            log_success "Frontend started: http://localhost:3000"
+            log_success "Frontend started: http://localhost:8000"
             ;;
         "stop")
             log_info "Stopping frontend..."
@@ -944,11 +944,11 @@ manage_frontend() {
         "restart")
             log_info "Restarting frontend..."
             docker-compose -f docker-compose.frontend.yml restart 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml restart 2>/dev/null || true
-            log_success "Frontend restarted: http://localhost:3000"
+            log_success "Frontend restarted: http://localhost:8000"
             ;;
         "status")
             if docker-compose -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend" || $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend"; then
-                log_success "Frontend running: http://localhost:3000"
+                log_success "Frontend running: http://localhost:8000"
             else
                 log_info "Frontend stopped"
             fi
