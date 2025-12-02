@@ -126,38 +126,41 @@ services:
       - wp-net
 
 
-  # WordPress site: asgard2
-  wp_asgard2:
+
+  # WordPress site: asgard
+  wp_asgard:
     image: wordpress:php8.3-fpm
-    container_name: wp_asgard2
+    container_name: wp_asgard
     restart: unless-stopped
     environment:
       WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: ${MYSQL_USER:-wp_user}
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: asgard2_db
+      WORDPRESS_DB_NAME: asgard_db
       WORDPRESS_DEBUG: ${WP_DEBUG:-true}
     volumes:
-      - ./wp_asgard2:/var/www/html
+      - ./wp_asgard:/var/www/html
     networks:
       - wp-net
     depends_on:
       db:
         condition: service_healthy
 
-  nginx_asgard2:
+  nginx_asgard:
     image: nginx:alpine
-    container_name: nginx_asgard2
+    container_name: nginx_asgard
     restart: unless-stopped
     ports:
-      - "8101:80"  # Direct port mapping for reliable access
+      - "8201:80"  # Direct port mapping for reliable access
     depends_on:
-      - wp_asgard2
+      - wp_asgard
     volumes:
-      - ./wp_asgard2:/var/www/html:ro
-      - /Users/baruntayenjam/Code/wordpress-matrix/config/nginx/asgard2.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./wp_asgard:/var/www/html:ro
+      - /Users/barun.tayenjam/Documents/Code/wordpress-matrix/config/nginx/asgard.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - wp-net
+
+
 
 volumes:
   wp_db_data:
