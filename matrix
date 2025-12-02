@@ -268,12 +268,10 @@ EOF
     echo "Direct: http://localhost:$port"  # Direct access via semantic port
     echo "Database: http://localhost:8200"  # phpMyAdmin access
 
-    # Offer to start the site
-    read -p "Start the site now? [Y/n]: " confirm
-    if [[ ! "$confirm" =~ ^[Nn]$ ]]; then
-        $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
-        log_success "Site '$site_name' started"
-    fi
+    # Auto-start the site after creation
+    log_info "Starting site '$site_name'..."
+    $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
+    log_success "Site '$site_name' started and ready!"
 }
 
 # List all sites and services
