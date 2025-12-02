@@ -9,7 +9,7 @@ RUN npm install
 
 # Copy application files
 COPY . .
-
+RUN chmod +x /app/matrix
 # Mount matrix script from host at runtime instead of build time
 # The script will be mounted as a volume in docker-compose
 

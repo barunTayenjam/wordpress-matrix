@@ -7,45 +7,52 @@ let currentData = {
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
-  
+
   // Setup event listeners
   document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
-  
-  // Setup tab switching
-  const tabs = document.querySelectorAll('[data-bs-toggle="tab"]');
-  tabs.forEach(tab => {
+
+  // Let Bootstrap handle tab switching automatically
+  // Setup tab switching for sidebar links since they use href="#" approach
+  const sidebarTabs = document.querySelectorAll('.sidebar .nav-link[data-bs-toggle="tab"]');
+  sidebarTabs.forEach(tab => {
     tab.addEventListener('click', (e) => {
       e.preventDefault();
-      const target = e.target.getAttribute('data-bs-target');
-      switchTab(target);
+
+      // Get the target from data-bs-target attribute
+      const target = e.currentTarget.getAttribute('data-bs-target');
+
+      // Remove active class from all sidebar nav links
+      document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+
+      // Add active class to clicked link
+      e.currentTarget.classList.add('active');
+
+      // Also activate the corresponding top tab
+      const topTabButton = document.querySelector(`[data-bs-target="${target}"]`);
+      if (topTabButton) {
+        // Remove active class from all top tab buttons
+        document.querySelectorAll('.nav-tabs .nav-link').forEach(link => {
+          link.classList.remove('active');
+        });
+
+        // Add active class to the corresponding top tab
+        topTabButton.classList.add('active');
+      }
+
+      // Show the target tab pane
+      document.querySelectorAll('.tab-pane').forEach(pane => {
+        pane.classList.remove('show', 'active');
+      });
+
+      const targetPane = document.querySelector(target);
+      if (targetPane) {
+        targetPane.classList.add('show', 'active');
+      }
     });
   });
 });
-
-// Switch tabs
-function switchTab(targetId) {
-  // Hide all tabs
-  document.querySelectorAll('.tab-pane').forEach(pane => {
-    pane.classList.remove('show', 'active');
-  });
-  
-  // Remove active class from nav links
-  document.querySelectorAll('.nav-link').forEach(link => {
-    link.classList.remove('active');
-  });
-  
-  // Show selected tab
-  const targetPane = document.getElementById(targetId);
-  if (targetPane) {
-    targetPane.classList.add('show', 'active');
-  }
-  
-  // Add active class to clicked nav link
-  const clickedLink = document.querySelector(`[data-bs-target="${targetId}"]`);
-  if (clickedLink) {
-    clickedLink.classList.add('active');
-  }
-}
 
 // Load dashboard data
 async function loadDashboard() {
