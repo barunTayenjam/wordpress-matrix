@@ -29,7 +29,7 @@ app.set('views', path.join(__dirname, 'views'));
 // Helper function to execute matrix command
 const executeMatrix = async (command, args = []) => {
   return new Promise((resolve, reject) => {
-    const matrixCmd = spawn('./matrix', [command, ...args], {
+    const matrixCmd = spawn('/app/matrix', [command, ...args], {
       cwd: path.join(__dirname, '..'),
       timeout: 30000
     });
