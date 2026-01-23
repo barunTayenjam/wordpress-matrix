@@ -64,27 +64,43 @@ Environment Management:
   logs [site]       Show logs (all or specific site)
   clean             Clean up unused resources
 
-Code Quality:
-  check             Run code quality checks
-  test              Run tests
-  fix               Auto-fix code issues
+ Code Quality:
+   check             Run code quality checks
+   test              Run tests
+   fix               Auto-fix code issues
 
-Development:
-  shell <service>   Access container shell (wp, db, nginx)
-  url <name>        Show site URLs
-  import-db <n> <f> Import SQL dump (site name, file path)
-  export-db <n> [f] Export database (site name, optional file)
-  frontend <action> Manage frontend (start|stop|restart|status)
+ Site Maintenance:
+   clone <src> <dst> Clone existing site
+   reset <name>      Reset site to fresh install
+   update <name>     Update WordPress core
+   cache <name>      Clear site caches
+   search-replace    Database search/replace
+   backup <name>     Backup site database/files
 
-Examples:
-  ./matrix create blog      # Create new site
-  ./matrix start            # Start everything including frontend
-  ./matrix check            # Run quality checks
-  ./matrix shell wp         # Access WordPress CLI
-  ./matrix import-db blog dump.sql  # Import database
-  ./matrix export-db blog backup.sql # Export database
+ Development:
+   shell <service>   Access container shell (wp, db, nginx)
+   url <name>        Show site URLs
+   import-db <n> <f> Import SQL dump (site name, file path)
+   export-db <n> [f> Export database (site name, optional file)
+   frontend <action> Manage frontend (start|stop|restart|status)
 
-Frontend:
+ System:
+   health            Run system health check
+
+ Examples:
+   ./matrix create blog      # Create new site
+   ./matrix start            # Start everything including frontend
+   ./matrix check            # Run quality checks
+   ./matrix shell wp         # Access WordPress CLI
+   ./matrix import-db blog dump.sql  # Import database
+   ./matrix export-db blog backup.sql # Export database
+   ./matrix clone blog blog-copy     # Clone site
+   ./matrix reset blog --keep-plugins    # Reset site
+   ./matrix update --all          # Update all sites
+   ./matrix backup --all --compress  # Backup all sites
+   ./matrix health                # Check system health
+
+ Frontend:
   ./matrix start            # Starts frontend at http://localhost:8000
   ./matrix status            # Shows frontend status
   ./matrix stop            # Stops frontend with other services
@@ -1041,6 +1057,27 @@ main() {
             ;;
         "frontend")
             manage_frontend "$@"
+            ;;
+        "clone")
+            "$PROJECT_ROOT/scripts/clone.sh" "$@"
+            ;;
+        "reset")
+            "$PROJECT_ROOT/scripts/reset.sh" "$@"
+            ;;
+        "update"|"update-core")
+            "$PROJECT_ROOT/scripts/update-core.sh" "$@"
+            ;;
+        "cache"|"cache-clear")
+            "$PROJECT_ROOT/scripts/cache-clear.sh" "$@"
+            ;;
+        "search-replace")
+            "$PROJECT_ROOT/scripts/search-replace.sh" "$@"
+            ;;
+        "backup")
+            "$PROJECT_ROOT/scripts/backup.sh" "$@"
+            ;;
+        "health")
+            "$PROJECT_ROOT/scripts/health-check.sh"
             ;;
         "help"|"-h"|"--help")
             show_help
