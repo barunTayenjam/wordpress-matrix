@@ -17,7 +17,6 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
     volumes:
       - wp_db_data:/var/lib/mysql
-      - ./init-db.sh:/docker-entrypoint-initdb.d/init.sh:ro
     networks:
       - wp-net
     healthcheck:
