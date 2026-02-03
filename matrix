@@ -65,7 +65,7 @@ Environment Management:
   clean             Clean up unused resources
 
  Code Quality:
-   check             Run code quality checks
+   check [name]      Run code quality checks (all sites or specific site)
    test              Run tests
    fix               Auto-fix code issues
 
@@ -90,7 +90,8 @@ Environment Management:
  Examples:
    ./matrix create blog      # Create new site
    ./matrix start            # Start everything including frontend
-   ./matrix check            # Run quality checks
+   ./matrix check            # Run quality checks on all sites
+   ./matrix check blog       # Run quality checks on specific site
    ./matrix shell wp         # Access WordPress CLI
    ./matrix import-db blog dump.sql  # Import database
    ./matrix export-db blog backup.sql # Export database
@@ -540,7 +541,21 @@ remove_site() {
 
 # Code quality checks
 run_checks() {
-    log_info "Running code quality checks..."
+    local site_name="${1:-}"
+    local target_paths=""
+    
+    if [[ -n "$site_name" ]]; then
+        local site_dir="wp_${site_name}"
+        if [[ ! -d "$site_dir" ]]; then
+            log_error "Site '$site_name' not found (directory: $site_dir)"
+            return 1
+        fi
+        target_paths="./${site_dir}/wp-content/themes/ ./${site_dir}/wp-content/plugins/"
+        log_info "Running code quality checks on site: $site_name"
+    else
+        target_paths="./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/"
+        log_info "Running code quality checks on all sites..."
+    fi
     
     # Check if code quality containers exist in $DOCKER_COMPOSE
     if ! grep -q "phpcs" "$COMPOSE_FILE" 2>/dev/null; then
@@ -548,19 +563,19 @@ run_checks() {
         return
     fi
     
-    # Start code quality tools if not running
-    $DOCKER_COMPOSE --profile tools up -d phpcs phpstan 2>/dev/null || true
-    
     # Run PHP CodeSniffer
     log_info "Running PHP CodeSniffer..."
-    $DOCKER_COMPOSE run --rm phpcs phpcs --standard=WordPress \
-        ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ 2>/dev/null || \
+    $DOCKER_COMPOSE --profile tools run --rm phpcs \
+        --standard=WordPress \
+        --extensions=php \
+        --ignore=*/vendor/*,*/node_modules/*,*/.git/*,*/tests/* \
+        $target_paths 2>/dev/null || \
     log_warning "PHP CodeSniffer check completed with issues"
     
     # Run PHPStan
     log_info "Running PHPStan..."
-    $DOCKER_COMPOSE run --rm phpstan phpstan analyse \
-        ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ --level=5 2>/dev/null || \
+    $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
+        $target_paths --level=5 2>/dev/null || \
     log_warning "PHPStan check completed with issues"
     
     log_info "Code quality checks completed"
