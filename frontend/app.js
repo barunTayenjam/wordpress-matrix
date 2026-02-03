@@ -30,7 +30,7 @@ app.set('views', path.join(__dirname, 'views'));
 const executeMatrix = async (command, args = []) => {
   return new Promise((resolve, reject) => {
     const matrixCmd = spawn('/app/matrix', [command, ...args], {
-      cwd: path.join(__dirname, '..'),
+      cwd: '/app', // Use the app directory
       timeout: 30000
     });
 

@@ -14,7 +14,10 @@ services:
       - PORT=8000
       - NODE_ENV=development
     volumes:
-      - ./frontend:/app
+      - ./frontend/app.js:/app/app.js:ro
+      - ./frontend/views:/app/views:ro
+      - ./frontend/public:/app/public:ro
+      - ./frontend/healthcheck.js:/app/healthcheck.js:ro
       - /app/node_modules
     working_dir: /app
     command: npm run dev

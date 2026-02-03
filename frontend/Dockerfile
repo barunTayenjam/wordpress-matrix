@@ -1,4 +1,8 @@
+# Create non-root user for security first
 FROM node:18-alpine
+RUN apk add --no-cache bash
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
 
 # Set working directory
 WORKDIR /app
@@ -9,13 +13,9 @@ RUN npm install
 
 # Copy application files
 COPY . .
-RUN chmod +x /app/matrix
-# Mount matrix script from host at runtime instead of build time
-# The script will be mounted as a volume in docker-compose
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# The matrix script is already in the directory, just make sure it's executable
+RUN chmod +x ./matrix
 
 # Change ownership of the app directory
 RUN chown -R nodejs:nodejs /app

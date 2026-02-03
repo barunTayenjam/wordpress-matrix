@@ -64,27 +64,43 @@ Environment Management:
   logs [site]       Show logs (all or specific site)
   clean             Clean up unused resources
 
-Code Quality:
-  check             Run code quality checks
-  test              Run tests
-  fix               Auto-fix code issues
+ Code Quality:
+   check             Run code quality checks
+   test              Run tests
+   fix               Auto-fix code issues
 
-Development:
-  shell <service>   Access container shell (wp, db, nginx)
-  url <name>        Show site URLs
-  import-db <n> <f> Import SQL dump (site name, file path)
-  export-db <n> [f] Export database (site name, optional file)
-  frontend <action> Manage frontend (start|stop|restart|status)
+ Site Maintenance:
+   clone <src> <dst> Clone existing site
+   reset <name>      Reset site to fresh install
+   update <name>     Update WordPress core
+   cache <name>      Clear site caches
+   search-replace    Database search/replace
+   backup <name>     Backup site database/files
 
-Examples:
-  ./matrix create blog      # Create new site
-  ./matrix start            # Start everything including frontend
-  ./matrix check            # Run quality checks
-  ./matrix shell wp         # Access WordPress CLI
-  ./matrix import-db blog dump.sql  # Import database
-  ./matrix export-db blog backup.sql # Export database
+ Development:
+   shell <service>   Access container shell (wp, db, nginx)
+   url <name>        Show site URLs
+   import-db <n> <f> Import SQL dump (site name, file path)
+   export-db <n> [f> Export database (site name, optional file)
+   frontend <action> Manage frontend (start|stop|restart|status)
 
-Frontend:
+ System:
+   health            Run system health check
+
+ Examples:
+   ./matrix create blog      # Create new site
+   ./matrix start            # Start everything including frontend
+   ./matrix check            # Run quality checks
+   ./matrix shell wp         # Access WordPress CLI
+   ./matrix import-db blog dump.sql  # Import database
+   ./matrix export-db blog backup.sql # Export database
+   ./matrix clone blog blog-copy     # Clone site
+   ./matrix reset blog --keep-plugins    # Reset site
+   ./matrix update --all          # Update all sites
+   ./matrix backup --all --compress  # Backup all sites
+   ./matrix health                # Check system health
+
+ Frontend:
   ./matrix start            # Starts frontend at http://localhost:8000
   ./matrix status            # Shows frontend status
   ./matrix stop            # Stops frontend with other services
@@ -112,7 +128,7 @@ site_exists() {
 
 # Get next available port
 get_next_port() {
-    local max_port=8000
+    local max_port=8100  # Start from 8100 to avoid conflicts with main services
     if [[ -f "$COMPOSE_FILE" ]]; then
         # Extract ports that are mapped to 80 (web services)
         # Look for lines with - "NNNN:80" under ports sections
@@ -122,7 +138,12 @@ get_next_port() {
             max_port=$(echo "$ports" | head -n 1)
         fi
     fi
-    echo $((max_port + 1))
+    # Find next available port that's not in use
+    ((max_port++))
+    while ss -tln 2>/dev/null | grep -q ":$max_port " 2>/dev/null; do
+        ((max_port++))
+    done
+    echo $max_port
 }
 
 # Create new site
@@ -167,7 +188,11 @@ create_site() {
     
     # Create site-specific nginx configuration
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
-    cat > "$nginx_conf_path" << 'EOF_NGINX'
+    if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
+        mkdir -p "$PROJECT_ROOT/config/nginx"
+    fi
+
+    cat > "$nginx_conf_path" << EOF
 server {
     listen 80;
     server_name _;
@@ -175,20 +200,22 @@ server {
     index index.php index.html;
 
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files \$uri \$uri/ /index.php?\$query_string;
     }
 
-    location ~ \.php$ {
-        fastcgi_pass wp_container_name:9000;  # Connect to WordPress container
+    location ~ \.php\$ {
+        fastcgi_pass wp_$site_name:9000;
         fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
     }
-}
-EOF_NGINX
 
-    # Replace wp_container_name with the actual wp service name for this site
-    sed -i.bak "s/wp_container_name/wp_$site_name/g" "$nginx_conf_path" && rm "$nginx_conf_path.bak"
+    # Deny access to sensitive files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
 
     # Add to $DOCKER_COMPOSE.yml
     log_info "Adding services to $DOCKER_COMPOSE.yml..."
@@ -201,18 +228,8 @@ EOF_NGINX
 
     # Add the new services (with optional host port mapping as fallback)
     # Use semantic port assignment starting from 8100 for WordPress sites
-    # Find available port starting from 8100
-    local port=8100
-    # Check existing port mappings in compose file
-    while grep -q "\"$port:80\"" "$COMPOSE_FILE" 2>/dev/null || \
-          (ss -tln 2>/dev/null | grep -q ":$port "); do
-        port=$((port + 1))
-        # Safety check to avoid infinite loop
-        if [[ $port -gt 8200 ]]; then
-            log_warning "High port assignment detected, using: $port"
-            break
-        fi
-    done
+    # Get next available port using our function
+    local port=$(get_next_port)
 
     cat >> "$temp_file" << EOF
 
@@ -267,12 +284,10 @@ EOF
     echo "Direct: http://localhost:$port"  # Direct access via semantic port
     echo "Database: http://localhost:8200"  # phpMyAdmin access
 
-    # Offer to start the site
-    read -p "Start the site now? [Y/n]: " confirm
-    if [[ ! "$confirm" =~ ^[Nn]$ ]]; then
-        $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
-        log_success "Site '$site_name' started"
-    fi
+    # Auto-start the site after creation
+    log_info "Starting site '$site_name'..."
+    $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
+    log_success "Site '$site_name' started and ready!"
 }
 
 # List all sites and services
@@ -497,18 +512,17 @@ remove_site() {
 
     # Remove service definitions from docker-compose.yml
     if [[ -f "$COMPOSE_FILE" ]]; then
-        local temp_file=$(mktemp)
-
-        # Use sed to remove the complete service blocks for both wp_$site_name and nginx_$site_name
-        # First remove entries with the comment marker
-        sed "/# WordPress site: $site_name/,/^[^[:space:]#]/ {
+        # Use a more reliable approach to remove service blocks
+        # Remove the comment line and associated services using sed with address ranges
+        sed -i.bak "/# WordPress site: $site_name/,/^[^[:space:]]/{
             /# WordPress site: $site_name/!{
-                /^[^[:space:]#]/!d;
+                /^[^[:space:]]/!d;
             };
             /# WordPress site: $site_name/d;
-        }" "$COMPOSE_FILE" > "$temp_file" 2>/dev/null || cp "$COMPOSE_FILE" "$temp_file"
+        }" "$COMPOSE_FILE" 2>/dev/null || true
 
-        mv "$temp_file" "$COMPOSE_FILE"
+        # Clean up backup file created by sed -i
+        [[ -f "$COMPOSE_FILE.bak" ]] && rm "$COMPOSE_FILE.bak"
     fi
 
     # Remove from .env file
@@ -597,7 +611,7 @@ access_shell() {
 
 # Show URLs
 show_urls() {
-    local site_name="$1"
+    local site_name="${1:-}"
 
     if [[ -n "$site_name" ]]; then
         if site_exists "$site_name"; then
@@ -1043,6 +1057,27 @@ main() {
             ;;
         "frontend")
             manage_frontend "$@"
+            ;;
+        "clone")
+            "$PROJECT_ROOT/scripts/clone.sh" "$@"
+            ;;
+        "reset")
+            "$PROJECT_ROOT/scripts/reset.sh" "$@"
+            ;;
+        "update"|"update-core")
+            "$PROJECT_ROOT/scripts/update-core.sh" "$@"
+            ;;
+        "cache"|"cache-clear")
+            "$PROJECT_ROOT/scripts/cache-clear.sh" "$@"
+            ;;
+        "search-replace")
+            "$PROJECT_ROOT/scripts/search-replace.sh" "$@"
+            ;;
+        "backup")
+            "$PROJECT_ROOT/scripts/backup.sh" "$@"
+            ;;
+        "health")
+            "$PROJECT_ROOT/scripts/health-check.sh"
             ;;
         "help"|"-h"|"--help")
             show_help
