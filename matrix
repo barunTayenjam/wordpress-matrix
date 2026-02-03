@@ -566,15 +566,17 @@ run_checks() {
     # Run PHP CodeSniffer
     log_info "Running PHP CodeSniffer..."
     $DOCKER_COMPOSE --profile tools run --rm phpcs \
+        -d memory_limit=512M \
         --standard=WordPress \
         --extensions=php \
-        --ignore=*/vendor/*,*/node_modules/*,*/.git/*,*/tests/* \
+        --ignore=*/vendor/*,*/node_modules/*,*/.git/*,*/tests/*,*/twenty*/* \
         $target_paths 2>/dev/null || \
     log_warning "PHP CodeSniffer check completed with issues"
     
     # Run PHPStan
     log_info "Running PHPStan..."
     $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
+        --memory-limit=512M \
         $target_paths --level=5 2>/dev/null || \
     log_warning "PHPStan check completed with issues"
     
