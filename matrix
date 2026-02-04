@@ -9,6 +9,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 DOMAIN_SUFFIX="127.0.0.1.nip.io"
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
 DOCKER_COMPOSE="docker-compose"  # Default fallback
+DEFAULT_PHP_VERSION="8.3"  # Default PHP version for new sites
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,8 +48,8 @@ show_help() {
 
 Usage: ./matrix <command> [options]
 
-Site Management:
-  create <name>     Create new WordPress site
+ Site Management:
+  create <name> [--php-version=X.X]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION})
   list              List all sites
   start <name>      Start specific site
   stop <name>       Stop specific site
@@ -87,9 +88,10 @@ Environment Management:
  System:
    health            Run system health check
 
- Examples:
-   ./matrix create blog      # Create new site
-   ./matrix start            # Start everything including frontend
+  Examples:
+    ./matrix create blog      # Create new site
+    ./matrix create oldsite --php-version=7.4  # Create site with PHP 7.4
+    ./matrix start            # Start everything including frontend
    ./matrix check            # Run quality checks on all sites
    ./matrix check blog       # Run quality checks on specific site
    ./matrix check blog wp-content/themes/custom-theme  # Check specific path
@@ -150,7 +152,32 @@ get_next_port() {
 
 # Create new site
 create_site() {
-    local site_name="$1"
+    local site_name=""
+    local php_version="$DEFAULT_PHP_VERSION"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --php-version=*)
+                php_version="${1#*=}"
+                shift
+                ;;
+            --php-version)
+                php_version="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$site_name" ]]; then
+                    site_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
     
     if [[ -z "$site_name" ]]; then
         read -p "Enter site name: " site_name
@@ -161,6 +188,16 @@ create_site() {
         return 1
     fi
     
+    # Validate PHP version
+    case "$php_version" in
+        7.4|8.0|8.1|8.2|8.3)
+            ;;
+        *)
+            log_error "Invalid PHP version: $php_version. Supported: 7.4, 8.0, 8.1, 8.2, 8.3"
+            return 1
+            ;;
+    esac
+    
     if site_exists "$site_name"; then
         log_error "Site '$site_name' already exists"
         return 1
@@ -169,19 +206,19 @@ create_site() {
     local port=$(get_next_port)
     local site_dir="$PROJECT_ROOT/wp_$site_name"
     
-    log_info "Creating WordPress site: $site_name"
+    log_info "Creating WordPress site: $site_name (PHP $php_version)"
     
     # Create directory
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
     
     # Copy WordPress files using Docker/Podman
-    log_info "Installing WordPress..."
+    log_info "Installing WordPress (PHP $php_version)..."
     if command -v docker >/dev/null 2>&1; then
-        docker run --rm -v "$site_dir":/var/www/html wordpress:latest \
+        docker run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
             bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     elif command -v podman >/dev/null 2>&1; then
-        podman run --rm -v "$site_dir":/var/www/html wordpress:latest \
+        podman run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
             bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     else
         log_error "Neither docker nor podman found"
@@ -237,7 +274,7 @@ EOF
 
   # WordPress site: $site_name
   wp_$site_name:
-    image: wordpress:php8.3-fpm
+    image: wordpress:php${php_version}-fpm
     container_name: wp_$site_name
     restart: unless-stopped
     environment:
@@ -282,7 +319,7 @@ EOF
             -e "CREATE DATABASE IF NOT EXISTS ${site_name}_db; GRANT ALL PRIVILEGES ON ${site_name}_db.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
-    log_success "Site '$site_name' created successfully"
+    log_success "Site '$site_name' created successfully with PHP $php_version"
     echo "Direct: http://localhost:$port"  # Direct access via semantic port
     echo "Database: http://localhost:8200"  # phpMyAdmin access
 
