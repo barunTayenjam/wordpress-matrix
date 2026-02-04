@@ -403,23 +403,21 @@ start_env() {
 
     # Start frontend if available
     if [[ -d "$PROJECT_ROOT/frontend" ]]; then
-        manage_frontend start 2>/dev/null || true
+        manage_frontend start
     fi
-
-    # Start all WordPress sites
-    for site in $(get_sites); do
-        log_info "Starting $site..."
-        $DOCKER_COMPOSE up -d "wp_$site" "nginx_$site" 2>/dev/null || true
-    done
 
     log_success "Environment started"
     echo ""
-    echo "Access URLs:"
-    list_sites | grep -E "(Running|http|https)"
+    echo "Core services running: database, redis, phpMyAdmin"
+    echo ""
+    echo "Start sites individually: ./matrix start <site>"
     
     # Show frontend URL
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-        echo "Frontend: http://localhost:8500"
+    if [[ -f "$PROJECT_ROOT/.frontend.pid" ]]; then
+        local pid=$(cat "$PROJECT_ROOT/.frontend.pid")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Frontend: http://localhost:8500"
+        fi
     fi
 }
 
@@ -429,7 +427,7 @@ stop_env() {
     
     # Stop frontend first if running
     if [[ -d "$PROJECT_ROOT/frontend" ]]; then
-        manage_frontend stop 2>/dev/null || true
+        manage_frontend stop
     fi
     
     $DOCKER_COMPOSE down
@@ -1130,7 +1128,7 @@ main() {
             ;;
         "start")
             # Check if a site name was provided
-            if [[ -n "$1" ]]; then
+            if [[ -n "${1:-}" ]]; then
                 # Start a specific site
                 local site_name="$1"
                 if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
@@ -1146,12 +1144,12 @@ main() {
                 show_urls "$site_name"
             else
                 # Start entire environment
-                start_env "$@"
+                start_env
             fi
             ;;
         "stop")
             # Check if a site name was provided
-            if [[ -n "$1" ]]; then
+            if [[ -n "${1:-}" ]]; then
                 # Stop a specific site
                 local site_name="$1"
                 if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
@@ -1164,7 +1162,7 @@ main() {
                 log_success "Site '$site_name' stopped"
             else
                 # Stop entire environment
-                stop_env "$@"
+                stop_env
             fi
             ;;
         "restart")
