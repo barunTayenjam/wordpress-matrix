@@ -1,12 +1,12 @@
-const http = require('http');
+ const http = require('http');
 
-const options = {
-  hostname: 'localhost',
-  port: 8000,
-  path: '/api/sites',
-  method: 'GET',
-  timeout: 2000
-};
+ const options = {
+   hostname: 'localhost',
+   port: 8500,
+   path: '/api/sites',
+   method: 'GET',
+   timeout: 2000
+ };
 
 const req = http.request(options, (res) => {
   if (res.statusCode === 200) {

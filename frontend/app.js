@@ -29,9 +29,19 @@ app.set('views', path.join(__dirname, 'views'));
 // Helper function to execute matrix command
 const executeMatrix = async (command, args = []) => {
   return new Promise((resolve, reject) => {
-    const matrixCmd = spawn('/app/matrix', [command, ...args], {
-      cwd: '/app', // Use the app directory
-      timeout: 30000
+    const projectRoot = path.join(__dirname, '..');
+    const matrixPath = path.join(projectRoot, 'matrix');
+
+    // Longer timeout for operations like check, start, stop
+    const isLongRunning = ['check', 'start', 'stop', 'restart', 'create'].includes(command);
+    const timeout = isLongRunning ? 120000 : 30000; // 2 minutes for long operations
+
+    console.log(`[Frontend] Executing: matrix ${command} ${args.join(' ')}`);
+
+    const matrixCmd = spawn(matrixPath, [command, ...args], {
+      cwd: projectRoot,
+      timeout: timeout,
+      env: { ...process.env, NODE_ENV: 'development' }
     });
 
     let stdout = '';
@@ -46,6 +56,7 @@ const executeMatrix = async (command, args = []) => {
     });
 
     matrixCmd.on('close', (code) => {
+      console.log(`[Frontend] Command completed with code: ${code}`);
       if (code === 0) {
         resolve({ success: true, stdout, stderr });
       } else {
@@ -54,7 +65,14 @@ const executeMatrix = async (command, args = []) => {
     });
 
     matrixCmd.on('error', (error) => {
+      console.error(`[Frontend] Command error:`, error);
       reject(error);
+    });
+
+    matrixCmd.on('timeout', () => {
+      console.error(`[Frontend] Command timeout after ${timeout}ms`);
+      matrixCmd.kill();
+      resolve({ success: false, stdout, stderr, error: 'Command timeout' });
     });
   });
 };
