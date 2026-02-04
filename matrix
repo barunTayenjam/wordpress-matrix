@@ -65,9 +65,9 @@ Environment Management:
   clean             Clean up unused resources
 
  Code Quality:
-   check [name]      Run code quality checks (all sites or specific site)
-   test              Run tests
-   fix               Auto-fix code issues
+   check [name] [path]   Run code quality checks (all sites or specific site/path)
+   test                  Run tests
+   fix                   Auto-fix code issues
 
  Site Maintenance:
    clone <src> <dst> Clone existing site
@@ -92,6 +92,7 @@ Environment Management:
    ./matrix start            # Start everything including frontend
    ./matrix check            # Run quality checks on all sites
    ./matrix check blog       # Run quality checks on specific site
+   ./matrix check blog wp-content/themes/custom-theme  # Check specific path
    ./matrix shell wp         # Access WordPress CLI
    ./matrix import-db blog dump.sql  # Import database
    ./matrix export-db blog backup.sql # Export database
@@ -102,7 +103,7 @@ Environment Management:
    ./matrix health                # Check system health
 
  Frontend:
-  ./matrix start            # Starts frontend at http://localhost:8000
+  ./matrix start            # Starts frontend at http://localhost:8500
   ./matrix status            # Shows frontend status
   ./matrix stop            # Stops frontend with other services
 
@@ -401,9 +402,8 @@ start_env() {
     sleep 3
 
     # Start frontend if available
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        log_info "Starting frontend..."
-        $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend start 2>/dev/null || true
     fi
 
     # Start all WordPress sites
@@ -419,7 +419,7 @@ start_env() {
     
     # Show frontend URL
     if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-        echo "Frontend: http://localhost:8000"
+        echo "Frontend: http://localhost:8500"
     fi
 }
 
@@ -428,8 +428,8 @@ stop_env() {
     log_info "Stopping WordPress environment..."
     
     # Stop frontend first if running
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend stop 2>/dev/null || true
     fi
     
     $DOCKER_COMPOSE down
@@ -444,12 +444,8 @@ show_status() {
     echo ""
     
     # Show frontend status if available
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        if $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-            echo "Frontend: Running (http://localhost:8000)"
-        else
-            echo "Frontend: Stopped"
-        fi
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend status 2>/dev/null || echo "Frontend: Unknown"
     fi
     
     list_sites
@@ -542,6 +538,7 @@ remove_site() {
 # Code quality checks
 run_checks() {
     local site_name="${1:-}"
+    local specific_path="${2:-}"
     local target_paths=""
     
     if [[ -n "$site_name" ]]; then
@@ -550,11 +547,19 @@ run_checks() {
             log_error "Site '$site_name' not found (directory: $site_dir)"
             return 1
         fi
-        target_paths="./${site_dir}/wp-content/themes/ ./${site_dir}/wp-content/plugins/"
-        log_info "Running code quality checks on site: $site_name"
+        
+        if [[ -n "$specific_path" ]]; then
+            target_paths="./${site_dir}/${specific_path}"
+            log_info "Running code quality checks on: $site_name/$specific_path"
+        else
+            target_paths="./${site_dir}/wp-content/themes/ ./${site_dir}/wp-content/plugins/"
+            log_info "Running code quality checks on site: $site_name"
+            log_info "Excluding default WordPress themes, vendor, and common plugins"
+        fi
     else
         target_paths="./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/"
         log_info "Running code quality checks on all sites..."
+        log_info "Excluding default WordPress themes, vendor, and common plugins"
     fi
     
     # Check if code quality containers exist in $DOCKER_COMPOSE
@@ -563,22 +568,53 @@ run_checks() {
         return
     fi
     
+    # Build exclude patterns for default/third-party themes and plugins
+    local exclude_patterns=""
+    exclude_patterns="$exclude_patterns --ignore=*/vendor/*"
+    exclude_patterns="$exclude_patterns --ignore=*/node_modules/*"
+    exclude_patterns="$exclude_patterns --ignore=*/.git/*"
+    exclude_patterns="$exclude_patterns --ignore=*/tests/*"
+    exclude_patterns="$exclude_patterns --ignore=*/twentytwenty*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/twenty*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/index.php"
+    exclude_patterns="$exclude_patterns --ignore=*/akismet/*"
+    exclude_patterns="$exclude_patterns --ignore=*/hello.php"
+    exclude_patterns="$exclude_patterns --ignore=*/advanced-custom-fields*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/elementor/*"
+    exclude_patterns="$exclude_patterns --ignore=*/wordpress-seo/*"
+    exclude_patterns="$exclude_patterns --ignore=*/redirection/*"
+    exclude_patterns="$exclude_patterns --ignore=*/litespeed-cache/*"
+    exclude_patterns="$exclude_patterns --ignore=*/better-search-replace/*"
+    exclude_patterns="$exclude_patterns --ignore=*/defender*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/sg-security/*"
+    exclude_patterns="$exclude_patterns --ignore=*/duplicate-page/*"
+    exclude_patterns="$exclude_patterns --ignore=*/really-simple-ssl/*"
+    exclude_patterns="$exclude_patterns --ignore=*/classic-elementor*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/revslider/*"
+    exclude_patterns="$exclude_patterns --ignore=*/export-posts*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/csv-taxonomy*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/wp-file-manager/*"
+    
     # Run PHP CodeSniffer
     log_info "Running PHP CodeSniffer..."
     $DOCKER_COMPOSE --profile tools run --rm phpcs \
         -d memory_limit=512M \
         --standard=WordPress \
         --extensions=php \
-        --ignore=*/vendor/*,*/node_modules/*,*/.git/*,*/tests/*,*/twenty*/* \
+        $exclude_patterns \
         $target_paths 2>/dev/null || \
     log_warning "PHP CodeSniffer check completed with issues"
     
-    # Run PHPStan
-    log_info "Running PHPStan..."
-    $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
-        --memory-limit=512M \
-        $target_paths --level=5 2>/dev/null || \
-    log_warning "PHPStan check completed with issues"
+    # Run PHPStan (only on custom code to avoid timeout)
+    if [[ -n "$specific_path" ]]; then
+        log_info "Running PHPStan..."
+        $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
+            --memory-limit=512M \
+            $target_paths --level=5 2>/dev/null || \
+        log_warning "PHPStan check completed with issues"
+    else
+        log_info "Skipping PHPStan (use specific path to run PHPStan: ./matrix check <site> <path>)"
+    fi
     
     log_info "Code quality checks completed"
 }
@@ -960,39 +996,114 @@ clean_env() {
 # Frontend management
 manage_frontend() {
     local action="$1"
-    
+
     if [[ -z "$action" ]]; then
         log_error "Usage: ./matrix frontend <start|stop|restart|status>"
         return 1
     fi
-    
-    if [[ ! -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        log_error "Frontend configuration not found"
-        return 1
-    fi
-    
+
+    local frontend_dir="$PROJECT_ROOT/frontend"
+    local pid_file="$PROJECT_ROOT/.frontend.pid"
+    local log_file="$PROJECT_ROOT/logs/frontend.log"
+
+    # Create logs directory if it doesn't exist
+    mkdir -p "$(dirname "$log_file")"
+
     case "$action" in
         "start")
+            if [[ -f "$pid_file" ]]; then
+                local pid=$(cat "$pid_file")
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    log_warning "Frontend is already running (PID: $pid)"
+                    return 0
+                else
+                    rm -f "$pid_file"
+                fi
+            fi
+
+            if [[ ! -d "$frontend_dir" ]]; then
+                log_error "Frontend directory not found: $frontend_dir"
+                return 1
+            fi
+
             log_info "Starting frontend..."
-            # Use plain docker-compose to avoid network issues
-            docker-compose -f docker-compose.frontend.yml up -d 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
-            log_success "Frontend started: http://localhost:8000"
+            cd "$frontend_dir" || return 1
+
+            # Start frontend in background with logging
+            PORT=8500 npm start > "$log_file" 2>&1 &
+            local pid=$!
+            echo $pid > "$pid_file"
+
+            # Wait a moment and check if it started successfully
+            sleep 2
+            if ps -p "$pid" > /dev/null 2>&1; then
+                log_success "Frontend started: http://localhost:8500 (PID: $pid)"
+            else
+                log_error "Failed to start frontend. Check logs: $log_file"
+                rm -f "$pid_file"
+                return 1
+            fi
             ;;
         "stop")
-            log_info "Stopping frontend..."
-            docker-compose -f docker-compose.frontend.yml down 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
-            log_success "Frontend stopped"
+            if [[ ! -f "$pid_file" ]]; then
+                log_warning "Frontend is not running (no PID file found)"
+                # Try to find and kill any process on port 8500
+                local port_pid=$(lsof -ti:8500 2>/dev/null)
+                if [[ -n "$port_pid" ]]; then
+                    kill "$port_pid" 2>/dev/null
+                    log_success "Frontend stopped (killed process on port 8500)"
+                fi
+                return 0
+            fi
+
+            local pid=$(cat "$pid_file")
+            if ps -p "$pid" > /dev/null 2>&1; then
+                log_info "Stopping frontend..."
+                kill "$pid" 2>/dev/null
+                sleep 1
+
+                # Force kill if still running
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    kill -9 "$pid" 2>/dev/null
+                fi
+
+                rm -f "$pid_file"
+                log_success "Frontend stopped"
+            else
+                log_warning "Frontend process not found (PID: $pid)"
+                rm -f "$pid_file"
+            fi
             ;;
         "restart")
             log_info "Restarting frontend..."
-            docker-compose -f docker-compose.frontend.yml restart 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml restart 2>/dev/null || true
-            log_success "Frontend restarted: http://localhost:8000"
+            manage_frontend stop
+            sleep 1
+            manage_frontend start
             ;;
         "status")
-            if docker-compose -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend" || $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend"; then
-                log_success "Frontend running: http://localhost:8000"
+            local is_running=false
+            local pid=""
+
+            if [[ -f "$pid_file" ]]; then
+                pid=$(cat "$pid_file")
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    is_running=true
+                fi
+            fi
+
+            # Also check by port
+            if ! $is_running; then
+                local port_pid=$(lsof -ti:8500 2>/dev/null)
+                if [[ -n "$port_pid" ]]; then
+                    is_running=true
+                    pid=$port_pid
+                fi
+            fi
+
+            if $is_running; then
+                echo "Frontend: Running (http://localhost:8500) - PID: $pid"
             else
-                log_info "Frontend stopped"
+                echo "Frontend: Stopped"
             fi
             ;;
         *)
@@ -1018,10 +1129,43 @@ main() {
             setup_env "$@"
             ;;
         "start")
-            start_env "$@"
+            # Check if a site name was provided
+            if [[ -n "$1" ]]; then
+                # Start a specific site
+                local site_name="$1"
+                if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
+                    log_error "Site '$site_name' not found"
+                    exit 1
+                fi
+
+                log_info "Starting site '$site_name'..."
+                $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                log_success "Site '$site_name' started"
+
+                # Show site URL
+                show_urls "$site_name"
+            else
+                # Start entire environment
+                start_env "$@"
+            fi
             ;;
         "stop")
-            stop_env "$@"
+            # Check if a site name was provided
+            if [[ -n "$1" ]]; then
+                # Stop a specific site
+                local site_name="$1"
+                if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
+                    log_error "Site '$site_name' not found"
+                    exit 1
+                fi
+
+                log_info "Stopping site '$site_name'..."
+                $DOCKER_COMPOSE stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                log_success "Site '$site_name' stopped"
+            else
+                # Stop entire environment
+                stop_env "$@"
+            fi
             ;;
         "restart")
             stop_env

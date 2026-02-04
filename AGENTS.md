@@ -6,32 +6,55 @@ This document serves as a comprehensive guide for agents working with the WordPr
 
 This is a streamlined WordPress development environment that supports multiple WordPress instances with Docker, designed for professional WordPress development. The platform includes code quality tools, monitoring, caching layers, and simplified management.
 
+## Architecture
+
+### Core Components
+
+- **matrix** - Main management script (Bash)
+- **docker-compose.yml** - Docker services configuration
+- **frontend/** - Web-based management interface (Node.js)
+- **scripts/** - Utility scripts for specific operations
+- **config/nginx/** - Nginx configurations for each site
+
+### Service Architecture
+
+```
+Host Machine (macOS/Linux)
+├── Frontend (Node.js on port 8500)
+├── Matrix Script (Bash)
+└── Docker Containers:
+    ├── WordPress Sites (wp_*, nginx_*)
+    ├── Database (MySQL)
+    ├── Cache (Redis)
+    ├── phpMyAdmin
+    └── Code Quality Tools (phpcs, phpstan)
+```
+
 ## Directory Structure
 
 ```
 wordpress-matrix/
-├── wp_*/                      # Dynamically created WordPress sites
-├── config/                    # Configuration files for services
-│   ├── nginx/                 # Nginx configurations
-│   ├── phpcs/                 # PHP CodeSniffer config
-│   ├── phpstan/              # PHPStan static analysis config
-│   ├── phpunit/              # PHPUnit testing config
-│   └── redis/                # Redis cache configuration
-├── docker/                    # Docker-related files
-├── docs/                      # Documentation
-├── ssl-certs/                 # SSL certificates
-└── logs/                      # Log files for all services
+├── wp_*/                      # WordPress sites
+├── frontend/                  # Web management interface
+│   ├── app.js                # Express server
+│   ├── public/               # Static assets
+│   ├── views/                # Handlebars templates
+│   └── package.json          # Node dependencies
+├── scripts/                   # Utility scripts
+├── config/nginx/             # Nginx configurations
+├── docker-compose.yml        # Main Docker configuration
+├── matrix                    # Main management script
+└── logs/                     # Application logs
 ```
 
 ## Essential Commands
 
 ### Environment Management
 ```bash
-./matrix setup          # Initial setup of the environment
-./matrix start           # Start all services
-./matrix stop            # Stop all services
-./matrix restart         # Restart all services
-./matrix status          # Show status of all services
+./matrix start           # Start all sites and frontend
+./matrix stop            # Stop all services and frontend
+./matrix restart         # Restart all services and frontend
+./matrix status          # Show system status
 ./matrix clean           # Clean up unused Docker resources
 ```
 
@@ -43,52 +66,44 @@ wordpress-matrix/
 ./matrix stop <site-name>        # Stop specific site
 ./matrix remove <site-name>      # Remove site
 ./matrix info <site-name>        # Show site details
+./matrix url <site-name>         # Show site URLs
 ```
 
 ### Code Quality Tools
 ```bash
-./matrix lint           # Run PHP CodeSniffer (WordPress standards)
-./matrix fix            # Auto-fix CodeSniffer issues
-./matrix analyse         # Run PHPStan static analysis
-./matrix test           # Run PHPUnit tests
-./matrix quality        # Run all quality checks
-./matrix check          # Run essential checks only
+./matrix check                    # Run code quality checks on all sites
+./matrix check <site>             # Run checks on specific site
+./matrix check <site> <path>      # Run checks on specific path
 ```
 
 ### Development Tools
 ```bash
-./matrix shell wpcli              # Access WP-CLI container
-./matrix shell composer           # Access Composer container
-./matrix shell node               # Access Node.js container
-./matrix logs <service>           # View service logs
+./matrix shell wp            # Access WordPress container shell
+./matrix logs <site>         # Show site logs
+./matrix clone <src> <dst>   # Clone existing site
+./matrix reset <name>        # Reset site to fresh install
 ```
 
-## Key Configuration Files
-
-### Environment Configuration
-- `.env.example` - Template environment file
-- `.env` - Active environment variables
-- `.env.platform` - Platform-specific settings
-
-### Docker Configuration
-- `docker-compose.yml` - Main Docker services definition
-- `docker/nginx/nginx-entrypoint.sh` - Nginx container initialization
-
-### Code Quality Configuration
-- `config/phpstan/phpstan.neon` - PHPStan configuration (Level 9, strict rules)
-- `config/phpunit/phpunit.xml` - PHPUnit test configuration
-- `config/security/security-scan.conf` - Security scanning rules
+### Frontend Management
+```bash
+./matrix frontend start     # Start web interface
+./matrix frontend stop      # Stop web interface
+./matrix frontend restart   # Restart web interface
+./matrix frontend status    # Check frontend status
+```
 
 ## Site Types
 
-### Predefined Sites
-- **xandar** - Primary development site
-- **asgard** - Secondary development site
-
 ### Dynamic Sites
-- Created with naming pattern: `wordpress_<sitename>`
+- Created with naming pattern: `wordpress_<sitename>` → `wp_<sitename>`
 - Can be created/removed dynamically
-- Follow naming convention: alphanumeric, hyphens, underscores, starts with letter
+- Naming convention: alphanumeric, hyphens, underscores, starts with letter
+
+### Port Assignment
+- Sites automatically get ports starting from 8100
+- phpMyAdmin: 8200
+- Frontend: 8500
+- Database: 3306
 
 ## Code Quality Standards
 
@@ -96,7 +111,6 @@ wordpress-matrix/
 - PHPStan Level 9 with strict rules
 - WordPress Coding Standards enforced via PHP CodeSniffer
 - Psalm static analysis for type checking
-- PHP Mess Detector for code quality
 
 ### Testing
 - PHPUnit for unit tests
@@ -105,175 +119,204 @@ wordpress-matrix/
 ## Access URLs
 
 ### WordPress Sites
-- xandar: https://xandar.127.0.0.1.nip.io
-- sakaar: https://sakaar.127.0.0.1.nip.io
-- Dynamic sites: https://<sitename>.127.0.0.1.nip.io
+- Direct access: http://localhost:8100, 8201, 8202, etc.
+- Each site gets unique port assignment
 
 ### Management Tools
-- phpMyAdmin: https://phpmyadmin.127.0.0.1.nip.io
-- MailHog: https://mailhog.127.0.0.1.nip.io
-- Grafana: https://grafana.127.0.0.1.nip.io
-- Traefik Dashboard: http://localhost:8080
+- Frontend Dashboard: http://localhost:8500
+- phpMyAdmin: http://localhost:8200
 
 ## Common Workflows
 
 ### Creating a New WordPress Site
-1. Use `./scripts/manage-sites.sh create <sitename>`
-2. Site automatically gets:
-   - WordPress core files
-   - Database (named `<sitename>_db`)
-   - Nginx configuration
-   - Port assignment
-   - Docker services
+```bash
+./matrix create mysite
+```
+
+This automatically:
+1. Creates WordPress core files in `wp_mysite/`
+2. Creates database named `mysite_db`
+3. Generates Nginx configuration
+4. Assigns port (8100+)
+5. Starts Docker services
 
 ### Running Code Quality Checks
-1. Use `./scripts/manage.sh quick-check` for essential checks
-2. Use `./scripts/manage.sh quality` for comprehensive analysis
-3. Fixes can be auto-applied with `./scripts/manage.sh fix`
+```bash
+# All sites
+./matrix check
+
+# Specific site
+./matrix check mysite
+
+# Specific path (faster)
+./matrix check mysite wp-content/themes/custom-theme
+```
 
 ### Accessing WordPress CLI
-1. Use `./wp-dev shell wpcli`
-2. Inside container, specify site path with `--path=/var/www/html/<sitename>`
-3. Example: `wp plugin install query-monitor --activate --path=/var/www/html/xandar`
+```bash
+./matrix shell wp
+# Inside container, specify site path:
+wp plugin install query-monitor --activate --path=/var/www/html/mysite
+```
 
 ## Important Gotchas
 
 ### Site Management
-- Predefined sites (xandar, asgard) cannot be removed
-- Dynamic sites follow pattern `wordpress_<sitename>` in directories
-- Each site needs unique port number
+- Sites cannot be named "frontend", "matrix", or other reserved words
+- Site directories follow pattern `wp_<sitename>`
 - Database names follow pattern `<sitename>_db`
+- Removing a site deletes all files and database
 
 ### Environment Variables
-- Always copy `.env.example` to `.env` before first use
-- Environment variables are automatically loaded by scripts
-- Port numbers are dynamically assigned for new sites
+- Loaded from `.env` file if it exists
+- Port numbers dynamically assigned
+- Database credentials in `.env` file
 
 ### Code Quality
-- PHPStan is configured at strictest level (Level 9)
-- WordPress globals are properly configured in PHPStan ignores
-- Exclude paths are set for vendor, node_modules, cache directories
+- PHPStan configured at Level 9 (strictest)
+- WordPress globals configured in PHPStan ignores
+- Exclude paths set for vendor, node_modules, cache directories
+- Checks on ALL sites can take 2+ minutes
 
-### Docker Architecture
-- Uses Traefik as reverse proxy for domain-based routing
-- Each WordPress site has:
-  - PHP-FPM container
-  - Nginx proxy container
-  - Shared database and cache services
-- Supporting services: db-primary, redis, memcached, phpmyadmin, mailhog
+### Frontend
+- Runs as host Node.js process (NOT in Docker)
+- Manages Docker via matrix script execution
+- Can start/stop sites and run code quality checks
+- Access via web browser at http://localhost:8500
 
-## Scripts Overview
+## Docker Architecture
 
-### Main Scripts
-- `wp-dev` - Primary CLI interface for environment management
-- `scripts/manage.sh` - Environment management and code quality tools
-- `scripts/manage-sites.sh` - WordPress site lifecycle management
+### Service Containers
+- **wp_*** - WordPress PHP-FPM containers
+- **nginx_*** - Nginx reverse proxy for each site
+- **db** - MySQL database server
+- **redis** - In-memory cache
+- **phpmyadmin** - Database management UI
+- **phpcs/phpstan** - Code quality tools (on-demand)
 
-### Utility Scripts
-- `scripts/generate-dev-certs.sh` - SSL certificate generation
-- `mysql_entrypoint.sh` - Database initialization
+### Networks
+- `wp-net` - Internal Docker network for service communication
 
-## Development Tips
+## Frontend Architecture
 
-### Hot Reload
-- File changes in WordPress directories trigger automatic refresh
-- Enabled by default via `ENABLE_HOT_RELOAD=true`
+### Technology Stack
+- Node.js with Express
+- Handlebars templating
+- Axios for HTTP requests
+- Runs on host (not containerized)
 
-### XDebug
-- Pre-configured for debugging
-- Connect IDE to localhost:9003
-- Path mapping: local files to `/var/www/html`
+### API Endpoints
+- `GET /` - Dashboard UI
+- `GET /api/sites` - List all sites
+- `POST /api/sites/create` - Create new site
+- `POST /api/sites/start` - Start site
+- `POST /api/sites/stop` - Stop site
+- `POST /api/environment/check` - Run code quality checks
+- `GET /health` - Health check
 
-### Database Management
-- Use phpMyAdmin at https://phpmyadmin.127.0.0.1.nip.io
-- Credentials in `.env` file
-- Automated backups can be enabled via `ENABLE_BACKUP=true`
-
-## File Permissions
-
-When working with WordPress files directly:
-```bash
-sudo chown -R $USER:$USER xandar sakaar wordpress_*
-chmod -R 755 xandar sakaar wordpress_*
-```
+### Process Management
+- PID tracked in `.frontend.pid`
+- Logs written to `logs/frontend.log`
+- Managed by `matrix frontend` commands
 
 ## Troubleshooting
 
 ### Services Won't Start
 ```bash
+./matrix stop
 docker system prune -f
-./wp-dev start
+./matrix start
 ```
 
-### Permission Issues
+### Frontend Issues
 ```bash
-sudo chown -R $USER:$USER <site_directory>
+./matrix frontend restart
+tail -f logs/frontend.log
 ```
 
 ### Database Connection Issues
 ```bash
-./wp-dev restart db-primary
+./matrix restart db
 ```
 
-### Check Service Status
+### Port Conflicts
 ```bash
-./wp-dev status
-./scripts/manage.sh port-status
+lsof -ti:8500 | xargs kill -9  # Clear frontend port
 ```
+
+## Development Tips
+
+### Hot Reload
+- File changes in WordPress directories trigger automatic refresh
+- Enabled by default
+
+### XDebug
+- Pre-configured for debugging
+- Connect IDE to localhost:9003
+- Path mapping required
+
+### Database Management
+- Use phpMyAdmin at http://localhost:8200
+- Credentials in `.env` file
+- Automated backups available via scripts
+
+## File Permissions
+
+When working with WordPress files directly:
+```bash
+sudo chown -R $USER:$USER wp_*
+chmod -R 755 wp_*
+```
+
+## Security Best Practices
+
+- Frontend runs as non-root user
+- No docker socket mounting required
+- Matrix script validates site names
+- Database credentials not hardcoded
+- SSL certificates in `ssl-certs/` directory
+
+## Performance Optimization
+
+### Caching
+- Redis for object caching
+- Nginx micro-caching enabled
+- OPcache for PHP
+
+### Resource Limits
+- PHP memory limit: 512M
+- Container resource constraints in docker-compose.yml
+- Automatic cleanup of unused resources
+
+## Scripts Overview
+
+### Available Scripts
+- `scripts/backup.sh` - Backup sites
+- `scripts/clone.sh` - Clone sites
+- `scripts/reset.sh` - Reset sites
+- `scripts/update-core.sh` - Update WordPress core
+- `scripts/cache-clear.sh` - Clear caches
+- `scripts/search-replace.sh` - Database search/replace
+- `scripts/health-check.sh` - System health check
 
 ## Documentation Reference
 
-- `docs/USAGE_GUIDE.md` - Complete usage guide
-- `docs/QUICK_REFERENCE.md` - Commands and URLs
-- `docs/WORDPRESS_INSTANCES.md` - Instance management
-- `docs/ARCHITECTURE.md` - System design overview
-- `docs/CODE_QUALITY.md` - Code quality practices
-- `docs/DEBUGGING.md` - Debugging guide
+- `README.md` - Quick start guide
+- `AGENTS.md` - This file - comprehensive guide
 
-## Simplified Version
+## Support
 
-For reduced complexity and easier onboarding, a simplified version is available:
+For issues or questions:
+1. Check troubleshooting section
+2. Review logs in `logs/` directory
+3. Run `./matrix status` for system overview
+4. Check frontend dashboard at http://localhost:8500
 
-### Key Files
-- `matrix` - All-in-one management script
-- `docker-compose.simple.yml` - Streamlined Docker configuration
-- `.env.simple` - Simplified environment template
-- `README_SIMPLIFIED.md` - Complete simplified version guide
+## Best Practices for Agents
 
-### Quick Setup
-```bash
-cp .env.simple .env
-cp docker-compose.simple.yml docker-compose.yml
-chmod +x matrix
-./matrix setup
-./matrix create mysite
-./matrix start
-```
-
-### Main Benefits
-- 70% fewer commands to learn
-- Single entry point (`matrix`)
-- Lower resource usage
-- Faster setup and startup
-- Better error messages
-
-### Core Commands
-```bash
-./matrix create <name>    # Create site
-./matrix list              # List sites
-./matrix start             # Start all
-./matrix check             # Code quality
-./matrix shell wp          # WordPress CLI
-```
-
-Choose the simplified version for:
-- Faster development setup
-- Lower learning curve
-- Reduced resource requirements
-- Simpler maintenance
-
-Use the complex version for:
-- Enterprise environments
-- Advanced monitoring needs
-- Complex multi-site architectures
-- Full feature requirements
+1. **Always verify current state** - Run `./matrix status` before making changes
+2. **Use specific commands** - Prefer `./matrix check <site>` over `./matrix check`
+3. **Monitor logs** - Check `logs/frontend.log` and Docker logs
+4. **Test changes** - Verify sites work after operations
+5. **Document changes** - Update this guide when adding features
+6. **Backup first** - Use scripts/backup.sh before major changes

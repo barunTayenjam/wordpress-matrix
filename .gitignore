@@ -106,4 +106,4 @@ sess_*
 config/nginx/default.conf
 config/nginx/*.conf
 !*.example*
-!*.env.example
+!*.env.example.frontend.pid

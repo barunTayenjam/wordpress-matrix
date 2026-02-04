@@ -1,129 +1,145 @@
 # 🚀 WordPress Development Platform
 
-A streamlined WordPress development environment with Docker support, comprehensive code quality tools, and simplified management.
+A streamlined WordPress development environment with Docker support, comprehensive code quality tools, web-based management interface, and simplified management.
 
 ## ✨ Key Features
 
 - **⚡ Simplified Management**: All-in-one `matrix` script for easy site management
+- **🌐 Web Interface**: Beautiful dashboard at http://localhost:8500 for visual management
 - **🧪 Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
-- **🌐 Multi-Site Environment**: Create and manage multiple WordPress instances
-- **🔒 SSL/TLS Support**: Automatic HTTPS with Traefik reverse proxy
-- **📊 Development Tools**: Database management, email testing
+- **🔧 Multi-Site Environment**: Create and manage multiple WordPress instances
 - **🐳 Docker Support**: Full Docker and docker-compose support
+- **📊 Real-time Monitoring**: Track site status and health
 
 ## 🚀 Quick Start
 
 ```bash
-# Clone and setup
-git clone https://github.com/barunTayenjam/wordpress-matrix.git
+# Clone the repository
+git clone https://github.com/yourusername/wordpress-matrix.git
 cd wordpress-matrix
 
-# Quick setup
-cp .env.simple .env
-cp docker-compose.simple.yml docker-compose.yml
+# Make script executable
 chmod +x matrix
-./matrix setup
 
 # Create your first site
 ./matrix create mysite
+
+# Start all services
 ./matrix start
 
-# Access your site
-# Local: http://localhost:8001
-# Domain: https://mysite.127.0.0.1.nip.io
+# Access the web dashboard
+open http://localhost:8500
 ```
 
 ## 📖 Documentation
 
-- **[Simplified Platform Guide](README_SIMPLIFIED.md)** - Complete platform documentation
-- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Essential commands and URLs
-- **[Usage Guide](docs/USAGE_GUIDE.md)** - Detailed usage instructions
-- **[Code Quality Guide](docs/CODE_QUALITY.md)** - PHPStan, PHPCS, and testing
-- **[Debugging Guide](docs/DEBUGGING.md)** - Troubleshooting and debugging
+- **[AGENTS.md](AGENTS.md)** - Comprehensive guide for AI agents and developers
+- **Web Dashboard** - Interactive management interface at http://localhost:8500
 
 ## 🎯 Common Tasks
 
 ### Site Management
 ```bash
-# Site management
-./matrix create blog          # Create new site
-./matrix list                 # List all sites
-./matrix start                # Start all sites
-./matrix stop                 # Stop all sites
-./matrix remove blog          # Remove site
+# Create a new site
+./matrix create blog
 
-# Development
-./matrix shell wp             # Access WordPress CLI
-./matrix check                # Run code quality checks
-./matrix logs blog            # View site logs
-./matrix url blog             # Show site URLs
+# List all sites
+./matrix list
+
+# Start all services
+./matrix start
+
+# Stop all services
+./matrix stop
+
+# Start specific site
+./matrix start blog
+
+# Stop specific site
+./matrix stop blog
+
+# Remove a site
+./matrix remove blog
 ```
 
-### WordPress CLI Operations
+### Code Quality Checks
+```bash
+# Check all sites
+./matrix check
+
+# Check specific site
+./matrix check blog
+
+# Check specific path
+./matrix check blog wp-content/themes/custom-theme
+```
+
+### Frontend Management
+```bash
+# Start web interface
+./matrix frontend start
+
+# Stop web interface
+./matrix frontend stop
+
+# Check frontend status
+./matrix frontend status
+```
+
+### WordPress CLI
 ```bash
 # Access WordPress CLI
 ./matrix shell wp
-# or
-./wp-podman shell wp
 
-# Install plugins/themes
+# Install plugins
 wp plugin install query-monitor --activate --path=/var/www/html/mysite
 
 # Database operations
 wp db export backup.sql --path=/var/www/html/mysite
-wp db import backup.sql --path=/var/www/html/mysite
-
-# Cache management
-wp cache flush --path=/var/www/html/mysite
 ```
+
+## 🌐 Access URLs
+
+### Web Dashboard
+- **Dashboard**: http://localhost:8500
+
+### WordPress Sites
+Sites are accessible on sequentially assigned ports:
+- First site: http://localhost:8100
+- Second site: http://localhost:8101
+- Third site: http://localhost:8102
+- And so on...
+
+### Management Tools
+- **phpMyAdmin**: http://localhost:8200
+- **Database**: localhost:3306
 
 ## 🔧 Features
 
-### Code Quality
-- **PHPStan**: Static analysis with WordPress globals
-- **PHP CodeSniffer**: WordPress coding standards enforcement
-- **Quality Reports**: Comprehensive code quality reporting
+### Code Quality Tools
+- **PHPStan Level 9**: Strict static analysis
+- **PHP CodeSniffer**: WordPress coding standards
+- **Automated Checks**: Run on specific sites or paths
 
 ### Development Tools
 - **WordPress CLI**: Pre-configured WP-CLI access
 - **Database Management**: phpMyAdmin integration
-- **Email Testing**: MailHog for development email testing
-- **SSL/TLS**: Automatic HTTPS with Traefik
-- **Reverse Proxy**: Traefik with domain-based routing
+- **Web Dashboard**: Visual site management
+- **API Endpoints**: Programmatic control
 
 ### Container Services
-- **MySQL 8.0**: Primary database with health checks
+- **MySQL 8.0**: Database server with health checks
 - **Redis**: In-memory caching and session storage
-- **Nginx**: High-performance web server
-- **PHP-FPM**: PHP 8.3 with WordPress optimizations
-- **Traefik**: Modern reverse proxy and load balancer
+- **Nginx**: High-performance web server for each site
+- **PHP 8.3**: Latest PHP with WordPress optimizations
+- **phpMyAdmin**: Database management interface
 
-## 🌐 Access URLs
-
-### WordPress Sites
-| Site Type | URL Pattern | Example |
-|-----------|-------------|---------|
-| WordPress Sites | `https://<sitename>.127.0.0.1.nip.io` | `https://blog.127.0.0.1.nip.io` |
-| Local Access | `http://localhost:<port>` | `http://localhost:8001` |
-
-### Management Tools
-| Service | URL | Purpose |
-|---------|-----|---------|
-| phpMyAdmin | https://phpmyadmin.127.0.0.1.nip.io | Database management |
-| MailHog | https://mailhog.127.0.0.1.nip.io | Email testing |
-| Traefik Dashboard | http://localhost:8080 | Reverse proxy management |
-
-### Getting Site URLs
-```bash
-# Show all site URLs
-./matrix url
-
-# Show specific site URL
-./matrix url mysite
-
-# List sites with URLs
-./matrix list
-```
+### Web Dashboard Features
+- **Site Management**: Create, start, stop, remove sites
+- **Real-time Status**: View all sites and services at a glance
+- **Code Quality**: Run checks directly from the UI
+- **Environment Control**: Start/stop entire environment
+- **Modern Interface**: Responsive, clean design
 
 ## 🛠️ Troubleshooting
 
@@ -136,73 +152,87 @@ wp cache flush --path=/var/www/html/mysite
 # Database issues
 ./matrix restart db
 
-# Permission problems
-sudo chown -R $USER:$USER wp_*
+# Frontend issues
+./matrix frontend restart
 
-# Clear all caches
-./matrix shell wp
-wp cache flush --all-sites
+# Port conflicts
+lsof -ti:8500 | xargs kill -9  # Clear frontend port
+```
+
+### Logs
+```bash
+# View frontend logs
+tail -f logs/frontend.log
+
+# View Docker logs
+./matrix logs <site-name>
 ```
 
 ### Getting Help
 1. **Check Status**: `./matrix status`
-2. **View Logs**: `./matrix logs`
-3. **Review Documentation**: Browse `/docs` folder and `README_SIMPLIFIED.md`
-4. **Community Support**: GitHub issues and discussions
+2. **View Dashboard**: http://localhost:8500
+3. **Review Documentation**: Check [AGENTS.md](AGENTS.md)
 
-### Common Issues
-- **Port Conflicts**: Use `./matrix create` to auto-assign ports
-- **Permission Errors**: Ensure proper ownership of WordPress directories
-- **Database Connection**: Check if database container is running
+## 📂 Project Structure
 
-## 🧪 Code Quality
-
-### Code Quality Checks
-```bash
-./matrix check                # Quick checks
-./matrix quality              # Comprehensive checks
 ```
-
-### Individual Tools
-```bash
-./matrix lint                 # PHP CodeSniffer
-./matrix analyse              # PHPStan analysis
+wordpress-matrix/
+├── matrix                 # Main management script
+├── docker-compose.yml     # Docker services configuration
+├── frontend/             # Web management interface
+│   ├── app.js           # Express server
+│   ├── public/          # Static assets
+│   └── views/           # Handlebars templates
+├── scripts/             # Utility scripts
+├── config/nginx/        # Nginx configurations
+├── logs/                # Application logs
+└── wp_*/               # WordPress site directories
 ```
 
 ## 🚀 Getting Started Checklist
 
 ### First-Time Setup
-- [ ] Clone repository: `git clone https://github.com/barunTayenjam/wordpress-matrix.git`
-- [ ] Copy configurations: `cp .env.simple .env && cp docker-compose.simple.yml docker-compose.yml`
-- [ ] Run setup: `./matrix setup`
+- [ ] Clone repository
+- [ ] Make matrix executable: `chmod +x matrix`
 - [ ] Create first site: `./matrix create mysite`
 - [ ] Start environment: `./matrix start`
-- [ ] Access site: `https://mysite.127.0.0.1.nip.io`
+- [ ] Open dashboard: http://localhost:8500
+- [ ] Access your site at http://localhost:8100
 
 ### Development Workflow
-- [ ] Install code quality tools: `./matrix check`
-- [ ] Access WordPress CLI: `./matrix shell wp`
-- [ ] Monitor logs: `./matrix logs`
+- [ ] Create sites as needed
+- [ ] Use web dashboard for visual management
+- [ ] Run code quality checks before commits
+- [ ] Monitor logs when troubleshooting
 
-## 📞 Support & Community
+## 📊 Port Configuration
 
-### Documentation
-- **[Simplified Platform Guide](README_SIMPLIFIED.md)** - Complete platform documentation
-- **[Code Quality Guide](docs/CODE_QUALITY.md)** - PHPStan, testing, and quality tools
+| Service | Port Range |
+|---------|-----------|
+| Frontend Dashboard | 8500 |
+| phpMyAdmin | 8200 |
+| WordPress Sites | 8100+ |
+| Database | 3306 |
 
-### Getting Help
-1. **Status Check**: `./matrix status`
-2. **Review Logs**: `./matrix logs`
-3. **Browse Documentation**: Check `/docs` folder and README files
-4. **GitHub Issues**: Report bugs and request features
+## 🔒 Security
 
-### Community
-- **GitHub Discussions**: Community Q&A and tips
-- **Issues & PRs**: Bug reports and contributions welcome
-- **Documentation**: Contributions to docs appreciated
+- Frontend runs as non-root user
+- No docker socket mounting required
+- Database credentials in `.env` file
+- Site name validation prevents conflicts
 
----
+## 🤝 Contributing
 
-## 🎉 Happy Developing with WordPress Platform!
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
 
-**Quick Start**: `git clone && cp .env.simple .env && cp docker-compose.simple.yml docker-compose.yml && ./matrix setup && ./matrix create mysite && ./matrix start`
+## 📝 License
+
+MIT License - feel free to use this for your projects
+
+## 🎉 Happy Developing!
+
+**Quick Start**: `chmod +x matrix && ./matrix create mysite && ./matrix start && open http://localhost:8500`
