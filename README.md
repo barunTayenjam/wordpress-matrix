@@ -21,11 +21,14 @@ cd wordpress-matrix
 # Make script executable
 chmod +x matrix
 
+# Start core services (database, redis, phpMyAdmin, frontend)
+./matrix start
+
 # Create your first site
 ./matrix create mysite
 
-# Start all services
-./matrix start
+# Start your site
+./matrix start mysite
 
 # Access the web dashboard
 open http://localhost:8500
@@ -46,17 +49,17 @@ open http://localhost:8500
 # List all sites
 ./matrix list
 
-# Start all services
+# Start core services (database, redis, phpMyAdmin, frontend)
 ./matrix start
-
-# Stop all services
-./matrix stop
 
 # Start specific site
 ./matrix start blog
 
 # Stop specific site
 ./matrix stop blog
+
+# Stop all services (including frontend)
+./matrix stop
 
 # Remove a site
 ./matrix remove blog
@@ -194,10 +197,11 @@ wordpress-matrix/
 ### First-Time Setup
 - [ ] Clone repository
 - [ ] Make matrix executable: `chmod +x matrix`
+- [ ] Start core services: `./matrix start`
 - [ ] Create first site: `./matrix create mysite`
-- [ ] Start environment: `./matrix start`
+- [ ] Start your site: `./matrix start mysite`
 - [ ] Open dashboard: http://localhost:8500
-- [ ] Access your site at http://localhost:8100
+- [ ] Access your site at assigned port
 
 ### Development Workflow
 - [ ] Create sites as needed
@@ -235,4 +239,4 @@ MIT License - feel free to use this for your projects
 
 ## 🎉 Happy Developing!
 
-**Quick Start**: `chmod +x matrix && ./matrix create mysite && ./matrix start && open http://localhost:8500`
+**Quick Start**: `chmod +x matrix && ./matrix start && ./matrix create mysite && ./matrix start mysite && open http://localhost:8500`

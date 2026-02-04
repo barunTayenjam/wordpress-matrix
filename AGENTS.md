@@ -51,7 +51,7 @@ wordpress-matrix/
 
 ### Environment Management
 ```bash
-./matrix start           # Start all sites and frontend
+./matrix start           # Start core services (db, redis, phpmyadmin, frontend)
 ./matrix stop            # Stop all services and frontend
 ./matrix restart         # Restart all services and frontend
 ./matrix status          # Show system status
@@ -166,6 +166,9 @@ wp plugin install query-monitor --activate --path=/var/www/html/mysite
 - Site directories follow pattern `wp_<sitename>`
 - Database names follow pattern `<sitename>_db`
 - Removing a site deletes all files and database
+- **IMPORTANT**: `./matrix start` only starts core services (db, redis, phpmyadmin, frontend)
+- Sites must be started individually with `./matrix start <site>` after environment starts
+- This gives you control over which sites run at any time
 
 ### Environment Variables
 - Loaded from `.env` file if it exists
