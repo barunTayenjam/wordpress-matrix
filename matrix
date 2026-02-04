@@ -247,6 +247,11 @@ server {
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
+        
+        # Increase buffer sizes to handle large headers
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
     }
 
     # Deny access to sensitive files
@@ -968,6 +973,9 @@ import_db() {
 
     local db_name="${site_name}_db"
     log_info "Importing database for '$site_name' ($db_name)..."
+
+    # Set log_bin_trust_function_creators to allow triggers/procedures without SUPER privilege
+    $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -e "SET GLOBAL log_bin_trust_function_creators = 1;" 2>/dev/null || true
 
     # Import the SQL dump
     cat "$dump_file" | $DOCKER_COMPOSE exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name"
