@@ -60,13 +60,15 @@ wordpress-matrix/
 
 ### Site Management
 ```bash
-./matrix list                    # List all WordPress sites
-./matrix create <site-name>      # Create new WordPress site
-./matrix start <site-name>       # Start specific site
-./matrix stop <site-name>        # Stop specific site
-./matrix remove <site-name>      # Remove site
-./matrix info <site-name>        # Show site details
-./matrix url <site-name>         # Show site URLs
+./matrix list                                    # List all WordPress sites
+./matrix create <site-name>                      # Create new WordPress site (PHP 8.3)
+./matrix create <site-name> --php-version=7.4    # Create site with PHP 7.4
+./matrix create <site-name> --php-version=8.1    # Create site with PHP 8.1
+./matrix start <site-name>                       # Start specific site
+./matrix stop <site-name>                        # Stop specific site
+./matrix remove <site-name>                      # Remove site
+./matrix info <site-name>                        # Show site details
+./matrix url <site-name>                         # Show site URLs
 ```
 
 ### Code Quality Tools
@@ -105,6 +107,14 @@ wordpress-matrix/
 - Frontend: 8500
 - Database: 3306
 
+### PHP Version Support
+- **Supported versions**: PHP 7.4, 8.0, 8.1, 8.2, 8.3
+- **Default version**: PHP 8.3
+- Each site can run a different PHP version
+- Specify PHP version at site creation with `--php-version=X.X` flag
+- Useful for testing compatibility across PHP versions
+- Migrate legacy sites gradually by testing side-by-side
+
 ## Code Quality Standards
 
 ### PHP Standards
@@ -130,7 +140,12 @@ wordpress-matrix/
 
 ### Creating a New WordPress Site
 ```bash
+# Create with default PHP (8.3)
 ./matrix create mysite
+
+# Create with specific PHP version
+./matrix create legacy-site --php-version=7.4
+./matrix create modern-site --php-version=8.2
 ```
 
 This automatically:
@@ -138,7 +153,8 @@ This automatically:
 2. Creates database named `mysite_db`
 3. Generates Nginx configuration
 4. Assigns port (8100+)
-5. Starts Docker services
+5. Pulls appropriate Docker image with specified PHP version
+6. Starts Docker services
 
 ### Running Code Quality Checks
 ```bash
@@ -157,6 +173,9 @@ This automatically:
 ./matrix shell wp
 # Inside container, specify site path:
 wp plugin install query-monitor --activate --path=/var/www/html/mysite
+
+# Check PHP version of a running site
+docker exec wp_mysite php -v
 ```
 
 ## Important Gotchas
@@ -187,10 +206,16 @@ wp plugin install query-monitor --activate --path=/var/www/html/mysite
 - Can start/stop sites and run code quality checks
 - Access via web browser at http://localhost:8500
 
+### PHP Version Management
+- Site's PHP version is stored in docker-compose.yml
+- Check PHP version: `grep "wp_sitename:" -A 3 docker-compose.yml`
+- Change PHP version: Edit docker-compose.yml and `./matrix restart <sitename>`
+- Supported: wordpress:php7.4-fpm, wordpress:php8.0-fpm, wordpress:php8.1-fpm, wordpress:php8.2-fpm, wordpress:php8.3-fpm
+
 ## Docker Architecture
 
 ### Service Containers
-- **wp_*** - WordPress PHP-FPM containers
+- **wp_*** - WordPress PHP-FPM containers (version-specific images: wordpress:phpX.X-fpm)
 - **nginx_*** - Nginx reverse proxy for each site
 - **db** - MySQL database server
 - **redis** - In-memory cache

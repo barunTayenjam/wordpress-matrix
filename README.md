@@ -43,8 +43,13 @@ open http://localhost:8500
 
 ### Site Management
 ```bash
-# Create a new site
+# Create a new site (default PHP 8.3)
 ./matrix create blog
+
+# Create a site with specific PHP version
+./matrix create oldsite --php-version=7.4
+./matrix create testsite --php-version=8.1
+./matrix create modernsite --php-version=8.2
 
 # List all sites
 ./matrix list
@@ -94,6 +99,9 @@ open http://localhost:8500
 # Access WordPress CLI
 ./matrix shell wp
 
+# Check PHP version in running container
+docker exec wp_mysite php -v
+
 # Install plugins
 wp plugin install query-monitor --activate --path=/var/www/html/mysite
 
@@ -119,6 +127,22 @@ Sites are accessible on sequentially assigned ports:
 
 ## 🔧 Features
 
+### PHP Version Management
+```bash
+# Supported PHP versions
+./matrix create site74 --php-version=7.4   # Legacy WordPress testing
+./matrix create site80 --php-version=8.0   # PHP 8.0 support
+./matrix create site81 --php-version=8.1   # PHP 8.1 support
+./matrix create site82 --php-version=8.2   # PHP 8.2 support
+./matrix create site83 --php-version=8.3   # Latest stable (default)
+```
+
+Each site can run a different PHP version, allowing you to:
+- Test plugins/themes across multiple PHP versions
+- Debug compatibility issues
+- Gradually migrate legacy sites to newer PHP
+- Reproduce customer environments
+
 ### Code Quality Tools
 - **PHPStan Level 9**: Strict static analysis
 - **PHP CodeSniffer**: WordPress coding standards
@@ -134,7 +158,7 @@ Sites are accessible on sequentially assigned ports:
 - **MySQL 8.0**: Database server with health checks
 - **Redis**: In-memory caching and session storage
 - **Nginx**: High-performance web server for each site
-- **PHP 8.3**: Latest PHP with WordPress optimizations
+- **Multiple PHP Versions**: Support for PHP 7.4, 8.0, 8.1, 8.2, 8.3 (default: 8.3)
 - **phpMyAdmin**: Database management interface
 
 ### Web Dashboard Features
