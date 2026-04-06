@@ -6,35 +6,229 @@
   <title>{{title}} - WordPress Matrix</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    .site-card {
-      transition: transform 0.2s, box-shadow 0.2s;
+    :root {
+      --primary-color: #6366f1;
+      --primary-hover: #4f46e5;
+      --secondary-color: #64748b;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --bg-light: #f8fafc;
+      --bg-card: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
     }
-    .site-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
     }
-    .status-running {
-      color: #198754;
+    
+    .navbar {
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)) !important;
+      box-shadow: var(--shadow-md);
     }
-    .status-stopped {
-      color: #6c757d;
-    }
+    
     .navbar-brand {
-      font-weight: bold;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: -0.025em;
     }
+    
+    .site-card {
+      transition: all 0.3s ease;
+      border: 1px solid var(--border-color);
+      background: var(--bg-card);
+    }
+    
+    .site-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary-color);
+    }
+    
+    .site-card .card-header {
+      background: transparent;
+      border-bottom: 1px solid var(--border-color);
+      font-weight: 600;
+    }
+    
+    .badge-r {
+      background: var(--success-color);
+      color: white;
+      padding: 0.35em 0.65em;
+      font-weight: 500;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+    }
+    
+    .badge-s {
+      background: var(--secondary-color);
+      color: white;
+      padding: 0.35em 0.65em;
+      font-weight: 500;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+    }
+    
+    .status-running {
+      color: var(--success-color);
+    }
+    
+    .status-stopped {
+      color: var(--secondary-color);
+    }
+    
     .sidebar {
-      background-color: #f8f9fa;
-      min-height: calc(100vh - 56px);
+      background-color: var(--bg-card);
+      border-right: 1px solid var(--border-color);
     }
+    
+    .sidebar .nav-link {
+      color: var(--text-secondary);
+      font-weight: 500;
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      margin: 0.25rem 0.5rem;
+      transition: all 0.2s ease;
+    }
+    
+    .sidebar .nav-link:hover {
+      background-color: var(--bg-light);
+      color: var(--primary-color);
+    }
+    
+    .sidebar .nav-link.active {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    
     .terminal-output {
-      background-color: #212529;
-      color: #f8f9fa;
-      font-family: monospace;
-      border-radius: 5px;
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      border-radius: 0.5rem;
       padding: 15px;
       max-height: 300px;
       overflow-y: auto;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .nav-tabs {
+      border-bottom: 2px solid var(--border-color);
+    }
+    
+    .nav-tabs .nav-link {
+      color: var(--text-secondary);
+      font-weight: 500;
+      border: none;
+      padding: 0.75rem 1rem;
+      transition: all 0.2s ease;
+    }
+    
+    .nav-tabs .nav-link:hover {
+      color: var(--primary-color);
+      border: none;
+    }
+    
+    .nav-tabs .nav-link.active {
+      color: var(--primary-color);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid var(--primary-color);
+    }
+    
+    .btn {
+      font-weight: 500;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .btn-sm {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.875rem;
+    }
+    
+    .card {
+      border-radius: 0.75rem;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .card:hover {
+      box-shadow: var(--shadow-md);
+    }
+    
+    .stat-card {
+      background: var(--bg-card);
+      border-radius: 0.75rem;
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .stat-card .card-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    
+    .stat-card .card-text {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+    }
+    
+    .modal-content {
+      border-radius: 0.75rem;
+      border: none;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .modal-header {
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .modal-footer {
+      border-top: 1px solid var(--border-color);
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .border-bottom {
+      border-color: var(--border-color) !important;
+    }
+    
+    /* Quick action buttons styling */
+    .quick-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .quick-action-btn:hover {
+      transform: translateY(-2px);
     }
   </style>
 </head>
