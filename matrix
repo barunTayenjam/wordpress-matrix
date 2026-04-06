@@ -435,10 +435,12 @@ list_sites_json() {
     local services_json=""
     local first_svc=true
 
-    local svc_names=("wp_db:Database" "wp_redis:Redis Cache" "wp_phpmyadmin:phpMyAdmin" "wp_phpcs:PHP CodeSniffer" "wp_phpstan:PHPStan" "wp_cli:WP-CLI")
+    local svc_names=("wp_db:Database:null" "wp_redis:Redis Cache:null" "wp_phpmyadmin:phpMyAdmin:8200" "wp_phpcs:PHP CodeSniffer:null" "wp_phpstan:PHPStan:null" "wp_cli:WP-CLI:null")
     for svc in "${svc_names[@]}"; do
         local svc_container="${svc%%:*}"
-        local svc_name="${svc##*:}"
+        local remaining="${svc#*:}"
+        local svc_name="${remaining%%:*}"
+        local svc_port="${remaining##*:}"
         local svc_status="stopped"
         local svc_cid="null"
 
@@ -447,7 +449,12 @@ list_sites_json() {
             svc_cid="\"$(docker ps -q -f name="$svc_container" 2>/dev/null | head -1)\""
         fi
 
-        local svc_entry="{\"name\":\"$svc_name\",\"status\":\"$svc_status\",\"containerId\":$svc_cid}"
+        local svc_url="null"
+        if [[ "$svc_port" != "null" && -n "$svc_port" ]]; then
+            svc_url="\"http://localhost:$svc_port\""
+        fi
+
+        local svc_entry="{\"name\":\"$svc_name\",\"status\":\"$svc_status\",\"containerId\":$svc_cid,\"localUrl\":$svc_url}"
 
         if [[ "$first_svc" == true ]]; then
             services_json="$svc_entry"
@@ -609,12 +616,14 @@ show_status_json() {
     local first=true
 
     local compose_output
-    compose_output=$($DOCKER_COMPOSE ps --format "{{.Name}}\t{{.Status}}\t{{.Ports}}" 2>&1) || {
-        error_json "DOCKER_ERROR" "Failed to query Docker Compose: $compose_output"
+    compose_output=$(docker ps --format "{{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1) || {
+        error_json "DOCKER_ERROR" "Failed to query Docker: $compose_output"
     }
 
     while IFS=$'\t' read -r name status ports; do
         [[ -z "$name" ]] && continue
+        [[ "$name" =~ ^wordpress-matrix ]] && continue
+        
         local name_json="${name//\"/\\\"}"
         local status_json="${status//\"/\\\"}"
         local ports_json="${ports//\"/\\\"}"
@@ -1578,7 +1587,9 @@ main() {
         JSON_OUTPUT=true
         json_log_override
     fi
-    set -- "${filtered_args[@]}"
+    if [[ ${#filtered_args[@]} -gt 0 ]]; then
+        set -- "${filtered_args[@]}"
+    fi
 
     case "$command" in
         "setup")
@@ -1639,9 +1650,6 @@ main() {
                 stop_env
                 start_env
             fi
-            ;;
-        "status")
-            show_status "$@"
             ;;
         "logs")
             show_logs "$@"
