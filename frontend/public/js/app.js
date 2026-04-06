@@ -446,3 +446,94 @@ function showError(message) {
     }
   }, 5000);
 }
+
+// Code quality check functions
+async function runChecksForSite(siteName) {
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName })
+    });
+    
+    const data = await response.json();
+    hideLoading();
+    
+    if (data.success) {
+      displayCheckResults(data.output || data.data, siteName);
+    } else {
+      const errorMsg = data.error?.message || data.error || 'Check failed';
+      showNotification(`Check failed: ${errorMsg}`, 'danger');
+    }
+  } catch (error) {
+    console.error('Error running checks:', error);
+    hideLoading();
+    showNotification('Network error while running checks', 'danger');
+  }
+}
+
+async function runAllChecks() {
+  try {
+    showLoading();
+    const response = await fetch('/api/environment/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+    hideLoading();
+    
+    if (data.success) {
+      displayCheckResults(data.output || data.data, 'All Sites');
+    } else {
+      const errorMsg = data.error?.message || data.error || 'Check failed';
+      showNotification(`Check failed: ${errorMsg}`, 'danger');
+    }
+  } catch (error) {
+    console.error('Error running checks:', error);
+    hideLoading();
+    showNotification('Network error while running checks', 'danger');
+  }
+}
+
+function displayCheckResults(results, siteName) {
+  const modal = new bootstrap.Modal(document.getElementById('checkResultsModal'));
+  const body = document.getElementById('check-results-body');
+  const progress = document.getElementById('check-progress');
+  const output = document.getElementById('check-output');
+  
+  progress.classList.add('d-none');
+  output.classList.remove('d-none');
+  
+  const pre = output.querySelector('pre');
+  
+  if (typeof results === 'string') {
+    pre.textContent = results || 'No output';
+  } else if (results && results.results) {
+    let text = '';
+    results.results.forEach(tool => {
+      text += `=== ${tool.tool} ===\n`;
+      text += `Files Scanned: ${tool.filesScanned}\n`;
+      text += `Errors: ${tool.totals.errors}, Warnings: ${tool.totals.warnings}\n`;
+      if (tool.errors.length > 0) {
+        text += '\nErrors:\n';
+        tool.errors.forEach(e => {
+          text += `  ${e.file}:${e.line} - ${e.message}\n`;
+        });
+      }
+      if (tool.warnings.length > 0) {
+        text += '\nWarnings:\n';
+        tool.warnings.forEach(w => {
+          text += `  ${w.file}:${w.line} - ${w.message}\n`;
+        });
+      }
+      text += '\n';
+    });
+    pre.textContent = text;
+  } else {
+    pre.textContent = JSON.stringify(results, null, 2);
+  }
+  
+  modal.show();
+}

@@ -104,6 +104,9 @@
             <button class="btn btn-sm btn-info" onclick="siteAction('info', '{{name}}')">
               <i class="bi bi-info"></i> Info
             </button>
+            <button class="btn btn-sm btn-outline-info" onclick="runChecksForSite('{{name}}')">
+              <i class="bi bi-clipboard-check"></i> Check
+            </button>
             <button class="btn btn-sm btn-danger" onclick="siteAction('remove', '{{name}}')">
               <i class="bi bi-trash"></i> Delete
             </button>
@@ -230,6 +233,27 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" onclick="createSite()">Create Site</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Code Quality Results Modal -->
+<div class="modal fade" id="checkResultsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Code Quality Check Results</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="check-results-body">
+        <div id="check-progress" class="text-center">
+          <div class="spinner-border" role="status"></div>
+          <p>Running checks...</p>
+        </div>
+        <div id="check-output" class="d-none">
+          <pre class="bg-dark text-light p-3"></pre>
+        </div>
       </div>
     </div>
   </div>

@@ -6,7 +6,9 @@
   "scripts": {
     "start": "PORT=8500 node app.js",
     "dev": "PORT=8500 nodemon app.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest --coverage",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage --maxWorkers=2"
   },
   "keywords": [
     "wordpress",
@@ -25,7 +27,9 @@
     "socket.io": "^4.7.4"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
   },
   "engines": {
     "node": ">=16.0.0"

@@ -357,6 +357,31 @@ app.get('/api/status', async (req, res) => {
   }
 });
 
+app.post('/api/sites/check', async (req, res) => {
+  const { siteName } = req.body;
+  
+  if (!siteName) {
+    return sendError(res, 'INVALID_NAME', 'Site name is required', 400);
+  }
+  
+  const validation = validateSiteName(siteName);
+  if (!validation.valid) {
+    return sendError(res, validation.code, validation.message);
+  }
+  
+  try {
+    const result = await executeMatrix('check', [siteName], false, `check_${siteName}`);
+    
+    res.json({
+      success: result.success,
+      output: result.stdout,
+      error: result.stderr
+    });
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
 app.get('/api/help', async (req, res) => {
   try {
     const result = await executeMatrix('help');
