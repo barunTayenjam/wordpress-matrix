@@ -43,10 +43,16 @@
 
 None currently.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260406-jso | modernize the front end UI/UX to 2026 standard, remove redundant links/menu | 2026-04-06 |  | [260406-jso-modernize-the-front-end-ui-ux-to-2026-st](./quick/260406-jso-modernize-the-front-end-ui-ux-to-2026-st/) |
+
 ## Next Action
 
 Start Phase 1: Add `--json` flag to `matrix` CLI's `list_sites()`, `show_status()`, and `show_info()` functions.
 
 ---
 
-*Last updated: 2025-04-06*
+*Last updated: 2026-04-06 - Completed quick task 260406-jso: modernize the front end UI/UX to 2026 standard, remove redundant links/menu*
