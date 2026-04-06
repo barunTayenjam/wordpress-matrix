@@ -9,73 +9,90 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary-color: #6366f1;
-      --primary-hover: #4f46e5;
-      --secondary-color: #64748b;
+      --primary-color: #0f172a;
+      --primary-hover: #1e293b;
+      --accent-color: #6366f1;
       --success-color: #10b981;
       --warning-color: #f59e0b;
       --danger-color: #ef4444;
-      --bg-light: #f8fafc;
+      --bg-page: #f1f5f9;
       --bg-card: #ffffff;
-      --text-primary: #1e293b;
+      --text-primary: #0f172a;
       --text-secondary: #64748b;
       --border-color: #e2e8f0;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --radius-sm: 0.5rem;
+      --radius-md: 0.75rem;
+      --radius-lg: 1rem;
+    }
+    
+    * {
+      transition: all 0.2s ease;
     }
     
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background-color: var(--bg-light);
+      background-color: var(--bg-page);
       color: var(--text-primary);
+      line-height: 1.6;
     }
     
     .navbar {
-      background: linear-gradient(135deg, var(--primary-color), var(--primary-hover)) !important;
-      box-shadow: var(--shadow-md);
+      background: var(--bg-card) !important;
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+      padding: 0.75rem 1.5rem;
     }
     
     .navbar-brand {
-      font-weight: 700;
-      font-size: 1.25rem;
-      letter-spacing: -0.025em;
+      font-weight: 600;
+      font-size: 1.125rem;
+      color: var(--text-primary) !important;
+      letter-spacing: -0.02em;
+    }
+    
+    .navbar-brand i {
+      color: var(--accent-color);
     }
     
     .site-card {
-      transition: all 0.3s ease;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       border: 1px solid var(--border-color);
       background: var(--bg-card);
+      border-radius: var(--radius-md);
+      overflow: hidden;
     }
     
     .site-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
-      border-color: var(--primary-color);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--accent-color);
     }
     
     .site-card .card-header {
       background: transparent;
       border-bottom: 1px solid var(--border-color);
       font-weight: 600;
+      padding: 1rem;
     }
     
     .badge-r {
       background: var(--success-color);
       color: white;
-      padding: 0.35em 0.65em;
+      padding: 0.35em 0.75em;
       font-weight: 500;
       font-size: 0.75rem;
-      border-radius: 0.375rem;
+      border-radius: var(--radius-sm);
     }
     
     .badge-s {
-      background: var(--secondary-color);
+      background: var(--text-secondary);
       color: white;
-      padding: 0.35em 0.65em;
+      padding: 0.35em 0.75em;
       font-weight: 500;
       font-size: 0.75rem;
-      border-radius: 0.375rem;
+      border-radius: var(--radius-sm);
     }
     
     .status-running {
@@ -83,86 +100,66 @@
     }
     
     .status-stopped {
-      color: var(--secondary-color);
-    }
-    
-    .sidebar {
-      background-color: var(--bg-card);
-      border-right: 1px solid var(--border-color);
-    }
-    
-    .sidebar .nav-link {
       color: var(--text-secondary);
-      font-weight: 500;
-      padding: 0.75rem 1rem;
-      border-radius: 0.5rem;
-      margin: 0.25rem 0.5rem;
-      transition: all 0.2s ease;
-    }
-    
-    .sidebar .nav-link:hover {
-      background-color: var(--bg-light);
-      color: var(--primary-color);
-    }
-    
-    .sidebar .nav-link.active {
-      background-color: var(--primary-color);
-      color: white;
-    }
-    
-    .terminal-output {
-      background: linear-gradient(135deg, #1e293b, #0f172a);
-      color: #e2e8f0;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      border-radius: 0.5rem;
-      padding: 15px;
-      max-height: 300px;
-      overflow-y: auto;
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
     
     .nav-tabs {
-      border-bottom: 2px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+      gap: 0.5rem;
     }
     
     .nav-tabs .nav-link {
       color: var(--text-secondary);
       font-weight: 500;
       border: none;
-      padding: 0.75rem 1rem;
-      transition: all 0.2s ease;
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      background: transparent;
     }
     
     .nav-tabs .nav-link:hover {
-      color: var(--primary-color);
+      color: var(--accent-color);
+      background: rgba(99, 102, 241, 0.05);
       border: none;
     }
     
     .nav-tabs .nav-link.active {
-      color: var(--primary-color);
-      background: transparent;
+      color: var(--accent-color);
+      background: var(--bg-card);
       border: none;
-      border-bottom: 2px solid var(--primary-color);
+      border-bottom: 2px solid var(--accent-color);
     }
     
     .btn {
       font-weight: 500;
-      border-radius: 0.5rem;
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 1rem;
       transition: all 0.2s ease;
     }
     
     .btn:hover {
       transform: translateY(-1px);
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
     }
     
     .btn-sm {
-      padding: 0.4rem 0.75rem;
-      font-size: 0.875rem;
+      padding: 0.375rem 0.75rem;
+      font-size: 0.8125rem;
+    }
+    
+    .btn-primary {
+      background: var(--accent-color);
+      border-color: var(--accent-color);
+    }
+    
+    .btn-primary:hover {
+      background: #4f46e5;
+      border-color: #4f46e5;
     }
     
     .card {
-      border-radius: 0.75rem;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
       box-shadow: var(--shadow-sm);
     }
     
@@ -172,9 +169,9 @@
     
     .stat-card {
       background: var(--bg-card);
-      border-radius: 0.75rem;
+      border-radius: var(--radius-md);
       border: 1px solid var(--border-color);
-      transition: all 0.3s ease;
+      transition: all 0.25s ease;
     }
     
     .stat-card:hover {
@@ -186,17 +183,20 @@
       font-size: 2rem;
       font-weight: 700;
       color: var(--text-primary);
+      letter-spacing: -0.02em;
     }
     
     .stat-card .card-text {
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     
     .modal-content {
-      border-radius: 0.75rem;
+      border-radius: var(--radius-md);
       border: none;
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-md);
     }
     
     .modal-header {
@@ -210,19 +210,19 @@
     h1, h2, h3, h4, h5, h6 {
       font-weight: 600;
       color: var(--text-primary);
+      letter-spacing: -0.01em;
     }
     
     .border-bottom {
       border-color: var(--border-color) !important;
     }
     
-    /* Quick action buttons styling */
     .quick-action-btn {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
+      border-radius: var(--radius-sm);
       font-weight: 500;
       transition: all 0.2s ease;
     }
@@ -230,60 +230,44 @@
     .quick-action-btn:hover {
       transform: translateY(-2px);
     }
+    
+    .main-header {
+      padding: 1.25rem 0;
+    }
+    
+    .main-header h1 {
+      font-size: 1.5rem;
+    }
+    
+    .terminal-output {
+      background: linear-gradient(135deg, #1e1b4b, #0f172a);
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+      border: 1px solid var(--border-color);
+    }
   </style>
 </head>
 <body>
   <!-- Navigation -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container-fluid">
-      <a class="navbar-brand" href="/">
+  <nav class="navbar navbar-expand-lg sticky-top">
+    <div class="container-fluid px-4">
+      <a class="navbar-brand d-flex align-items-center gap-2" href="/">
         <i class="bi bi-grid-3x3-gap"></i> WordPress Matrix
       </a>
-      <div class="navbar-nav ms-auto">
-        <a class="nav-link" href="/" target="_blank">
-          <i class="bi bi-house"></i> Dashboard
-        </a>
-        <a class="nav-link" href="https://github.com/barunTayenjam/wordpress-matrix" target="_blank">
-          <i class="bi bi-github"></i>
-        </a>
-      </div>
     </div>
   </nav>
 
   <!-- Main Content -->
-  <div class="container-fluid">
+  <div class="container-fluid px-4 py-3">
     <div class="row">
-      <!-- Sidebar -->
-      <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-        <div class="position-sticky pt-3">
-          <ul class="nav flex-column">
-            <li class="nav-item">
-              <a class="nav-link active" href="#" data-bs-toggle="tab" data-bs-target="#dashboard">
-                <i class="bi bi-speedometer2"></i> Dashboard
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#sites">
-                <i class="bi bi-hdd-stack"></i> Sites
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#services">
-                <i class="bi bi-server"></i> Services
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" data-bs-toggle="tab" data-bs-target="#terminal">
-                <i class="bi bi-terminal"></i> Terminal
-              </a>
-            </li>
-          </ul>
-        </div>
-      </nav>
-
       <!-- Main Content Area -->
-      <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+      <main class="col-12">
+        <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-2 pb-3 mb-3 border-bottom main-header">
           <h1 class="h2">{{title}}</h1>
           <div class="btn-toolbar mb-2 mb-md-0">
             <div class="btn-group me-2">
