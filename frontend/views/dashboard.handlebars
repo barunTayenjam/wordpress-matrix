@@ -104,7 +104,7 @@
             <button class="btn btn-sm btn-info" onclick="siteAction('info', '{{name}}')">
               <i class="bi bi-info"></i> Info
             </button>
-            <button class="btn btn-sm btn-danger" onclick="siteAction('delete', '{{name}}')">
+            <button class="btn btn-sm btn-danger" onclick="siteAction('remove', '{{name}}')">
               <i class="bi bi-trash"></i> Delete
             </button>
           </div>
@@ -143,7 +143,9 @@
               {{localUrl}}
               {{/if}}
             </td>
-            <td>{{domainUrl}}</td>
+            <td>
+              <span class="badge bg-secondary">Services</span>
+            </td>
           </tr>
           {{/each}}
         </tbody>

@@ -104,7 +104,8 @@ async function quickAction(action) {
       showNotification(`Command "${action}" executed successfully`, 'success');
       await loadDashboard();
     } else {
-      showNotification(`Command "${action}" failed: ${data.error}`, 'danger');
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      showNotification(`Command "${action}" failed: ${errorMsg}`, 'danger');
     }
     
     hideLoading();
@@ -139,7 +140,8 @@ async function siteAction(action, siteName) {
       showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
       await loadDashboard();
     } else {
-      showNotification(`Command "${action} ${siteName}" failed: ${data.error}`, 'danger');
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      showNotification(`Command "${action} ${siteName}" failed: ${errorMsg}`, 'danger');
     }
     
     hideLoading();
@@ -187,7 +189,8 @@ async function createSite() {
       
       await loadDashboard();
     } else {
-      showNotification(`Failed to create site: ${data.error}`, 'danger');
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      showNotification(`Failed to create site: ${errorMsg}`, 'danger');
     }
     
     hideLoading();
@@ -213,10 +216,10 @@ async function frontendAction(action) {
     
     if (data.success) {
       showNotification(`Frontend "${action}" executed successfully`, 'success');
-      // Update frontend status display
       updateFrontendStatus(action, data.output);
     } else {
-      showNotification(`Frontend "${action}" failed: ${data.error}`, 'danger');
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      showNotification(`Frontend "${action}" failed: ${errorMsg}`, 'danger');
     }
     
     hideLoading();
@@ -266,7 +269,8 @@ async function executeCommand() {
     if (data.success) {
       output.innerHTML += `<div>${data.output}</div>`;
     } else {
-      output.innerHTML += `<div class="text-danger">Error: ${data.error}</div>`;
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      output.innerHTML += `<div class="text-danger">Error: ${errorMsg}</div>`;
     }
   } catch (error) {
     console.error('Error executing command:', error);
