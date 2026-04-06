@@ -2,11 +2,61 @@ const express = require('express');
 const exphbs = require('express-handlebars');
 const path = require('path');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const { spawn } = require('child_process');
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Create HTTP server and initialize socket.io
+const server = http.createServer(app);
+const io = new Server(server);
+
+io.on('connection', (socket) => {
+  console.log('[WebSocket] Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('[WebSocket] Client disconnected:', socket.id);
+  });
+});
+
+app.set('io', io);
+
+// Status polling for real-time updates
+let lastStatus = null;
+const POLL_INTERVAL = 30000; // 30 seconds
+
+const pollStatus = async () => {
+  try {
+    const result = await executeMatrix('status', [], true);
+    if (result.success && result.data) {
+      const currentStatus = JSON.stringify(result.data);
+      
+      if (lastStatus !== null && lastStatus !== currentStatus) {
+        const io = app.get('io');
+        if (io) {
+          io.emit('status.changed', result.data);
+          console.log('[WebSocket] Status changed, emitting to clients');
+        }
+      }
+      
+      lastStatus = currentStatus;
+    }
+  } catch (error) {
+    console.error('[WebSocket] Status poll error:', error.message);
+  }
+};
+
+// Start status polling
+setInterval(pollStatus, POLL_INTERVAL);
+console.log(`[WebSocket] Status polling started (every ${POLL_INTERVAL/1000}s)`);
+
+// Initial status fetch after server starts
+setTimeout(() => {
+  pollStatus();
+}, 2000);
 
 // Validation constants
 const SUPPORTED_PHP_VERSIONS = ['7.4', '8.0', '8.1', '8.2', '8.3'];
@@ -53,7 +103,7 @@ app.set('view engine', 'handlebars');
 app.set('views', path.join(__dirname, 'views'));
 
 // Helper function to execute matrix command
-const executeMatrix = async (command, args = [], jsonMode = false) => {
+const executeMatrix = async (command, args = [], jsonMode = false, operationName = null) => {
   return new Promise((resolve, reject) => {
     const projectRoot = path.join(__dirname, '..');
     const matrixPath = path.join(projectRoot, 'matrix');
@@ -66,6 +116,20 @@ const executeMatrix = async (command, args = [], jsonMode = false) => {
     const spawnArgs = jsonMode ? [command, '--json', ...args] : [command, ...args];
     
     console.log(`[Frontend] Executing: matrix ${spawnArgs.join(' ')}`);
+
+    // Emit operation start event if operationName provided
+    if (operationName) {
+      const io = app.get('io');
+      if (io) {
+        io.emit('site.operation', {
+          type: 'start',
+          operation: operationName,
+          command: command,
+          args: args,
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
 
     const matrixCmd = spawn(matrixPath, spawnArgs, {
       cwd: projectRoot,
@@ -105,6 +169,20 @@ const executeMatrix = async (command, args = [], jsonMode = false) => {
         resolve({ success: true, stdout, stderr });
       } else {
         resolve({ success: false, stdout, stderr, exitCode: code });
+      }
+
+      // Emit operation complete event
+      if (operationName) {
+        const io = app.get('io');
+        if (io) {
+          io.emit('site.operation', {
+            type: code === 0 ? 'success' : 'failure',
+            operation: operationName,
+            command: command,
+            exitCode: code,
+            timestamp: new Date().toISOString()
+          });
+        }
       }
     });
 
@@ -188,7 +266,8 @@ app.post('/api/sites/:action', async (req, res) => {
     }
 
     const useJson = ['info'].includes(action);
-    const result = await executeMatrix(action, args, useJson);
+    const operationName = `${action}_${siteName}`;
+    const result = await executeMatrix(action, args, useJson, operationName);
 
     if (!result.success) {
       if (result.data && result.data.error) {
@@ -217,7 +296,8 @@ app.post('/api/environment/:action', async (req, res) => {
   }
 
   try {
-    const result = await executeMatrix(action);
+    const operationName = action;
+    const result = await executeMatrix(action, [], false, operationName);
     
     if (!result.success) {
       return sendError(res, 'COMMAND_FAILED', result.stderr || 'Command failed');
@@ -299,8 +379,9 @@ app.get('/health', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 WordPress Matrix Frontend running on http://localhost:${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API Endpoint: http://localhost:${PORT}/api`);
+  console.log(`⚡ WebSocket: ws://localhost:${PORT}`);
 });

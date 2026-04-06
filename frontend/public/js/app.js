@@ -3,10 +3,103 @@ let currentData = {
   sites: [],
   services: []
 };
+let socket = null;
+
+// Initialize WebSocket connection
+function initWebSocket() {
+  const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+  const socketUrl = `${protocol}//${window.location.host}`;
+  
+  socket = io(socketUrl);
+  
+  socket.on('connect', () => {
+    console.log('[WebSocket] Connected to server');
+  });
+  
+  socket.on('status.changed', (data) => {
+    console.log('[WebSocket] Status changed received:', data);
+    updateStatusFromWebSocket(data);
+  });
+  
+  socket.on('site.operation', (data) => {
+    console.log('[WebSocket] Operation event:', data);
+    handleOperationEvent(data);
+  });
+  
+  socket.on('disconnect', () => {
+    console.log('[WebSocket] Disconnected from server');
+    setTimeout(initWebSocket, 5000);
+  });
+}
+
+function updateStatusFromWebSocket(data) {
+  if (data.containers && Array.isArray(data.containers)) {
+    data.containers.forEach(container => {
+      if (container.name && container.name.startsWith('wp_')) {
+        const siteName = container.name.replace('wp_', '');
+        const site = currentData.sites.find(s => s.name === siteName);
+        if (site) {
+          site.status = container.status.toLowerCase().includes('up') ? 'Running' : 'Stopped';
+        }
+      }
+    });
+  }
+  updateDashboard();
+}
+
+function handleOperationEvent(data) {
+  const { type, operation } = data;
+  
+  if (type === 'start') {
+    showOperationLoading(operation);
+  } else if (type === 'success' || type === 'failure') {
+    hideOperationLoading(operation);
+    
+    const status = type === 'success' ? 'success' : 'danger';
+    const message = type === 'success' 
+      ? `Operation "${operation}" completed successfully`
+      : `Operation "${operation}" failed`;
+    showNotification(message, status);
+    
+    if (type === 'success') {
+      setTimeout(() => loadDashboard(), 1000);
+    }
+  }
+}
+
+function showOperationLoading(operation) {
+  const buttons = document.querySelectorAll('.btn');
+  buttons.forEach(btn => {
+    if (btn.onclick && btn.onclick.toString().includes(operation)) {
+      btn.disabled = true;
+      btn.dataset.originalText = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Working...';
+    }
+  });
+}
+
+function hideOperationLoading(operation) {
+  const buttons = document.querySelectorAll('.btn[disabled]');
+  buttons.forEach(btn => {
+    if (btn.dataset.originalText) {
+      btn.innerHTML = btn.dataset.originalText;
+      btn.disabled = false;
+      delete btn.dataset.originalText;
+    }
+  });
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  if (socket) {
+    socket.disconnect();
+  }
+});
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
+  initWebSocket();
 
   // Setup event listeners
   document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
