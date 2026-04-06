@@ -5,6 +5,36 @@ let currentData = {
 };
 let socket = null;
 
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const icon = document.getElementById('theme-icon');
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  
+  if (next === 'dark') {
+    icon.className = 'bi bi-sun';
+  } else {
+    icon.className = 'bi bi-moon-stars';
+  }
+}
+
+// Load saved theme
+function loadTheme() {
+  const saved = localStorage.getItem('theme') || 'light';
+  if (saved === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    const icon = document.getElementById('theme-icon');
+    if (icon) icon.className = 'bi bi-sun';
+  }
+}
+
+// Initialize theme on load
+document.addEventListener('DOMContentLoaded', loadTheme);
+
 // Initialize WebSocket connection
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
