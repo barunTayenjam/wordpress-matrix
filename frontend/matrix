@@ -9,6 +9,7 @@ PROJECT_ROOT="$SCRIPT_DIR"
 DOMAIN_SUFFIX="127.0.0.1.nip.io"
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
 DOCKER_COMPOSE="docker-compose"  # Default fallback
+DEFAULT_PHP_VERSION="8.3"  # Default PHP version for new sites
 
 # Colors for output
 RED='\033[0;31m'
@@ -47,13 +48,14 @@ show_help() {
 
 Usage: ./matrix <command> [options]
 
-Site Management:
-  create <name>     Create new WordPress site
-  list              List all sites
-  start <name>      Start specific site
-  stop <name>       Stop specific site
-  remove <name>     Remove site
-  info <name>       Show site details
+ Site Management:
+   create <name> [--php-version=X.X]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION})
+   edit <name> [--php-version=X.X] [--port=XXXX]  Edit site configuration
+   list              List all sites
+   start <name>      Start specific site
+   stop <name>       Stop specific site
+   remove <name>     Remove site
+   info <name>       Show site details
 
 Environment Management:
   install [name]    One-command install (creates site and starts services)
@@ -65,9 +67,9 @@ Environment Management:
   clean             Clean up unused resources
 
  Code Quality:
-   check             Run code quality checks
-   test              Run tests
-   fix               Auto-fix code issues
+   check [name] [path]   Run code quality checks (all sites or specific site/path)
+   test                  Run tests
+   fix                   Auto-fix code issues
 
  Site Maintenance:
    clone <src> <dst> Clone existing site
@@ -87,10 +89,15 @@ Environment Management:
  System:
    health            Run system health check
 
- Examples:
-   ./matrix create blog      # Create new site
-   ./matrix start            # Start everything including frontend
-   ./matrix check            # Run quality checks
+  Examples:
+    ./matrix create blog      # Create new site
+    ./matrix create oldsite --php-version=7.4  # Create site with PHP 7.4
+    ./matrix edit blog --php-version=8.2       # Change PHP version
+    ./matrix edit blog --port=8105             # Change port
+    ./matrix start            # Start everything including frontend
+   ./matrix check            # Run quality checks on all sites
+   ./matrix check blog       # Run quality checks on specific site
+   ./matrix check blog wp-content/themes/custom-theme  # Check specific path
    ./matrix shell wp         # Access WordPress CLI
    ./matrix import-db blog dump.sql  # Import database
    ./matrix export-db blog backup.sql # Export database
@@ -101,7 +108,7 @@ Environment Management:
    ./matrix health                # Check system health
 
  Frontend:
-  ./matrix start            # Starts frontend at http://localhost:8000
+  ./matrix start            # Starts frontend at http://localhost:8500
   ./matrix status            # Shows frontend status
   ./matrix stop            # Stops frontend with other services
 
@@ -148,7 +155,32 @@ get_next_port() {
 
 # Create new site
 create_site() {
-    local site_name="$1"
+    local site_name=""
+    local php_version="$DEFAULT_PHP_VERSION"
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --php-version=*)
+                php_version="${1#*=}"
+                shift
+                ;;
+            --php-version)
+                php_version="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                return 1
+                ;;
+            *)
+                if [[ -z "$site_name" ]]; then
+                    site_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
     
     if [[ -z "$site_name" ]]; then
         read -p "Enter site name: " site_name
@@ -159,27 +191,36 @@ create_site() {
         return 1
     fi
     
+    # Validate PHP version
+    case "$php_version" in
+        7.4|8.0|8.1|8.2|8.3)
+            ;;
+        *)
+            log_error "Invalid PHP version: $php_version. Supported: 7.4, 8.0, 8.1, 8.2, 8.3"
+            return 1
+            ;;
+    esac
+    
     if site_exists "$site_name"; then
         log_error "Site '$site_name' already exists"
         return 1
     fi
     
-    local port=$(get_next_port)
     local site_dir="$PROJECT_ROOT/wp_$site_name"
     
-    log_info "Creating WordPress site: $site_name"
+    log_info "Creating WordPress site: $site_name (PHP $php_version)"
     
     # Create directory
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
     
     # Copy WordPress files using Docker/Podman
-    log_info "Installing WordPress..."
+    log_info "Installing WordPress (PHP $php_version)..."
     if command -v docker >/dev/null 2>&1; then
-        docker run --rm -v "$site_dir":/var/www/html wordpress:latest \
+        docker run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
             bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     elif command -v podman >/dev/null 2>&1; then
-        podman run --rm -v "$site_dir":/var/www/html wordpress:latest \
+        podman run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
             bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     else
         log_error "Neither docker nor podman found"
@@ -208,6 +249,11 @@ server {
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
+        
+        # Increase buffer sizes to handle large headers
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
     }
 
     # Deny access to sensitive files
@@ -229,13 +275,13 @@ EOF
     # Add the new services (with optional host port mapping as fallback)
     # Use semantic port assignment starting from 8100 for WordPress sites
     # Get next available port using our function
-    local port=$(get_next_port)
+    port=$(get_next_port)
 
     cat >> "$temp_file" << EOF
 
   # WordPress site: $site_name
   wp_$site_name:
-    image: wordpress:php8.3-fpm
+    image: wordpress:php${php_version}-fpm
     container_name: wp_$site_name
     restart: unless-stopped
     environment:
@@ -280,7 +326,7 @@ EOF
             -e "CREATE DATABASE IF NOT EXISTS ${site_name}_db; GRANT ALL PRIVILEGES ON ${site_name}_db.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
-    log_success "Site '$site_name' created successfully"
+    log_success "Site '$site_name' created successfully with PHP $php_version"
     echo "Direct: http://localhost:$port"  # Direct access via semantic port
     echo "Database: http://localhost:8200"  # phpMyAdmin access
 
@@ -400,25 +446,22 @@ start_env() {
     sleep 3
 
     # Start frontend if available
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        log_info "Starting frontend..."
-        $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend start
     fi
-
-    # Start all WordPress sites
-    for site in $(get_sites); do
-        log_info "Starting $site..."
-        $DOCKER_COMPOSE up -d "wp_$site" "nginx_$site" 2>/dev/null || true
-    done
 
     log_success "Environment started"
     echo ""
-    echo "Access URLs:"
-    list_sites | grep -E "(Running|http|https)"
+    echo "Core services running: database, redis, phpMyAdmin"
+    echo ""
+    echo "Start sites individually: ./matrix start <site>"
     
     # Show frontend URL
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-        echo "Frontend: http://localhost:8000"
+    if [[ -f "$PROJECT_ROOT/.frontend.pid" ]]; then
+        local pid=$(cat "$PROJECT_ROOT/.frontend.pid")
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo "Frontend: http://localhost:8500"
+        fi
     fi
 }
 
@@ -427,8 +470,8 @@ stop_env() {
     log_info "Stopping WordPress environment..."
     
     # Stop frontend first if running
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend stop
     fi
     
     $DOCKER_COMPOSE down
@@ -443,12 +486,8 @@ show_status() {
     echo ""
     
     # Show frontend status if available
-    if [[ -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        if $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" | grep -q "matrix_frontend"; then
-            echo "Frontend: Running (http://localhost:8000)"
-        else
-            echo "Frontend: Stopped"
-        fi
+    if [[ -d "$PROJECT_ROOT/frontend" ]]; then
+        manage_frontend status 2>/dev/null || echo "Frontend: Unknown"
     fi
     
     list_sites
@@ -480,18 +519,21 @@ show_logs() {
 # Remove site
 remove_site() {
     local site_name="$1"
+    local force_yes="$2"
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
         return 1
     fi
 
-    echo -e "${RED}WARNING: This will permanently delete '$site_name'${NC}"
-    read -p "Continue? [y/N]: " confirm
+    if [[ "$force_yes" != "--yes" && "$force_yes" != "-y" ]]; then
+        echo -e "${RED}WARNING: This will permanently delete '$site_name'${NC}"
+        read -p "Continue? [y/N]: " confirm
 
-    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-        log_info "Cancelled"
-        return
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            log_info "Cancelled"
+            return
+        fi
     fi
 
     log_info "Removing site '$site_name'..."
@@ -512,17 +554,24 @@ remove_site() {
 
     # Remove service definitions from docker-compose.yml
     if [[ -f "$COMPOSE_FILE" ]]; then
-        # Use a more reliable approach to remove service blocks
-        # Remove the comment line and associated services using sed with address ranges
-        sed -i.bak "/# WordPress site: $site_name/,/^[^[:space:]]/{
-            /# WordPress site: $site_name/!{
-                /^[^[:space:]]/!d;
-            };
-            /# WordPress site: $site_name/d;
-        }" "$COMPOSE_FILE" 2>/dev/null || true
-
-        # Clean up backup file created by sed -i
-        [[ -f "$COMPOSE_FILE.bak" ]] && rm "$COMPOSE_FILE.bak"
+        local temp_file=$(mktemp)
+        local skip=false
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*WordPress[[:space:]]+site:[[:space:]]+$site_name[[:space:]]*$ ]]; then
+                skip=true
+                continue
+            fi
+            if $skip && [[ "$line" =~ ^[[:space:]]*#WordPress[[:space:]]+site: ]]; then
+                skip=false
+            fi
+            if $skip && [[ "$line" =~ ^[^[:space:]] && -n "${line// }" ]]; then
+                skip=false
+            fi
+            if ! $skip; then
+                echo "$line"
+            fi
+        done < "$COMPOSE_FILE" > "$temp_file"
+        mv "$temp_file" "$COMPOSE_FILE"
     fi
 
     # Remove from .env file
@@ -538,9 +587,171 @@ remove_site() {
     log_success "Site '$site_name' removed"
 }
 
+# Edit site configuration
+edit_site() {
+    local site_name=""
+    local new_php_version=""
+    local new_port=""
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --php-version=*)
+                new_php_version="${1#*=}"
+                shift
+                ;;
+            --php-version)
+                new_php_version="$2"
+                shift 2
+                ;;
+            --port=*)
+                new_port="${1#*=}"
+                shift
+                ;;
+            --port)
+                new_port="$2"
+                shift 2
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                echo "Usage: ./matrix edit <name> [--php-version=X.X] [--port=XXXX]"
+                return 1
+                ;;
+            *)
+                if [[ -z "$site_name" ]]; then
+                    site_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$site_name" ]]; then
+        log_error "Usage: ./matrix edit <name> [--php-version=X.X] [--port=XXXX]"
+        return 1
+    fi
+
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+
+    local has_changes=false
+
+    # Validate PHP version if provided
+    if [[ -n "$new_php_version" ]]; then
+        case "$new_php_version" in
+            7.4|8.0|8.1|8.2|8.3)
+                ;;
+            *)
+                log_error "Invalid PHP version: $new_php_version. Supported: 7.4, 8.0, 8.1, 8.2, 8.3"
+                return 1
+                ;;
+        esac
+    fi
+
+    # Validate port if provided
+    if [[ -n "$new_port" ]]; then
+        if ! [[ "$new_port" =~ ^[0-9]+$ ]] || [[ "$new_port" -lt 1024 ]] || [[ "$new_port" -gt 65535 ]]; then
+            log_error "Invalid port: $new_port. Must be between 1024 and 65535"
+            return 1
+        fi
+    fi
+
+    # Get current PHP version from docker-compose.yml
+    local current_php_version=""
+    if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$site_name:" "$COMPOSE_FILE"; then
+        current_php_version=$(grep -A 3 "wp_$site_name:" "$COMPOSE_FILE" | grep "image:" | grep -oE 'php[0-9.]+')
+    fi
+
+    # Get current port from docker-compose.yml
+    local current_port=""
+    if [[ -f "$COMPOSE_FILE" ]] && grep -q "nginx_$site_name:" "$COMPOSE_FILE"; then
+        current_port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+    fi
+
+    if [[ -z "$current_php_version" && -z "$current_port" ]]; then
+        log_error "Site '$site_name' is not configured in docker-compose.yml"
+        return 1
+    fi
+
+    # Make changes to docker-compose.yml
+    if [[ -f "$COMPOSE_FILE" ]]; then
+        local temp_file=$(mktemp)
+
+        if [[ -n "$new_php_version" ]]; then
+            awk -v site="wp_${site_name}:" -v newimg="wordpress:php${new_php_version}-fpm" '
+                /^[^[:space:]]/ { in_block=0 }
+                $0 ~ site { in_block=1 }
+                in_block && /wordpress:php[0-9.]+-fpm/ { gsub(/wordpress:php[0-9.]+-fpm/, newimg) }
+                { print }
+            ' "$COMPOSE_FILE" > "$temp_file" && mv "$temp_file" "$COMPOSE_FILE"
+        fi
+
+        if [[ -n "$new_port" ]]; then
+            awk -v site="nginx_${site_name}:" -v newport="\"${new_port}:80\"" '
+                /^[^[:space:]]/ { in_block=0 }
+                $0 ~ site { in_block=1 }
+                in_block && /"[0-9]+:80"/ { gsub(/"[0-9]+:80"/, newport) }
+                { print }
+            ' "$COMPOSE_FILE" > "$temp_file" && mv "$temp_file" "$COMPOSE_FILE"
+        fi
+    fi
+
+    # Report changes
+    if [[ -n "$new_php_version" ]]; then
+        log_info "PHP version: $current_php_version -> php$new_php_version"
+        has_changes=true
+    fi
+    if [[ -n "$new_port" ]]; then
+        log_info "Port: $current_port -> $new_port"
+        has_changes=true
+    fi
+
+    if ! $has_changes; then
+        echo "Current configuration for '$site_name':"
+        [[ -n "$current_php_version" ]] && echo "  PHP version: $current_php_version"
+        [[ -n "$current_port" ]] && echo "  Port: $current_port (http://localhost:$current_port)"
+        echo ""
+        echo "Usage: ./matrix edit $site_name [--php-version=X.X] [--port=XXXX]"
+        return 0
+    fi
+
+    # Restart the site if it was running
+    if $DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep -q "wp_$site_name"; then
+        log_info "Restarting site '$site_name' to apply changes..."
+        $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+        log_success "Site restarted"
+    fi
+
+    log_success "Site '$site_name' updated"
+}
+
 # Code quality checks
 run_checks() {
-    log_info "Running code quality checks..."
+    local site_name="${1:-}"
+    local specific_path="${2:-}"
+    local target_paths=""
+    
+    if [[ -n "$site_name" ]]; then
+        local site_dir="wp_${site_name}"
+        if [[ ! -d "$site_dir" ]]; then
+            log_error "Site '$site_name' not found (directory: $site_dir)"
+            return 1
+        fi
+        
+        if [[ -n "$specific_path" ]]; then
+            target_paths="./${site_dir}/${specific_path}"
+            log_info "Running code quality checks on: $site_name/$specific_path"
+        else
+            target_paths="./${site_dir}/wp-content/themes/ ./${site_dir}/wp-content/plugins/"
+            log_info "Running code quality checks on site: $site_name"
+            log_info "Excluding default WordPress themes, vendor, and common plugins"
+        fi
+    else
+        target_paths="./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/"
+        log_info "Running code quality checks on all sites..."
+        log_info "Excluding default WordPress themes, vendor, and common plugins"
+    fi
     
     # Check if code quality containers exist in $DOCKER_COMPOSE
     if ! grep -q "phpcs" "$COMPOSE_FILE" 2>/dev/null; then
@@ -548,20 +759,53 @@ run_checks() {
         return
     fi
     
-    # Start code quality tools if not running
-    $DOCKER_COMPOSE --profile tools up -d phpcs phpstan 2>/dev/null || true
+    # Build exclude patterns for default/third-party themes and plugins
+    local exclude_patterns=""
+    exclude_patterns="$exclude_patterns --ignore=*/vendor/*"
+    exclude_patterns="$exclude_patterns --ignore=*/node_modules/*"
+    exclude_patterns="$exclude_patterns --ignore=*/.git/*"
+    exclude_patterns="$exclude_patterns --ignore=*/tests/*"
+    exclude_patterns="$exclude_patterns --ignore=*/twentytwenty*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/twenty*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/index.php"
+    exclude_patterns="$exclude_patterns --ignore=*/akismet/*"
+    exclude_patterns="$exclude_patterns --ignore=*/hello.php"
+    exclude_patterns="$exclude_patterns --ignore=*/advanced-custom-fields*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/elementor/*"
+    exclude_patterns="$exclude_patterns --ignore=*/wordpress-seo/*"
+    exclude_patterns="$exclude_patterns --ignore=*/redirection/*"
+    exclude_patterns="$exclude_patterns --ignore=*/litespeed-cache/*"
+    exclude_patterns="$exclude_patterns --ignore=*/better-search-replace/*"
+    exclude_patterns="$exclude_patterns --ignore=*/defender*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/sg-security/*"
+    exclude_patterns="$exclude_patterns --ignore=*/duplicate-page/*"
+    exclude_patterns="$exclude_patterns --ignore=*/really-simple-ssl/*"
+    exclude_patterns="$exclude_patterns --ignore=*/classic-elementor*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/revslider/*"
+    exclude_patterns="$exclude_patterns --ignore=*/export-posts*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/csv-taxonomy*/*"
+    exclude_patterns="$exclude_patterns --ignore=*/wp-file-manager/*"
     
     # Run PHP CodeSniffer
     log_info "Running PHP CodeSniffer..."
-    $DOCKER_COMPOSE run --rm phpcs phpcs --standard=WordPress \
-        ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ 2>/dev/null || \
+    $DOCKER_COMPOSE --profile tools run --rm phpcs \
+        -d memory_limit=512M \
+        --standard=WordPress \
+        --extensions=php \
+        $exclude_patterns \
+        $target_paths 2>/dev/null || \
     log_warning "PHP CodeSniffer check completed with issues"
     
-    # Run PHPStan
-    log_info "Running PHPStan..."
-    $DOCKER_COMPOSE run --rm phpstan phpstan analyse \
-        ./wp_*/wp-content/themes/ ./wp_*/wp-content/plugins/ --level=5 2>/dev/null || \
-    log_warning "PHPStan check completed with issues"
+    # Run PHPStan (only on custom code to avoid timeout)
+    if [[ -n "$specific_path" ]]; then
+        log_info "Running PHPStan..."
+        $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
+            --memory-limit=512M \
+            $target_paths --level=5 2>/dev/null || \
+        log_warning "PHPStan check completed with issues"
+    else
+        log_info "Skipping PHPStan (use specific path to run PHPStan: ./matrix check <site> <path>)"
+    fi
     
     log_info "Code quality checks completed"
 }
@@ -881,6 +1125,9 @@ import_db() {
     local db_name="${site_name}_db"
     log_info "Importing database for '$site_name' ($db_name)..."
 
+    # Set log_bin_trust_function_creators to allow triggers/procedures without SUPER privilege
+    $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -e "SET GLOBAL log_bin_trust_function_creators = 1;" 2>/dev/null || true
+
     # Import the SQL dump
     cat "$dump_file" | $DOCKER_COMPOSE exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name"
 
@@ -943,39 +1190,114 @@ clean_env() {
 # Frontend management
 manage_frontend() {
     local action="$1"
-    
+
     if [[ -z "$action" ]]; then
         log_error "Usage: ./matrix frontend <start|stop|restart|status>"
         return 1
     fi
-    
-    if [[ ! -f "$PROJECT_ROOT/docker-compose.frontend.yml" ]]; then
-        log_error "Frontend configuration not found"
-        return 1
-    fi
-    
+
+    local frontend_dir="$PROJECT_ROOT/frontend"
+    local pid_file="$PROJECT_ROOT/.frontend.pid"
+    local log_file="$PROJECT_ROOT/logs/frontend.log"
+
+    # Create logs directory if it doesn't exist
+    mkdir -p "$(dirname "$log_file")"
+
     case "$action" in
         "start")
+            if [[ -f "$pid_file" ]]; then
+                local pid=$(cat "$pid_file")
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    log_warning "Frontend is already running (PID: $pid)"
+                    return 0
+                else
+                    rm -f "$pid_file"
+                fi
+            fi
+
+            if [[ ! -d "$frontend_dir" ]]; then
+                log_error "Frontend directory not found: $frontend_dir"
+                return 1
+            fi
+
             log_info "Starting frontend..."
-            # Use plain docker-compose to avoid network issues
-            docker-compose -f docker-compose.frontend.yml up -d 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml up -d 2>/dev/null || true
-            log_success "Frontend started: http://localhost:8000"
+            cd "$frontend_dir" || return 1
+
+            # Start frontend in background with logging
+            PORT=8500 npm start > "$log_file" 2>&1 &
+            local pid=$!
+            echo $pid > "$pid_file"
+
+            # Wait a moment and check if it started successfully
+            sleep 2
+            if ps -p "$pid" > /dev/null 2>&1; then
+                log_success "Frontend started: http://localhost:8500 (PID: $pid)"
+            else
+                log_error "Failed to start frontend. Check logs: $log_file"
+                rm -f "$pid_file"
+                return 1
+            fi
             ;;
         "stop")
-            log_info "Stopping frontend..."
-            docker-compose -f docker-compose.frontend.yml down 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml down 2>/dev/null || true
-            log_success "Frontend stopped"
+            if [[ ! -f "$pid_file" ]]; then
+                log_warning "Frontend is not running (no PID file found)"
+                # Try to find and kill any process on port 8500
+                local port_pid=$(lsof -ti:8500 2>/dev/null)
+                if [[ -n "$port_pid" ]]; then
+                    kill "$port_pid" 2>/dev/null
+                    log_success "Frontend stopped (killed process on port 8500)"
+                fi
+                return 0
+            fi
+
+            local pid=$(cat "$pid_file")
+            if ps -p "$pid" > /dev/null 2>&1; then
+                log_info "Stopping frontend..."
+                kill "$pid" 2>/dev/null
+                sleep 1
+
+                # Force kill if still running
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    kill -9 "$pid" 2>/dev/null
+                fi
+
+                rm -f "$pid_file"
+                log_success "Frontend stopped"
+            else
+                log_warning "Frontend process not found (PID: $pid)"
+                rm -f "$pid_file"
+            fi
             ;;
         "restart")
             log_info "Restarting frontend..."
-            docker-compose -f docker-compose.frontend.yml restart 2>/dev/null || $DOCKER_COMPOSE -f docker-compose.frontend.yml restart 2>/dev/null || true
-            log_success "Frontend restarted: http://localhost:8000"
+            manage_frontend stop
+            sleep 1
+            manage_frontend start
             ;;
         "status")
-            if docker-compose -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend" || $DOCKER_COMPOSE -f docker-compose.frontend.yml ps --format "{{.Names}}" 2>/dev/null | grep -q "matrix_frontend"; then
-                log_success "Frontend running: http://localhost:8000"
+            local is_running=false
+            local pid=""
+
+            if [[ -f "$pid_file" ]]; then
+                pid=$(cat "$pid_file")
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    is_running=true
+                fi
+            fi
+
+            # Also check by port
+            if ! $is_running; then
+                local port_pid=$(lsof -ti:8500 2>/dev/null)
+                if [[ -n "$port_pid" ]]; then
+                    is_running=true
+                    pid=$port_pid
+                fi
+            fi
+
+            if $is_running; then
+                echo "Frontend: Running (http://localhost:8500) - PID: $pid"
             else
-                log_info "Frontend stopped"
+                echo "Frontend: Stopped"
             fi
             ;;
         *)
@@ -1001,14 +1323,60 @@ main() {
             setup_env "$@"
             ;;
         "start")
-            start_env "$@"
+            # Check if a site name was provided
+            if [[ -n "${1:-}" ]]; then
+                # Start a specific site
+                local site_name="$1"
+                if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
+                    log_error "Site '$site_name' not found"
+                    exit 1
+                fi
+
+                log_info "Starting site '$site_name'..."
+                $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                log_success "Site '$site_name' started"
+
+                # Show site URL
+                show_urls "$site_name"
+            else
+                # Start entire environment
+                start_env
+            fi
             ;;
         "stop")
-            stop_env "$@"
+            # Check if a site name was provided
+            if [[ -n "${1:-}" ]]; then
+                # Stop a specific site
+                local site_name="$1"
+                if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
+                    log_error "Site '$site_name' not found"
+                    exit 1
+                fi
+
+                log_info "Stopping site '$site_name'..."
+                $DOCKER_COMPOSE stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                log_success "Site '$site_name' stopped"
+            else
+                # Stop entire environment
+                stop_env
+            fi
             ;;
         "restart")
-            stop_env
-            start_env
+            if [[ -n "${1:-}" ]]; then
+                local site_name="$1"
+                if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
+                    log_error "Site '$site_name' not found"
+                    exit 1
+                fi
+                log_info "Restarting site '$site_name'..."
+                $DOCKER_COMPOSE restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || \
+                $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                log_success "Site '$site_name' restarted"
+                show_urls "$site_name"
+            else
+                stop_env
+                start_env
+            fi
             ;;
         "status")
             show_status "$@"
@@ -1022,8 +1390,11 @@ main() {
         "list"|"ls")
             list_sites "$@"
             ;;
-        "remove"|"rm")
+        "remove"|"rm"|"delete")
             remove_site "$@"
+            ;;
+        "edit"|"update-site")
+            edit_site "$@"
             ;;
         "info")
             show_urls "$@"
