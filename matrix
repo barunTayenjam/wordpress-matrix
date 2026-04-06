@@ -39,6 +39,13 @@ check_docker_json() {
     fi
 }
 
+# Sanitize site name for SQL usage
+sanitize_sql_identifier() {
+    local input="$1"
+    # Remove any characters that could be SQL injection
+    echo "$input" | tr -cd 'a-zA-Z0-9_-'
+}
+
 # Helper functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
