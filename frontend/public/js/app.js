@@ -294,6 +294,32 @@ async function createSite() {
   }
 }
 
+// Site health check
+async function checkSiteHealth(siteName) {
+  const healthEl = document.getElementById(`health-${siteName}`);
+  const statusEl = healthEl?.querySelector('.health-status');
+  
+  if (!healthEl || !statusEl) return;
+  
+  healthEl.style.display = 'block';
+  statusEl.innerHTML = '<span class="text-info">Checking...</span>';
+  
+  try {
+    const response = await fetch(`/api/health/${siteName}`);
+    const data = await response.json();
+    
+    if (data.success && data.healthy) {
+      statusEl.innerHTML = `<span class="text-success">✓ Healthy (${data.responseTime})</span>`;
+    } else if (data.success && !data.healthy) {
+      statusEl.innerHTML = `<span class="text-warning">✗ ${data.reason || data.error || 'Unhealthy'}</span>`;
+    } else {
+      statusEl.innerHTML = `<span class="text-danger">Error: ${data.error?.message || 'Unknown'}</span>`;
+    }
+  } catch (error) {
+    statusEl.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+  }
+}
+
 // Frontend management
 async function frontendAction(action) {
   try {
@@ -345,33 +371,61 @@ async function executeCommand() {
   
   if (!command) return;
   
-  // Show command in output
-  output.innerHTML += `<div>$ ${command}</div>`;
+  // Show command in output with proper formatting
+  const outputLine = document.createElement('div');
+  outputLine.innerHTML = `<span style="color: var(--accent-color);">$</span> ${escapeHtml(command)}`;
+  output.appendChild(outputLine);
   input.value = '';
   
   try {
-    const response = await fetch(`/api/environment/${command.split(' ')[0]}`, {
+    // Build the full command - extract action and any args
+    const parts = command.split(' ');
+    const action = parts[0];
+    const args = parts.slice(1);
+    
+    const response = await fetch(`/api/environment/${action}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ args })
     });
     
     const data = await response.json();
     
-    if (data.success) {
-      output.innerHTML += `<div>${data.output}</div>`;
+    if (data.success && data.output) {
+      // Format output with proper newlines and colors
+      const outputDiv = document.createElement('div');
+      outputDiv.style.whiteSpace = 'pre-wrap';
+      outputDiv.style.fontFamily = 'monospace';
+      outputDiv.style.fontSize = '0.85rem';
+      outputDiv.innerHTML = escapeHtml(data.output);
+      output.appendChild(outputDiv);
     } else {
       const errorMsg = data.error?.message || data.error || 'Unknown error';
-      output.innerHTML += `<div class="text-danger">Error: ${errorMsg}</div>`;
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'text-danger';
+      errorDiv.style.whiteSpace = 'pre-wrap';
+      errorDiv.innerHTML = escapeHtml(`Error: ${errorMsg}`);
+      output.appendChild(errorDiv);
     }
   } catch (error) {
     console.error('Error executing command:', error);
-    output.innerHTML += '<div class="text-danger">Network error</div>';
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'text-danger';
+    errorDiv.textContent = 'Network error';
+    output.appendChild(errorDiv);
   }
   
   // Scroll to bottom
   output.scrollTop = output.scrollHeight;
+}
+
+// Utility functions
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Utility functions

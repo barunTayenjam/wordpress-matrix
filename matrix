@@ -386,8 +386,15 @@ list_sites_json() {
             status="running"
         fi
 
+        # Get port from docker ps output (more reliable than compose file parsing)
         local port=""
-        if [[ -f "$COMPOSE_FILE" ]]; then
+        local nginx_container="nginx_$site"
+        if [[ -n "$site" ]]; then
+            port=$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null | grep "$nginx_container " | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | head -1 || true)
+        fi
+
+        # Fallback: check compose file for site-specific nginx config
+        if [[ -z "$port" ]] && [[ -f "$COMPOSE_FILE" ]]; then
             port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || true)
         fi
 
