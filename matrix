@@ -373,6 +373,77 @@ EOF
     log_success "Site '$site_name' started and ready!"
 }
 
+# Backup site
+backup_site() {
+    local site_name="$1"
+    local backup_dir="$PROJECT_ROOT/backups"
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    
+    if [[ -z "$site_name" ]]; then
+        log_error "Usage: ./matrix backup <site-name>"
+        return 1
+    fi
+    
+    if [[ ! -d "$PROJECT_ROOT/wp_$site_name" ]]; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+    
+    mkdir -p "$backup_dir"
+    local backup_file="$backup_dir/${site_name}-${timestamp}.tar.gz"
+    
+    log_info "Backing up site '$site_name'..."
+    
+    # Stop the site
+    $DOCKER_COMPOSE stop wp_$site_name nginx_$site_name 2>/dev/null || true
+    
+    # Create tarball
+    tar -czf "$backup_file" -C "$PROJECT_ROOT" "wp_$site_name" 2>/dev/null
+    
+    # Start the site
+    $DOCKER_COMPOSE start wp_$site_name nginx_$site_name 2>/dev/null || true
+    
+    if [[ -f "$backup_file" ]]; then
+        log_success "Backup created: $backup_file"
+        du -h "$backup_file"
+    else
+        log_error "Backup failed"
+        return 1
+    fi
+}
+
+# Restore site
+restore_site() {
+    local site_name="$1"
+    local backup_file="$2"
+    
+    if [[ -z "$site_name" || -z "$backup_file" ]]; then
+        log_error "Usage: ./matrix restore <site-name> <backup-file>"
+        return 1
+    fi
+    
+    if [[ ! -f "$backup_file" ]]; then
+        log_error "Backup file not found: $backup_file"
+        return 1
+    fi
+    
+    log_info "Restoring site '$site_name' from backup..."
+    
+    # Stop the site if running
+    $DOCKER_COMPOSE stop wp_$site_name nginx_$site_name 2>/dev/null || true
+    
+    # Remove existing site
+    rm -rf "$PROJECT_ROOT/wp_$site_name" 2>/dev/null || true
+    
+    # Extract backup
+    tar -xzf "$backup_file" -C "$PROJECT_ROOT"
+    
+    # Start the site
+    $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
+    
+    log_success "Site '$site_name' restored"
+}
+
 list_sites_json() {
     check_docker_json
 
@@ -1663,6 +1734,12 @@ main() {
             ;;
         "create")
             create_site "$@"
+            ;;
+        "backup")
+            backup_site "$@"
+            ;;
+        "restore")
+            restore_site "$@"
             ;;
         "list"|"ls")
             if [[ "$JSON_OUTPUT" == true ]]; then
