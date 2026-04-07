@@ -245,12 +245,21 @@ app.get('/api/sites', async (req, res) => {
   
   try {
     const result = await executeMatrix('list', ['--json']);
-    const data = result.data || { sites: [], services: [] };
+    
+    // Parse JSON from stdout since --json flag is used
+    let data = { sites: [], services: [] };
+    if (result.success && result.stdout) {
+      try {
+        data = JSON.parse(result.stdout);
+      } catch (parseErr) {
+        console.error('[API] Failed to parse JSON:', parseErr.message);
+      }
+    }
     
     const response = {
       success: true,
-      sites: data.sites,
-      services: data.services
+      sites: data.sites || [],
+      services: data.services || []
     };
     
     // Cache the response
@@ -451,6 +460,57 @@ app.get('/api/help', async (req, res) => {
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Site health check endpoint
+app.get('/api/health/:siteName', async (req, res) => {
+  const { siteName } = req.params;
+  
+  if (!siteName || !/^[a-zA-Z0-9_-]+$/.test(siteName)) {
+    return res.status(400).json({ success: false, error: 'Invalid site name' });
+  }
+  
+  try {
+    const sitesResult = await executeMatrix('list', ['--json']);
+    let sites = [];
+    if (sitesResult.stdout) {
+      try {
+        sites = JSON.parse(sitesResult.stdout).sites || [];
+      } catch {}
+    }
+    
+    const site = sites.find(s => s.name === siteName);
+    if (!site || !site.port) {
+      return res.json({ success: true, site: siteName, healthy: false, reason: 'Site not running or no port' });
+    }
+    
+    const url = `http://localhost:${site.port}`;
+    const startTime = Date.now();
+    
+    try {
+      const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      const responseTime = Date.now() - startTime;
+      
+      res.json({
+        success: true,
+        site: siteName,
+        healthy: response.ok,
+        status: response.status,
+        responseTime: `${responseTime}ms`,
+        url
+      });
+    } catch (fetchError) {
+      res.json({
+        success: true,
+        site: siteName,
+        healthy: false,
+        error: fetchError.message,
+        url
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Start server with socket.io
