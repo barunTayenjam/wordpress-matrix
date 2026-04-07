@@ -218,12 +218,27 @@ const parseSiteList = (output) => {
 app.get('/', async (req, res) => {
   try {
     const result = await executeMatrix('list', ['--json']);
-    const { sites, services } = result.data || { sites: [], services: [] };
+    
+    let data = { sites: [], services: [] };
+    if (result.success && result.stdout) {
+      try {
+        data = JSON.parse(result.stdout);
+      } catch (parseErr) {
+        console.error('[Dashboard] Failed to parse JSON:', parseErr.message);
+      }
+    }
+    
+    const sites = data.sites || [];
+    const services = data.services || [];
+    const runningSites = sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
+    const runningServices = services.filter(s => s.status && s.status.toLowerCase() === 'running').length;
     
     res.render('dashboard', {
       title: 'WordPress Matrix Dashboard',
       sites,
       services,
+      runningSites,
+      runningServices,
       matrixCommand: './matrix'
     });
   } catch (error) {

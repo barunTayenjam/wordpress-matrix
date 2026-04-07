@@ -199,8 +199,8 @@ async function loadDashboard() {
 
 // Update dashboard UI
 function updateDashboard() {
-  const runningSites = currentData.sites.filter(site => site.status === 'Running');
-  const runningServices = currentData.services.filter(service => service.status === 'Running');
+  const runningSites = currentData.sites.filter(site => site.status && site.status.toLowerCase() === 'running');
+  const runningServices = currentData.services.filter(service => service.status && service.status.toLowerCase() === 'running');
   
   // Update counters (only if elements exist)
   const runningSitesCount = document.getElementById('running-sites-count');

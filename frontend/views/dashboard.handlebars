@@ -14,7 +14,7 @@
       <div class="col-md-3">
         <div class="card stat-card text-center h-100">
           <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title" id="running-sites-count">{{#each sites}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h5>
+            <h5 class="card-title" id="running-sites-count">{{runningSites}}</h5>
             <p class="card-text text-muted mb-0">Running Sites</p>
             <i class="bi bi-play-circle" style="font-size: 1.75rem; color: var(--success-color);"></i>
           </div>
@@ -32,7 +32,7 @@
       <div class="col-md-3">
         <div class="card stat-card text-center h-100">
           <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title" id="running-services-count">{{#each services}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h5>
+            <h5 class="card-title" id="running-services-count">{{runningServices}}</h5>
             <p class="card-text text-muted mb-0">Running Services</p>
             <i class="bi bi-cpu" style="font-size: 1.75rem; color: var(--warning-color);"></i>
           </div>
@@ -202,24 +202,7 @@
     </div>
   </div>
 
-  <!-- Terminal Tab -->
-  <div class="tab-pane fade" id="terminal">
-    <h3>Terminal Interface</h3>
-    <div class="mb-3">
-      <div class="input-group">
-        <span class="input-group-text">{{matrixCommand}}</span>
-        <input type="text" id="terminal-input" class="form-control" placeholder="Enter matrix command..." 
-               onkeypress="if(event.key === 'Enter') { executeCommand(); }">
-        <button class="btn btn-primary" onclick="executeCommand()">Execute</button>
-      </div>
-    </div>
-    <div id="terminal-output" class="terminal-output">
-      <div style="color: var(--accent-color);">WordPress Matrix Terminal v1.0</div>
-      <div style="color: var(--text-secondary);">Type 'help' for available commands.</div>
-      <div style="color: var(--text-secondary); margin-top: 0.5rem;">--- --- --- --- --- ---</div>
-    </div>
   </div>
-</div>
 
 <!-- Create Site Modal -->
 <div class="modal fade" id="createSiteModal" tabindex="-1">
