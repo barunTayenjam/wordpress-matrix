@@ -1,20 +1,29 @@
 const express = require('express');
 const exphbs = require('express-handlebars');
 const path = require('path');
-const axios = require('axios');
 const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
 const { spawn } = require('child_process');
-const redis = require('redis');
+
+let redis = null;
+try {
+  redis = require('redis');
+} catch (e) {
+  console.log('[Redis] Module not available');
+}
+
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Redis client for caching
+// Redis client for caching (optional)
 let redisClient = null;
 const CACHE_TTL = 30; // 30 seconds cache
 
 const initRedis = async () => {
+  if (!redis) return;
   try {
     redisClient = redis.createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379'
@@ -43,6 +52,54 @@ const cacheSet = async (key, data, ttl = CACHE_TTL) => {
     await redisClient.setEx(key, ttl, JSON.stringify(data));
   } catch {}
 };
+
+// Create HTTP server and initialize socket.io
+const server = http.createServer(app);
+const io = new Server(server);
+
+io.on('connection', (socket) => {
+  console.log('[WebSocket] Client connected:', socket.id);
+  
+  socket.on('disconnect', () => {
+    console.log('[WebSocket] Client disconnected:', socket.id);
+  });
+});
+
+app.set('io', io);
+
+// Status polling for real-time updates
+let lastStatus = null;
+const POLL_INTERVAL = 30000; // 30 seconds
+
+const pollStatus = async () => {
+  try {
+    const result = await executeMatrix('status', [], true);
+    if (result.success && result.data) {
+      const currentStatus = JSON.stringify(result.data);
+      
+      if (lastStatus !== null && lastStatus !== currentStatus) {
+        const io = app.get('io');
+        if (io) {
+          io.emit('status.changed', result.data);
+          console.log('[WebSocket] Status changed, emitting to clients');
+        }
+      }
+      
+      lastStatus = currentStatus;
+    }
+  } catch (error) {
+    console.error('[WebSocket] Status poll error:', error.message);
+  }
+};
+
+// Start status polling
+setInterval(pollStatus, POLL_INTERVAL);
+console.log(`[WebSocket] Status polling started (every ${POLL_INTERVAL/1000}s)`);
+
+// Initial status fetch after server starts
+setTimeout(() => {
+  pollStatus();
+}, 2000);
 
 // Middleware
 app.use(cors());
@@ -221,7 +278,29 @@ app.post('/api/sites/:action', async (req, res) => {
 
   try {
     const args = action === 'create' ? [siteName] : [siteName];
+    
+    // Emit operation start event
+    const io = app.get('io');
+    if (io) {
+      io.emit('site.operation', {
+        type: 'start',
+        operation: action,
+        site: siteName,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     const result = await executeMatrix(action, args);
+    
+    // Emit operation complete event
+    if (io) {
+      io.emit('site.operation', {
+        type: result.success ? 'success' : 'failure',
+        operation: action,
+        site: siteName,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     res.json({
       success: result.success,
@@ -374,9 +453,10 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
 });
 
-// Start server
-app.listen(PORT, () => {
+// Start server with socket.io
+server.listen(PORT, () => {
   console.log(`🚀 WordPress Matrix Frontend running on http://localhost:${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}`);
   console.log(`🔗 API Endpoint: http://localhost:${PORT}/api`);
+  console.log(`⚡ WebSocket: Enabled`);
 });
