@@ -47,3 +47,4 @@ See: .planning/PROJECT.md
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260409-p6z | make the ./matrix to respect htaccess for wordpress sites so we can test redirects locally | 2026-04-09 | | [260409-p6z-make-the-matrix-to-respect-htaccess-for-](./quick/260409-p6z-make-the-matrix-to-respect-htaccess-for-/) |
+| 260409-pca | make apache the default web server for new wordpress sites instead of nginx | 2026-04-09 | | [260409-pca-make-apache-the-default-web-server-for-n](./quick/260409-pca-make-apache-the-default-web-server-for-n/) |
