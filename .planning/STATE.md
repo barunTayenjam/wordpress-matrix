@@ -40,3 +40,10 @@ See: .planning/PROJECT.md
 - 2026-04-07: Phase 2 completed with 2/2 plans
 - 2026-04-07: Phase 3 completed with 2/2 plans
 - 2026-04-07: Phase 4 completed with 2/2 plans - **MILESTONE COMPLETE**
+- 2026-04-09: Completed quick task 260409-p6z: make the ./matrix to respect htaccess for wordpress sites so we can test redirects locally
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260409-p6z | make the ./matrix to respect htaccess for wordpress sites so we can test redirects locally | 2026-04-09 | | [260409-p6z-make-the-matrix-to-respect-htaccess-for-](./quick/260409-p6z-make-the-matrix-to-respect-htaccess-for-/) |
