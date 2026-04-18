@@ -40,3 +40,11 @@ See: .planning/PROJECT.md
 - 2026-04-07: Phase 2 completed with 2/2 plans
 - 2026-04-07: Phase 3 completed with 2/2 plans
 - 2026-04-07: Phase 4 completed with 2/2 plans - **MILESTONE COMPLETE**
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260418-22ju | Fix podman compatibility for site creation and management | 2026-04-18 | fc6b972 | [260418-22ju-fix-podman-compat](./quick/260418-22ju-fix-podman-compat/) |
+
+Last activity: 2026-04-18 - Completed quick task 260418-22ju: Fix podman compatibility for site creation and management
