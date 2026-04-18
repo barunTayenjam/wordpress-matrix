@@ -24,6 +24,16 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
+# Get container names from compose ps, with podman-compose fallback
+compose_ps_names() {
+    local names
+    names=$($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null) || true
+    if [[ -z "$names" ]]; then
+        names=$($DOCKER_COMPOSE ps 2>/dev/null | awk 'NR>1 {print $1}' | grep -v '^---$' || true)
+    fi
+    echo "$names"
+}
+
 # Load environment
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set -a
@@ -362,7 +372,7 @@ list_sites() {
                 fi
             fi
 
-            if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_$site"; then
+            if $(compose_ps_names) | grep -q "wp_$site"; then
                 status="Running"
             fi
 
@@ -383,7 +393,7 @@ list_sites() {
     
     # Database
     local db_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_db"; then
+    if $(compose_ps_names) | grep -q "wp_db"; then
         db_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Database" "$db_status" \
@@ -392,7 +402,7 @@ list_sites() {
     
     # Redis Cache
     local redis_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_redis"; then
+    if $(compose_ps_names) | grep -q "wp_redis"; then
         redis_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Redis Cache" "$redis_status" \
@@ -401,7 +411,7 @@ list_sites() {
     
     # phpMyAdmin
     local phpmyadmin_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpmyadmin"; then
+    if $(compose_ps_names) | grep -q "wp_phpmyadmin"; then
         phpmyadmin_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "phpMyAdmin" "$phpmyadmin_status" \
@@ -412,7 +422,7 @@ list_sites() {
     
     # Code Quality Tools
     local phpcs_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpcs"; then
+    if $(compose_ps_names) | grep -q "wp_phpcs"; then
         phpcs_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHP CodeSniffer" "$phpcs_status" \
@@ -420,7 +430,7 @@ list_sites() {
         "Code Quality - WordPress Standards"
     
     local phpstan_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_phpstan"; then
+    if $(compose_ps_names) | grep -q "wp_phpstan"; then
         phpstan_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHPStan" "$phpstan_status" \
@@ -428,7 +438,7 @@ list_sites() {
         "Code Quality - Static Analysis"
     
     local wpcli_status="Stopped"
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" | grep -q "wp_cli"; then
+    if $(compose_ps_names) | grep -q "wp_cli"; then
         wpcli_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "WP-CLI" "$wpcli_status" \
@@ -500,7 +510,7 @@ show_logs() {
         if [[ "$service" == "db" ]]; then
             $DOCKER_COMPOSE logs -f db
         elif [[ "$service" == "nginx" ]]; then
-            local nginx_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -gt 0 ]]; then
                 $DOCKER_COMPOSE logs -f "${nginx_containers[0]}"
             else
@@ -716,13 +726,40 @@ edit_site() {
     fi
 
     # Restart the site if it was running
-    if $DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep -q "wp_$site_name"; then
+    if $(compose_ps_names) 2>/dev/null | grep -q "wp_$site_name"; then
         log_info "Restarting site '$site_name' to apply changes..."
         $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
         log_success "Site restarted"
     fi
 
     log_success "Site '$site_name' updated"
+}
+
+# Run a tool container with compose --profile, falling back to direct run for podman
+run_tool_container() {
+    local service="$1"
+    shift
+    if $DOCKER_COMPOSE --profile tools run --rm "$service" "$@" 2>/dev/null; then
+        return 0
+    fi
+    case "$service" in
+        phpcs)
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/workspace:ro -w /workspace --network wp-net \
+                wpengine/phpcs:latest "$@"
+            ;;
+        phpstan)
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/project:ro -w /project --network wp-net \
+                ghcr.io/phpstan/phpstan:latest "$@"
+            ;;
+        wp-cli)
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT/wp_":/var/www/html:rw -w /var/www/html --network wp-net \
+                wordpress:cli "$@"
+            ;;
+        *)
+            log_error "Unknown tool service: $service"
+            return 1
+            ;;
+    esac
 }
 
 # Code quality checks
@@ -787,7 +824,7 @@ run_checks() {
     
     # Run PHP CodeSniffer
     log_info "Running PHP CodeSniffer..."
-    $DOCKER_COMPOSE --profile tools run --rm phpcs \
+    run_tool_container phpcs \
         -d memory_limit=512M \
         --standard=WordPress \
         --extensions=php \
@@ -798,7 +835,7 @@ run_checks() {
     # Run PHPStan (only on custom code to avoid timeout)
     if [[ -n "$specific_path" ]]; then
         log_info "Running PHPStan..."
-        $DOCKER_COMPOSE --profile tools run --rm phpstan analyse \
+        run_tool_container phpstan analyse \
             --memory-limit=512M \
             $target_paths --level=5 2>/dev/null || \
         log_warning "PHPStan check completed with issues"
@@ -816,7 +853,7 @@ access_shell() {
     case "$service" in
         "wp"|"wordpress")
             # Get running WordPress containers (exclude db, redis, and other services)
-            local running_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^wp_" | grep -vE "wp_db|wp_redis|wp_phpmyadmin|wp_phpcs|wp_phpstan|wp_cli" || true))
+            local running_containers=($(compose_ps_names | grep "^wp_" | grep -vE "wp_db|wp_redis|wp_phpmyadmin|wp_phpcs|wp_phpstan|wp_cli" || true))
             if [[ ${#running_containers[@]} -eq 0 ]]; then
                 log_error "No WordPress containers running"
                 return 1
@@ -832,7 +869,7 @@ access_shell() {
             $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
             ;;
         "nginx"|"proxy")
-            local nginx_containers=($($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -eq 0 ]]; then
                 log_error "No nginx containers running"
                 return 1
