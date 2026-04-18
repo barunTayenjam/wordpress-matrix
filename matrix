@@ -33,7 +33,7 @@ error_json() {
 
 check_docker_json() {
     if [[ "$JSON_OUTPUT" == true ]]; then
-        if ! docker info >/dev/null 2>&1; then
+        if ! $CONTAINER_RUNTIME info >/dev/null 2>&1; then
             error_json "DOCKER_ERROR" "Docker daemon is not running"
         fi
     fi
@@ -76,6 +76,13 @@ elif command -v docker-compose >/dev/null 2>&1; then
 else
     log_error "Neither docker-compose nor podman-compose found"
     exit 1
+fi
+
+# Derive container runtime from compose tool
+if [[ "$DOCKER_COMPOSE" == "podman-compose" ]]; then
+    CONTAINER_RUNTIME="podman"
+else
+    CONTAINER_RUNTIME="docker"
 fi
 
 # Main help
@@ -253,16 +260,8 @@ create_site() {
     
     # Copy WordPress files using Docker/Podman
     log_info "Installing WordPress (PHP $php_version)..."
-    if command -v docker >/dev/null 2>&1; then
-        docker run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
-            bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
-    elif command -v podman >/dev/null 2>&1; then
-        podman run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
-            bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
-    else
-        log_error "Neither docker nor podman found"
-        return 1
-    fi
+    $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
+        bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
     
     # Create site-specific nginx configuration
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
@@ -415,7 +414,7 @@ backup_site() {
 # Restore site
 restore_site() {
     local site_name="$1"
-    local backup_file="$2"
+    local backup_file="${2:-}"
     
     if [[ -z "$site_name" || -z "$backup_file" ]]; then
         log_error "Usage: ./matrix restore <site-name> <backup-file>"
@@ -461,7 +460,7 @@ list_sites_json() {
         local port=""
         local nginx_container="nginx_$site"
         if [[ -n "$site" ]]; then
-            port=$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null | grep "$nginx_container " | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | head -1 || true)
+            port=$($CONTAINER_RUNTIME ps --format "{{.Names}} {{.Ports}}" 2>/dev/null | grep "$nginx_container " | grep -oE '0\.0\.0\.0:[0-9]+' | cut -d: -f2 | head -1 || true)
         fi
 
         # Fallback: check compose file for site-specific nginx config
@@ -476,7 +475,7 @@ list_sites_json() {
 
         local container_id=""
         if [[ "$status" == "running" ]]; then
-            container_id=$(docker ps -q -f name="wp_$site" 2>/dev/null || true)
+            container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site" 2>/dev/null || true)
         fi
 
         local local_url="null"
@@ -522,9 +521,9 @@ list_sites_json() {
         local svc_status="stopped"
         local svc_cid="null"
 
-        if docker ps -q -f name="$svc_container" 2>/dev/null | grep -q .; then
+        if $CONTAINER_RUNTIME ps -q -f name="$svc_container" 2>/dev/null | grep -q .; then
             svc_status="running"
-            svc_cid="\"$(docker ps -q -f name="$svc_container" 2>/dev/null | head -1)\""
+            svc_cid="\"$($CONTAINER_RUNTIME ps -q -f name="$svc_container" 2>/dev/null | head -1)\""
         fi
 
         local svc_url="null"
@@ -694,7 +693,7 @@ show_status_json() {
     local first=true
 
     local compose_output
-    compose_output=$(docker ps --format "{{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1) || {
+    compose_output=$($CONTAINER_RUNTIME ps --format "{{.Names}}\t{{.Status}}\t{{.Ports}}" 2>&1) || {
         error_json "DOCKER_ERROR" "Failed to query Docker: $compose_output"
     }
 
@@ -773,7 +772,7 @@ show_logs() {
 # Remove site
 remove_site() {
     local site_name="$1"
-    local force_yes="$2"
+    local force_yes="${2:-}"
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
@@ -1137,7 +1136,7 @@ show_info_json() {
 
     local container_id=""
     if [[ "$status" == "running" ]]; then
-        container_id=$(docker ps -q -f name="wp_$site_name" 2>/dev/null || true)
+        container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site_name" 2>/dev/null || true)
     fi
 
     local local_url="null"
@@ -1439,10 +1438,9 @@ EOF
 # Database import function
 import_db() {
     local site_name="$1"
-    local dump_file="$2"
+    local dump_file="${2:-}"
 
     if [[ -z "$site_name" || -z "$dump_file" ]]; then
-        log_error "Usage: ./matrix import-db <site-name> </path/to/dump.sql>"
         return 1
     fi
 
@@ -1476,10 +1474,9 @@ import_db() {
 # Database export function
 export_db() {
     local site_name="$1"
-    local output_file="$2"
+    local output_file="${2:-}"
 
     if [[ -z "$site_name" ]]; then
-        log_error "Usage: ./matrix export-db <site-name> [/path/to/output.sql]"
         return 1
     fi
 
@@ -1515,8 +1512,8 @@ clean_env() {
     read -p "Continue? [y/N]: " confirm
 
     if [[ "$confirm" =~ ^[Yy]$ ]]; then
-        $DOCKER_COMPOSE system prune -f 2>/dev/null || docker system prune -f
-        $DOCKER_COMPOSE volume prune -f 2>/dev/null || docker volume prune -f
+        $CONTAINER_RUNTIME system prune -f 2>/dev/null || true
+        $CONTAINER_RUNTIME volume prune -f 2>/dev/null || true
         log_success "Cleanup complete"
     fi
 }
