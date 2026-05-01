@@ -330,9 +330,9 @@ EOF
     mv "$temp_file" "$COMPOSE_FILE"
 
     # Create database and grant permissions
-    if $DOCKER_COMPOSE ps db 2>/dev/null | grep -q "Up"; then
-        $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
-            -e "CREATE DATABASE IF NOT EXISTS ${site_name}_db; GRANT ALL PRIVILEGES ON ${site_name}_db.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+    if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
+        $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+            -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
     log_success "Site '$site_name' created successfully with PHP $php_version"
@@ -372,7 +372,7 @@ list_sites() {
                 fi
             fi
 
-            if $(compose_ps_names) | grep -q "wp_$site"; then
+            if compose_ps_names | grep -q "wp_$site"; then
                 status="Running"
             fi
 
@@ -393,7 +393,7 @@ list_sites() {
     
     # Database
     local db_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_db"; then
+    if compose_ps_names | grep -q "wp_db"; then
         db_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Database" "$db_status" \
@@ -402,7 +402,7 @@ list_sites() {
     
     # Redis Cache
     local redis_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_redis"; then
+    if compose_ps_names | grep -q "wp_redis"; then
         redis_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Redis Cache" "$redis_status" \
@@ -411,7 +411,7 @@ list_sites() {
     
     # phpMyAdmin
     local phpmyadmin_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_phpmyadmin"; then
+    if compose_ps_names | grep -q "wp_phpmyadmin"; then
         phpmyadmin_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "phpMyAdmin" "$phpmyadmin_status" \
@@ -422,7 +422,7 @@ list_sites() {
     
     # Code Quality Tools
     local phpcs_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_phpcs"; then
+    if compose_ps_names | grep -q "wp_phpcs"; then
         phpcs_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHP CodeSniffer" "$phpcs_status" \
@@ -430,7 +430,7 @@ list_sites() {
         "Code Quality - WordPress Standards"
     
     local phpstan_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_phpstan"; then
+    if compose_ps_names | grep -q "wp_phpstan"; then
         phpstan_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHPStan" "$phpstan_status" \
@@ -438,7 +438,7 @@ list_sites() {
         "Code Quality - Static Analysis"
     
     local wpcli_status="Stopped"
-    if $(compose_ps_names) | grep -q "wp_cli"; then
+    if compose_ps_names | grep -q "wp_cli"; then
         wpcli_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "WP-CLI" "$wpcli_status" \
@@ -556,9 +556,9 @@ remove_site() {
     rm -rf "$PROJECT_ROOT/logs/wp_$site_name"
 
     # Remove database
-    if $DOCKER_COMPOSE ps db 2>/dev/null | grep -q "Up"; then
-        $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
-            -e "DROP DATABASE IF EXISTS ${site_name}_db; REVOKE ALL PRIVILEGES ON ${site_name}_db.* FROM '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+    if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
+        $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+            -e "DROP DATABASE IF EXISTS \`${site_name}_db\`; REVOKE ALL PRIVILEGES ON \`${site_name}_db\`.* FROM '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
     # Remove service definitions from docker-compose.yml
@@ -726,7 +726,7 @@ edit_site() {
     fi
 
     # Restart the site if it was running
-    if $(compose_ps_names) 2>/dev/null | grep -q "wp_$site_name"; then
+    if compose_ps_names 2>/dev/null | grep -q "wp_$site_name"; then
         log_info "Restarting site '$site_name' to apply changes..."
         $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
         log_success "Site restarted"
@@ -1103,7 +1103,7 @@ EOF
     local max_attempts=30
     local attempt=1
     while [[ $attempt -le $max_attempts ]]; do
-        if $DOCKER_COMPOSE exec db mysqladmin ping -h localhost -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" --silent; then
+        if $DOCKER_COMPOSE exec -T db mysqladmin ping -h localhost -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" --silent 2>/dev/null; then
             log_success "Database is ready!"
             break
         else
@@ -1200,7 +1200,7 @@ export_db() {
     fi
 
     # Export the database
-    $DOCKER_COMPOSE exec db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
+    $DOCKER_COMPOSE exec -T db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file" 2>/dev/null
 
     if [[ $? -eq 0 ]]; then
         log_success "Database exported successfully to '$output_file'"

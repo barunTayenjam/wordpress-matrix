@@ -247,14 +247,75 @@ async function siteAction(action, siteName) {
     }
   }
   
+  if (action === 'reset') {
+    if (!confirm(`Are you sure you want to reset site "${siteName}" to a fresh WordPress install? All data will be lost.`)) {
+      return;
+    }
+  }
+
+  let endpoint, body;
+
+  switch (action) {
+    case 'restart':
+      endpoint = '/api/sites/restart';
+      body = { siteName };
+      break;
+    case 'url':
+      endpoint = '/api/sites/url';
+      body = { siteName };
+      break;
+    case 'logs':
+      endpoint = '/api/sites/logs';
+      body = { siteName };
+      break;
+    case 'backup':
+      endpoint = '/api/sites/backup';
+      body = { siteName };
+      break;
+    case 'restore':
+      const backupFile = prompt('Enter the backup file path (e.g., backups/mysite-20260501.tar.gz):');
+      if (!backupFile) return;
+      endpoint = '/api/sites/restore';
+      body = { siteName, backupFile };
+      break;
+    case 'export-db':
+      endpoint = '/api/sites/export-db';
+      body = { siteName };
+      break;
+    case 'import-db':
+      const dumpFile = prompt('Enter the SQL dump file path:');
+      if (!dumpFile) return;
+      endpoint = '/api/sites/import-db';
+      body = { siteName, dumpFile };
+      break;
+    case 'edit':
+      const phpVersion = prompt('Enter new PHP version (7.4, 8.0, 8.1, 8.2, 8.3) or cancel to view current config:');
+      endpoint = '/api/sites/edit';
+      body = { siteName, phpVersion };
+      break;
+    case 'clone':
+      const destName = prompt(`Clone "${siteName}" to new site name:`);
+      if (!destName) return;
+      endpoint = '/api/sites/clone';
+      body = { sourceName: siteName, destName };
+      break;
+    case 'reset':
+      endpoint = '/api/sites/reset';
+      body = { siteName };
+      break;
+    default:
+      endpoint = `/api/sites/${action}`;
+      body = { siteName };
+  }
+  
   try {
     showLoading();
-    const response = await fetch(`/api/sites/${action}`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ siteName })
+      body: JSON.stringify(body)
     });
     
     const data = await response.json();
@@ -279,6 +340,8 @@ async function siteAction(action, siteName) {
 async function createSite() {
   const siteNameInput = document.getElementById('siteName');
   const siteName = siteNameInput.value.trim();
+  const phpVersionSelect = document.getElementById('phpVersion');
+  const phpVersion = phpVersionSelect ? phpVersionSelect.value : '8.3';
   
   if (!siteName) {
     showNotification('Please enter a site name', 'warning');
@@ -297,7 +360,7 @@ async function createSite() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ siteName })
+      body: JSON.stringify({ siteName, phpVersion })
     });
     
     const data = await response.json();
@@ -401,30 +464,46 @@ async function executeCommand() {
   
   if (!command) return;
   
-  // Show command in output with proper formatting
   const outputLine = document.createElement('div');
   outputLine.innerHTML = `<span style="color: var(--accent-color);">$</span> ${escapeHtml(command)}`;
   output.appendChild(outputLine);
   input.value = '';
   
   try {
-    // Build the full command - extract action and any args
     const parts = command.split(' ');
     const action = parts[0];
     const args = parts.slice(1);
     
-    const response = await fetch(`/api/environment/${action}`, {
+    let endpoint, body;
+
+    const siteActions = ['start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'create', 'check'];
+    const envActions = ['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install'];
+
+    if (args.length > 0 && siteActions.includes(action)) {
+      endpoint = '/api/sites/' + action;
+      body = { siteName: args[0], phpVersion: undefined };
+    } else if (envActions.includes(action)) {
+      endpoint = '/api/environment/' + action;
+      body = { args };
+    } else {
+      const outputDiv = document.createElement('div');
+      outputDiv.className = 'text-warning';
+      outputDiv.style.whiteSpace = 'pre-wrap';
+      outputDiv.textContent = `Unknown command: ${action}. Type 'help' for available commands.`;
+      output.appendChild(outputDiv);
+      output.scrollTop = output.scrollHeight;
+      return;
+    }
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ args })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
     });
     
     const data = await response.json();
     
     if (data.success && data.output) {
-      // Format output with proper newlines and colors
       const outputDiv = document.createElement('div');
       outputDiv.style.whiteSpace = 'pre-wrap';
       outputDiv.style.fontFamily = 'monospace';
@@ -447,7 +526,6 @@ async function executeCommand() {
     output.appendChild(errorDiv);
   }
   
-  // Scroll to bottom
   output.scrollTop = output.scrollHeight;
 }
 

@@ -101,21 +101,46 @@
             {{/if}}
           </div>
           <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
-            <button class="btn btn-sm btn-success" onclick="siteAction('start', '{{name}}')">
-              <i class="bi bi-play"></i> Start
-            </button>
-            <button class="btn btn-sm btn-warning" onclick="siteAction('stop', '{{name}}')">
-              <i class="bi bi-stop"></i> Stop
-            </button>
-            <button class="btn btn-sm btn-info" onclick="siteAction('info', '{{name}}')">
-              <i class="bi bi-info"></i> Info
-            </button>
-            <button class="btn btn-sm btn-outline-info" onclick="runChecksForSite('{{name}}')">
-              <i class="bi bi-clipboard-check"></i> Check
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="siteAction('remove', '{{name}}')">
-              <i class="bi bi-trash"></i> Delete
-            </button>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-sm btn-success" onclick="siteAction('start', '{{name}}')">
+                <i class="bi bi-play"></i> Start
+              </button>
+              <button class="btn btn-sm btn-warning" onclick="siteAction('stop', '{{name}}')">
+                <i class="bi bi-stop"></i> Stop
+              </button>
+              <button class="btn btn-sm btn-outline-info" onclick="siteAction('restart', '{{name}}')">
+                <i class="bi bi-arrow-clockwise"></i> Restart
+              </button>
+            </div>
+            <div class="d-flex flex-wrap gap-1">
+              <button class="btn btn-sm btn-outline-secondary" onclick="runChecksForSite('{{name}}')">
+                <i class="bi bi-clipboard-check"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="siteAction('info', '{{name}}')">
+                <i class="bi bi-info"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="siteAction('backup', '{{name}}')">
+                <i class="bi bi-download"></i>
+              </button>
+              <div class="btn-group">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('logs', '{{name}}')"><i class="bi bi-terminal me-2"></i>Logs</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('edit', '{{name}}')"><i class="bi bi-pencil me-2"></i>Edit Config</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('url', '{{name}}')"><i class="bi bi-link-45deg me-2"></i>Show URL</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('export-db', '{{name}}')"><i class="bi bi-database-export me-2"></i>Export DB</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('import-db', '{{name}}')"><i class="bi bi-database-import me-2"></i>Import DB</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('restore', '{{name}}')"><i class="bi bi-arrow-counterclockwise me-2"></i>Restore Backup</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('clone', '{{name}}')"><i class="bi bi-copy me-2"></i>Clone</a></li>
+                  <li><a class="dropdown-item text-warning" href="#" onclick="siteAction('reset', '{{name}}')"><i class="bi bi-exclamation-triangle me-2"></i>Reset</a></li>
+                  <li><a class="dropdown-item text-danger" href="#" onclick="siteAction('remove', '{{name}}')"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -234,6 +259,16 @@
           <label for="siteName" class="form-label">Site Name</label>
           <input type="text" class="form-control" id="siteName" placeholder="Enter site name...">
           <div class="form-text">Use alphanumeric characters, hyphens, and underscores only.</div>
+        </div>
+        <div class="mb-3">
+          <label for="phpVersion" class="form-label">PHP Version</label>
+          <select class="form-select" id="phpVersion">
+            <option value="8.3" selected>PHP 8.3 (default)</option>
+            <option value="8.2">PHP 8.2</option>
+            <option value="8.1">PHP 8.1</option>
+            <option value="8.0">PHP 8.0</option>
+            <option value="7.4">PHP 7.4</option>
+          </select>
         </div>
       </div>
       <div class="modal-footer">

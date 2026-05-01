@@ -124,9 +124,8 @@ const executeMatrix = async (command, args = []) => {
     const projectRoot = path.join(__dirname, '..');
     const matrixPath = path.join(projectRoot, 'matrix');
 
-    // Longer timeout for operations like check, start, stop
-    const isLongRunning = ['check', 'start', 'stop', 'restart', 'create'].includes(command);
-    const timeout = isLongRunning ? 120000 : 30000; // 2 minutes for long operations
+    const isLongRunning = ['check', 'start', 'stop', 'restart', 'create', 'import-db', 'export-db', 'restore', 'clone', 'reset', 'install', 'edit', 'remove', 'backup'].includes(command);
+    const timeout = isLongRunning ? 300000 : 30000;
 
     console.log(`[Frontend] Executing: matrix ${command} ${args.join(' ')}`);
 
@@ -274,9 +273,191 @@ app.get('/api/sites', async (req, res) => {
   }
 });
 
+// Specific site action endpoints (must be before /api/sites/:action catch-all)
+
+// Backup endpoint
+app.post('/api/sites/backup', async (req, res) => {
+  const { siteName } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name required' });
+  }
+
+  try {
+    const result = await executeMatrix('backup', [siteName]);
+
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      res.status(500).json({ success: false, error: result.stderr });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Restart site endpoint
+app.post('/api/sites/restart', async (req, res) => {
+  const { siteName } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const io = app.get('io');
+    if (io) {
+      io.emit('site.operation', { type: 'start', operation: 'restart', site: siteName, timestamp: new Date().toISOString() });
+    }
+
+    const result = await executeMatrix('restart', [siteName]);
+
+    if (io) {
+      io.emit('site.operation', { type: result.success ? 'success' : 'failure', operation: 'restart', site: siteName, timestamp: new Date().toISOString() });
+    }
+
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get site URL endpoint
+app.post('/api/sites/url', async (req, res) => {
+  const { siteName } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const result = await executeMatrix('url', [siteName]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Restore site endpoint
+app.post('/api/sites/restore', async (req, res) => {
+  const { siteName, backupFile } = req.body;
+
+  if (!siteName || !backupFile) {
+    return res.status(400).json({ success: false, error: 'Site name and backup file are required' });
+  }
+
+  try {
+    const result = await executeMatrix('restore', [siteName, backupFile]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Export database endpoint
+app.post('/api/sites/export-db', async (req, res) => {
+  const { siteName, outputFile } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const args = [siteName];
+    if (outputFile) args.push(outputFile);
+    const result = await executeMatrix('export-db', args);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Import database endpoint
+app.post('/api/sites/import-db', async (req, res) => {
+  const { siteName, dumpFile } = req.body;
+
+  if (!siteName || !dumpFile) {
+    return res.status(400).json({ success: false, error: 'Site name and dump file are required' });
+  }
+
+  try {
+    const result = await executeMatrix('import-db', [siteName, dumpFile]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Edit site endpoint
+app.post('/api/sites/edit', async (req, res) => {
+  const { siteName, phpVersion } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const args = [siteName];
+    if (phpVersion) args.push(`--php-version=${phpVersion}`);
+    const result = await executeMatrix('edit', args);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Clone site endpoint
+app.post('/api/sites/clone', async (req, res) => {
+  const { sourceName, destName } = req.body;
+
+  if (!sourceName || !destName) {
+    return res.status(400).json({ success: false, error: 'Source and destination site names are required' });
+  }
+
+  try {
+    const result = await executeMatrix('clone', [sourceName, destName]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Reset site endpoint
+app.post('/api/sites/reset', async (req, res) => {
+  const { siteName } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const result = await executeMatrix('reset', [siteName]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Site logs endpoint
+app.post('/api/sites/logs', async (req, res) => {
+  const { siteName } = req.body;
+
+  if (!siteName) {
+    return res.status(400).json({ success: false, error: 'Site name is required' });
+  }
+
+  try {
+    const result = await executeMatrix('logs', [siteName]);
+    res.json({ success: result.success, output: result.stdout, error: result.stderr });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Catch-all for remaining site actions (create, start, stop, remove, info, check)
 app.post('/api/sites/:action', async (req, res) => {
   const { action } = req.params;
-  const { siteName } = req.body;
+  const { siteName, phpVersion } = req.body;
 
   if (!siteName && ['create', 'start', 'stop', 'remove', 'info', 'url'].includes(action)) {
     return res.status(400).json({
@@ -286,9 +467,12 @@ app.post('/api/sites/:action', async (req, res) => {
   }
 
   try {
-    const args = action === 'create' ? [siteName] : [siteName];
+    const args = action === 'create'
+      ? [siteName, `--php-version=${phpVersion || '8.3'}`]
+      : ['remove', 'delete', 'rm'].includes(action)
+        ? [siteName, '--yes']
+        : [siteName];
     
-    // Emit operation start event
     const io = app.get('io');
     if (io) {
       io.emit('site.operation', {
@@ -301,7 +485,6 @@ app.post('/api/sites/:action', async (req, res) => {
     
     const result = await executeMatrix(action, args);
     
-    // Emit operation complete event
     if (io) {
       io.emit('site.operation', {
         type: result.success ? 'success' : 'failure',
@@ -328,7 +511,7 @@ app.post('/api/sites/:action', async (req, res) => {
 app.post('/api/environment/:action', async (req, res) => {
   const { action } = req.params;
 
-  if (!['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check'].includes(action)) {
+  if (!['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install'].includes(action)) {
     return res.status(400).json({
       success: false,
       error: 'Invalid action'
@@ -377,28 +560,6 @@ app.post('/api/frontend/:action', async (req, res) => {
       success: false,
       error: error.message
     });
-  }
-});
-
-// Backup endpoint
-app.post('/api/sites/backup', async (req, res) => {
-  const { siteName } = req.body;
-  
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name required' });
-  }
-  
-  try {
-    showLoading();
-    const result = await executeMatrix('backup', [siteName]);
-    
-    if (result.success) {
-      res.json({ success: true, output: result.stdout });
-    } else {
-      res.status(500).json({ success: false, error: result.stderr });
-    }
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -515,8 +676,8 @@ app.get('/api/health/:siteName', async (req, res) => {
 
 // Start server with socket.io
 server.listen(PORT, () => {
-  console.log(`🚀 WordPress Matrix Frontend running on http://localhost:${PORT}`);
-  console.log(`📊 Dashboard: http://localhost:${PORT}`);
-  console.log(`🔗 API Endpoint: http://localhost:${PORT}/api`);
-  console.log(`⚡ WebSocket: Enabled`);
+  console.log(`WordPress Matrix Frontend running on http://localhost:${PORT}`);
+  console.log(`Dashboard: http://localhost:${PORT}`);
+  console.log(`API Endpoint: http://localhost:${PORT}/api`);
+  console.log(`WebSocket: Enabled`);
 });
