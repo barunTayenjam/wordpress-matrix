@@ -88,5 +88,49 @@ services:
       - tools
     command: ["tail", "-f", "/dev/null"]
 
+
+  # WordPress site: su26
+  wp_su26:
+    image: wordpress:php8.3-apache
+    container_name: wp_su26
+    restart: unless-stopped
+    ports:
+      - "8202:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: su26_db
+      WORDPRESS_DEBUG: ${WP_DEBUG:-true}
+    volumes:
+      - ./wp_su26:/var/www/html
+    networks:
+      - wp-net
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+  # WordPress site: su21
+  wp_su21:
+    image: wordpress:php7.4-apache
+    container_name: wp_su21
+    restart: unless-stopped
+    ports:
+      - "8203:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: su21_db
+      WORDPRESS_DEBUG: ${WP_DEBUG:-true}
+    volumes:
+      - ./wp_su21:/var/www/html
+    networks:
+      - wp-net
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   wp_db_data:
