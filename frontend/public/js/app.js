@@ -197,6 +197,52 @@ async function loadDashboard() {
   }
 }
 
+// Load activity log
+async function loadActivity() {
+  try {
+    const tbody = document.getElementById('activity-table-body');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr>';
+
+    const response = await fetch('/api/activity?limit=50');
+    const data = await response.json();
+
+    if (data.success && data.activities && data.activities.length > 0) {
+      tbody.innerHTML = data.activities.map(activity => {
+        const actionClass = getActionClass(activity.action);
+        return `<tr>
+          <td class="small text-muted">${activity.timestamp}</td>
+          <td><span class="badge ${actionClass}">${activity.action}</span></td>
+          <td><strong>${activity.site}</strong></td>
+          <td class="small">${activity.details}</td>
+        </tr>`;
+      }).join('');
+    } else {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No activity recorded yet</td></tr>';
+    }
+  } catch (error) {
+    console.error('Error loading activity:', error);
+    const tbody = document.getElementById('activity-table-body');
+    if (tbody) {
+      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Failed to load activity log</td></tr>';
+    }
+  }
+}
+
+function getActionClass(action) {
+  const classes = {
+    'CREATE': 'bg-success',
+    'START': 'bg-primary',
+    'STOP': 'bg-warning',
+    'EDIT': 'bg-info',
+    'REMOVE': 'bg-danger',
+    'BACKUP': 'bg-secondary',
+    'RESTORE': 'bg-dark'
+  };
+  return classes[action] || 'bg-secondary';
+}
+
 // Update dashboard UI
 function updateDashboard() {
   const runningSites = currentData.sites.filter(site => site.status === 'Running');
@@ -699,3 +745,10 @@ function displayCheckResults(results, siteName) {
   
   modal.show();
 }
+
+// Activity tab event listener
+document.addEventListener('shown.bs.tab', function (event) {
+  if (event.target.id === 'activity-tab') {
+    loadActivity();
+  }
+});

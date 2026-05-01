@@ -3,6 +3,7 @@ const exphbs = require('express-handlebars');
 const path = require('path');
 const cors = require('cors');
 const http = require('http');
+const fs = require('fs');
 const { Server } = require('socket.io');
 const { spawn } = require('child_process');
 
@@ -669,6 +670,37 @@ app.get('/api/health/:siteName', async (req, res) => {
         url
       });
     }
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Activity log endpoint
+app.get('/api/activity', async (req, res) => {
+  const logPath = path.join(__dirname, '..', 'logs', 'activity.log');
+  const limit = parseInt(req.query.limit) || 50;
+
+  try {
+    if (!fs.existsSync(logPath)) {
+      return res.json({ success: true, activities: [] });
+    }
+
+    const content = fs.readFileSync(logPath, 'utf-8');
+    const lines = content.trim().split('\n').filter(l => l.length > 0);
+    const activities = lines.slice(-limit).reverse().map(line => {
+      const match = line.match(/^\[(.*?)\] (\w+) \| (.*?) \| (.*)$/);
+      if (match) {
+        return {
+          timestamp: match[1],
+          action: match[2],
+          site: match[3],
+          details: match[4]
+        };
+      }
+      return null;
+    }).filter(a => a !== null);
+
+    res.json({ success: true, activities });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -11,6 +11,8 @@ A streamlined WordPress development environment with Docker/Podman support, comp
 - **Container Runtime Support**: Full Docker and Podman support
 - **Real-time Monitoring**: Track site status and health
 - **Database Operations**: Import/export SQL dumps, backups, restore
+- **Resource Limits**: Configure memory and CPU limits per site
+- **Activity Log**: Track all site operations in dashboard
 
 ## Requirements
 
@@ -83,8 +85,10 @@ After creating a site, the command output shows the direct access URL (e.g., htt
 # Remove a site
 ./matrix remove blog --yes
 
-# Edit site configuration (PHP version)
+# Edit site configuration (PHP version, port, resources)
 ./matrix edit blog --php-version=8.2
+./matrix edit blog --port=8203
+./matrix edit blog --memory=512M --cpu=1
 ```
 
 ### Backup & Restore
@@ -116,12 +120,13 @@ The frontend at http://localhost:8500 provides:
 - **Start/Stop/Restart** sites with one click
 - **Create** new sites with PHP version selector
 - **Backup** sites to tar.gz archives
-- **Edit** PHP version
+- **Edit** PHP version, port, memory, and CPU
 - **Clone** existing sites
 - **Reset** to fresh WordPress install
 - **Export/Import** SQL databases
 - **View** site logs
 - **Delete** sites
+- **Activity Log** - Track all site operations
 
 ### Code Quality Checks
 
