@@ -1,64 +1,80 @@
 <div class="tab-content">
   <!-- Dashboard Tab -->
   <div class="tab-pane fade show active" id="dashboard">
-    <div class="row g-3 mb-4">
+    <!-- Stats Overview -->
+    <div class="row g-4 mb-4">
       <div class="col-md-3">
-        <div class="card stat-card text-center h-100">
-          <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title">{{sites.length}}</h5>
-            <p class="card-text text-muted mb-0">Total Sites</p>
-            <i class="bi bi-hdd-stack" style="font-size: 1.75rem; color: var(--primary-color);"></i>
+        <div class="stat-card-modern">
+          <div class="stat-icon bg-primary">
+            <i class="bi bi-hdd-stack"></i>
+          </div>
+          <div class="stat-content">
+            <h3 class="stat-value">{{sites.length}}</h3>
+            <p class="stat-label">Total Sites</p>
           </div>
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card stat-card text-center h-100">
-          <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title" id="running-sites-count">{{#each sites}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h5>
-            <p class="card-text text-muted mb-0">Running Sites</p>
-            <i class="bi bi-play-circle" style="font-size: 1.75rem; color: var(--success-color);"></i>
+        <div class="stat-card-modern">
+          <div class="stat-icon bg-success">
+            <i class="bi bi-play-circle"></i>
+          </div>
+          <div class="stat-content">
+            <h3 class="stat-value" id="running-sites-count">{{#each sites}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h3>
+            <p class="stat-label">Running Sites</p>
           </div>
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card stat-card text-center h-100">
-          <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title">{{services.length}}</h5>
-            <p class="card-text text-muted mb-0">Services</p>
-            <i class="bi bi-server" style="font-size: 1.75rem; color: #0ea5e9;"></i>
+        <div class="stat-card-modern">
+          <div class="stat-icon bg-info">
+            <i class="bi bi-server"></i>
+          </div>
+          <div class="stat-content">
+            <h3 class="stat-value">{{services.length}}</h3>
+            <p class="stat-label">Services</p>
           </div>
         </div>
       </div>
       <div class="col-md-3">
-        <div class="card stat-card text-center h-100">
-          <div class="card-body d-flex flex-column justify-content-center align-items-center">
-            <h5 class="card-title" id="running-services-count">{{#each services}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h5>
-            <p class="card-text text-muted mb-0">Running Services</p>
-            <i class="bi bi-cpu" style="font-size: 1.75rem; color: var(--warning-color);"></i>
+        <div class="stat-card-modern">
+          <div class="stat-icon bg-warning">
+            <i class="bi bi-cpu"></i>
+          </div>
+          <div class="stat-content">
+            <h3 class="stat-value" id="running-services-count">{{#each services}}{{#if (eq status "Running")}}1{{/if}}{{/each}}</h3>
+            <p class="stat-label">Running Services</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Quick Actions -->
-    <div class="row mt-4">
-      <div class="col-12">
-        <h3 class="mb-3">Quick Actions</h3>
-        <div class="d-flex gap-2 flex-wrap">
-          <button class="btn btn-success" onclick="quickAction('start')">
-            <i class="bi bi-play-fill"></i> Start All
+    <div class="modern-card mb-4">
+      <div class="card-header-modern">
+        <h4 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Quick Actions</h4>
+      </div>
+      <div class="card-body-modern">
+        <div class="action-buttons">
+          <button class="action-btn action-btn-success" onclick="quickAction('start')">
+            <i class="bi bi-play-fill"></i>
+            <span>Start All</span>
           </button>
-          <button class="btn btn-outline-secondary" onclick="quickAction('stop')">
-            <i class="bi bi-stop-fill"></i> Stop All
+          <button class="action-btn action-btn-secondary" onclick="quickAction('stop')">
+            <i class="bi bi-stop-fill"></i>
+            <span>Stop All</span>
           </button>
-          <button class="btn btn-outline-secondary" onclick="quickAction('restart')">
-            <i class="bi bi-arrow-clockwise"></i> Restart All
+          <button class="action-btn action-btn-info" onclick="quickAction('restart')">
+            <i class="bi bi-arrow-clockwise"></i>
+            <span>Restart All</span>
           </button>
-          <button class="btn btn-outline-primary" onclick="quickAction('check')">
-            <i class="bi bi-clipboard-check"></i> Code Quality
+          <button class="action-btn action-btn-primary" onclick="quickAction('check')">
+            <i class="bi bi-clipboard-check"></i>
+            <span>Code Quality</span>
           </button>
-          <button class="btn btn-outline-warning" onclick="quickAction('clean')">
-            <i class="bi bi-trash"></i> Clean Resources
+          <button class="action-btn action-btn-warning" onclick="quickAction('clean')">
+            <i class="bi bi-trash"></i>
+            <span>Clean Resources</span>
           </button>
         </div>
       </div>
@@ -67,77 +83,77 @@
 
   <!-- Sites Tab -->
   <div class="tab-pane fade" id="sites">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3>Sites Management</h3>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSiteModal">
-        <i class="bi bi-plus-circle"></i> Create Site
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h3 class="section-title"><i class="bi bi-grid me-2"></i>Sites Management</h3>
+      <button class="btn btn-modern-primary" data-bs-toggle="modal" data-bs-target="#createSiteModal">
+        <i class="bi bi-plus-circle me-2"></i>Create Site
       </button>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-4">
       {{#each sites}}
-      <div class="col-md-6 col-lg-4 mb-3">
-        <div class="card site-card h-100">
-          <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">{{name}}</h5>
-            <span class="{{#if (eq status "Running")}}badge-r{{else}}badge-s{{/if}}">
+      <div class="col-md-6 col-lg-4">
+        <div class="site-card-modern">
+          <div class="site-card-header">
+            <h5 class="site-title">{{name}}</h5>
+            <span class="status-badge {{#if (eq status "Running")}}status-running{{else}}status-stopped{{/if}}">
               {{status}}
             </span>
           </div>
-          <div class="card-body">
-            <p class="card-text mb-2">
-              <i class="bi bi-link me-2"></i><span class="text-muted">{{localUrl}}</span>
-            </p>
-            <p class="card-text mb-2 site-health" id="health-{{name}}" style="display: none;">
-              <i class="bi bi-heart-pulse me-2"></i><span class="health-status"></span>
-            </p>
+          <div class="site-card-body">
             {{#if localUrl}}
-            <a href="{{localUrl}}" target="_blank" class="btn btn-sm btn-outline-primary mt-2">
-              <i class="bi bi-box-arrow-up-right"></i> Open Site
-            </a>
-            <button class="btn btn-sm btn-outline-secondary mt-2" onclick="checkSiteHealth('{{name}}')">
-              <i class="bi bi-heart-pulse"></i> Health
-            </button>
-            {{/if}}
-          </div>
-          <div class="card-footer d-flex justify-content-between flex-wrap gap-2">
-            <div class="d-flex flex-wrap gap-1">
-              <button class="btn btn-sm btn-success" onclick="siteAction('start', '{{name}}')">
-                <i class="bi bi-play"></i> Start
-              </button>
-              <button class="btn btn-sm btn-warning" onclick="siteAction('stop', '{{name}}')">
-                <i class="bi bi-stop"></i> Stop
-              </button>
-              <button class="btn btn-sm btn-outline-info" onclick="siteAction('restart', '{{name}}')">
-                <i class="bi bi-arrow-clockwise"></i> Restart
+            <div class="site-info">
+              <i class="bi bi-link me-2"></i>
+              <a href="{{localUrl}}" target="_blank" class="site-link">{{localUrl}}</a>
+            </div>
+            <div class="site-actions-primary">
+              <a href="{{localUrl}}" target="_blank" class="btn-modern-sm btn-modern-outline">
+                <i class="bi bi-box-arrow-up-right"></i> Open
+              </a>
+              <button class="btn-modern-sm btn-modern-outline" onclick="checkSiteHealth('{{name}}')">
+                <i class="bi bi-heart-pulse"></i> Health
               </button>
             </div>
-            <div class="d-flex flex-wrap gap-1">
-              <button class="btn btn-sm btn-outline-secondary" onclick="runChecksForSite('{{name}}')">
+            {{else}}
+            <div class="site-info text-muted">
+              <i class="bi bi-info-circle me-2"></i>Not configured
+            </div>
+            {{/if}}
+          </div>
+          <div class="site-card-footer">
+            <div class="btn-group-modern">
+              <button class="btn-icon btn-success" onclick="siteAction('start', '{{name}}')" title="Start">
+                <i class="bi bi-play-fill"></i>
+              </button>
+              <button class="btn-icon btn-warning" onclick="siteAction('stop', '{{name}}')" title="Stop">
+                <i class="bi bi-stop-fill"></i>
+              </button>
+              <button class="btn-icon btn-info" onclick="siteAction('restart', '{{name}}')" title="Restart">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+              <button class="btn-icon btn-secondary" onclick="runChecksForSite('{{name}}')" title="Check">
                 <i class="bi bi-clipboard-check"></i>
               </button>
-              <button class="btn btn-sm btn-outline-primary" onclick="siteAction('info', '{{name}}')">
-                <i class="bi bi-info"></i>
-              </button>
-              <button class="btn btn-sm btn-outline-secondary" onclick="siteAction('backup', '{{name}}')">
+              <button class="btn-icon btn-secondary" onclick="siteAction('backup', '{{name}}')" title="Backup">
                 <i class="bi bi-download"></i>
               </button>
-              <div class="btn-group">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="dropdown">
+                <button class="btn-icon btn-secondary" data-bs-toggle="dropdown">
                   <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('logs', '{{name}}')"><i class="bi bi-terminal me-2"></i>Logs</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('edit', '{{name}}')"><i class="bi bi-pencil me-2"></i>Edit Config</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('url', '{{name}}')"><i class="bi bi-link-45deg me-2"></i>Show URL</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('export-db', '{{name}}')"><i class="bi bi-database-export me-2"></i>Export DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('import-db', '{{name}}')"><i class="bi bi-database-import me-2"></i>Import DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('restore', '{{name}}')"><i class="bi bi-arrow-counterclockwise me-2"></i>Restore Backup</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('clone', '{{name}}')"><i class="bi bi-copy me-2"></i>Clone</a></li>
-                  <li><a class="dropdown-item text-warning" href="#" onclick="siteAction('reset', '{{name}}')"><i class="bi bi-exclamation-triangle me-2"></i>Reset</a></li>
-                  <li><a class="dropdown-item text-danger" href="#" onclick="siteAction('remove', '{{name}}')"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                <ul class="dropdown-menu-modern">
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('info', '{{name}}')"><i class="bi bi-info-circle"></i>Info</a></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('url', '{{name}}')"><i class="bi bi-link-45deg"></i>Show URL</a></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('logs', '{{name}}')"><i class="bi bi-terminal"></i>Logs</a></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('edit', '{{name}}')"><i class="bi bi-pencil"></i>Edit Config</a></li>
+                  <li class="dropdown-divider-modern"></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('export-db', '{{name}}')"><i class="bi bi-database-export"></i>Export DB</a></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('import-db', '{{name}}')"><i class="bi bi-database-import"></i>Import DB</a></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('restore', '{{name}}')"><i class="bi bi-arrow-counterclockwise"></i>Restore</a></li>
+                  <li class="dropdown-divider-modern"></li>
+                  <li><a class="dropdown-item-modern" href="#" onclick="siteAction('clone', '{{name}}')"><i class="bi bi-copy"></i>Clone</a></li>
+                  <li><a class="dropdown-item-modern text-warning" href="#" onclick="siteAction('reset', '{{name}}')"><i class="bi bi-exclamation-triangle"></i>Reset</a></li>
+                  <li><a class="dropdown-item-modern text-danger" href="#" onclick="siteAction('remove', '{{name}}')"><i class="bi bi-trash"></i>Delete</a></li>
                 </ul>
               </div>
             </div>
@@ -150,77 +166,72 @@
 
   <!-- Services Tab -->
   <div class="tab-pane fade" id="services">
-    <h3>Services Status</h3>
-    <div class="table-responsive">
-      <table class="table table-striped">
-        <thead>
-          <tr>
-            <th>Service</th>
-            <th>Status</th>
-            <th>Local URL</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each services}}
-          <tr>
-            <td><strong>{{name}}</strong></td>
-            <td>
-              <span class="badge {{#if (eq status "Running")}}bg-success{{else}}bg-secondary{{/if}}">
-                {{status}}
-              </span>
-            </td>
-            <td>
-              {{#if (ne localUrl "Internal")}}
-              <a href="{{localUrl}}" target="_blank">{{localUrl}}</a>
-              {{else}}
-              {{localUrl}}
-              {{/if}}
-            </td>
-            <td>
-              <span class="badge bg-secondary">Services</span>
-            </td>
-          </tr>
-          {{/each}}
-        </tbody>
-      </table>
+    <h3 class="section-title mb-4"><i class="bi bi-server me-2"></i>Services Status</h3>
+    <div class="modern-card">
+      <div class="table-responsive">
+        <table class="table-modern">
+          <thead>
+            <tr>
+              <th>Service</th>
+              <th>Status</th>
+              <th>Local URL</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each services}}
+            <tr>
+              <td><strong>{{name}}</strong></td>
+              <td>
+                <span class="status-badge {{#if (eq status "Running")}}status-running{{else}}status-stopped{{/if}}">
+                  {{status}}
+                </span>
+              </td>
+              <td>
+                {{#if (ne localUrl "Internal")}}
+                <a href="{{localUrl}}" target="_blank" class="link-modern">{{localUrl}}</a>
+                {{else}}
+                <span class="text-muted">{{localUrl}}</span>
+                {{/if}}
+              </td>
+              <td><span class="badge-modern">Services</span></td>
+            </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <!-- Frontend Tab -->
   <div class="tab-pane fade" id="frontend">
-    <h3>Frontend Management</h3>
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title mb-0">Web Interface</h5>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <h6>Status</h6>
-            <div id="frontend-status">Checking...</div>
-            <div class="mt-2">
-              <a href="http://localhost:8000" target="_blank" class="btn btn-primary">
-                <i class="bi bi-box-arrow-up-right"></i> Open Frontend
-              </a>
-            </div>
+    <h3 class="section-title mb-4"><i class="bi bi-display me-2"></i>Frontend Management</h3>
+    <div class="modern-card">
+      <div class="row">
+        <div class="col-md-6">
+          <h5 class="mb-3">Status</h5>
+          <div id="frontend-status" class="status-display">Checking...</div>
+          <div class="mt-3">
+            <a href="http://localhost:8500" target="_blank" class="btn btn-modern-primary">
+              <i class="bi bi-box-arrow-up-right me-2"></i>Open Frontend
+            </a>
           </div>
-          <div class="col-md-6">
-            <h6>Controls</h6>
-            <div class="d-grid gap-2">
-              <button class="btn btn-success" onclick="frontendAction('start')">
-                <i class="bi bi-play-fill"></i> Start
-              </button>
-              <button class="btn btn-danger" onclick="frontendAction('stop')">
-                <i class="bi bi-stop-fill"></i> Stop
-              </button>
-              <button class="btn btn-secondary" onclick="frontendAction('restart')">
-                <i class="bi bi-arrow-clockwise"></i> Restart
-              </button>
-              <button class="btn btn-info" onclick="frontendAction('status')">
-                <i class="bi bi-info-circle"></i> Status
-              </button>
-            </div>
+        </div>
+        <div class="col-md-6">
+          <h5 class="mb-3">Controls</h5>
+          <div class="control-buttons">
+            <button class="btn btn-modern-success" onclick="frontendAction('start')">
+              <i class="bi bi-play-fill me-2"></i>Start
+            </button>
+            <button class="btn btn-modern-danger" onclick="frontendAction('stop')">
+              <i class="bi bi-stop-fill me-2"></i>Stop
+            </button>
+            <button class="btn btn-modern-secondary" onclick="frontendAction('restart')">
+              <i class="bi bi-arrow-clockwise me-2"></i>Restart
+            </button>
+            <button class="btn btn-modern-info" onclick="frontendAction('status')">
+              <i class="bi bi-info-circle me-2"></i>Status
+            </button>
           </div>
         </div>
       </div>
@@ -229,19 +240,18 @@
 
   <!-- Terminal Tab -->
   <div class="tab-pane fade" id="terminal">
-    <h3>Terminal Interface</h3>
-    <div class="mb-3">
-      <div class="input-group">
-        <span class="input-group-text">{{matrixCommand}}</span>
-        <input type="text" id="terminal-input" class="form-control" placeholder="Enter matrix command..." 
-               onkeypress="if(event.key === 'Enter') { executeCommand(); }">
-        <button class="btn btn-primary" onclick="executeCommand()">Execute</button>
+    <h3 class="section-title mb-4"><i class="bi bi-terminal me-2"></i>Terminal Interface</h3>
+    <div class="modern-card">
+      <div class="terminal-input-group">
+        <span class="terminal-prompt">{{matrixCommand}}</span>
+        <input type="text" id="terminal-input" class="terminal-input" placeholder="Enter matrix command..." onkeypress="if(event.key === 'Enter') { executeCommand(); }">
+        <button class="btn btn-modern-primary" onclick="executeCommand()">Execute</button>
       </div>
-    </div>
-    <div id="terminal-output" class="terminal-output">
-      <div style="color: var(--accent-color);">WordPress Matrix Terminal v1.0</div>
-      <div style="color: var(--text-secondary);">Type 'help' for available commands.</div>
-      <div style="color: var(--text-secondary); margin-top: 0.5rem;">--- --- --- --- --- ---</div>
+      <div id="terminal-output" class="terminal-output">
+        <div class="terminal-line terminal-info">WordPress Matrix Terminal v2.0</div>
+        <div class="terminal-line terminal-muted">Type 'help' for available commands.</div>
+        <div class="terminal-line terminal-separator">--- --- --- --- --- ---</div>
+      </div>
     </div>
   </div>
 </div>
@@ -249,20 +259,20 @@
 <!-- Create Site Modal -->
 <div class="modal fade" id="createSiteModal" tabindex="-1">
   <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Create New Site</h5>
+    <div class="modal-content-modern">
+      <div class="modal-header-modern">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Create New Site</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body-modern">
         <div class="mb-3">
-          <label for="siteName" class="form-label">Site Name</label>
-          <input type="text" class="form-control" id="siteName" placeholder="Enter site name...">
-          <div class="form-text">Use alphanumeric characters, hyphens, and underscores only.</div>
+          <label for="siteName" class="form-label-modern">Site Name</label>
+          <input type="text" class="form-control-modern" id="siteName" placeholder="Enter site name...">
+          <div class="form-text-modern">Use alphanumeric characters, hyphens, and underscores only.</div>
         </div>
         <div class="mb-3">
-          <label for="phpVersion" class="form-label">PHP Version</label>
-          <select class="form-select" id="phpVersion">
+          <label for="phpVersion" class="form-label-modern">PHP Version</label>
+          <select class="form-select-modern" id="phpVersion">
             <option value="8.3" selected>PHP 8.3 (default)</option>
             <option value="8.2">PHP 8.2</option>
             <option value="8.1">PHP 8.1</option>
@@ -271,9 +281,9 @@
           </select>
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="createSite()">Create Site</button>
+      <div class="modal-footer-modern">
+        <button type="button" class="btn btn-modern-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-modern-primary" onclick="createSite()">Create Site</button>
       </div>
     </div>
   </div>
@@ -282,18 +292,18 @@
 <!-- Code Quality Results Modal -->
 <div class="modal fade" id="checkResultsModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Code Quality Check Results</h5>
+    <div class="modal-content-modern">
+      <div class="modal-header-modern">
+        <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Code Quality Results</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
-      <div class="modal-body" id="check-results-body">
+      <div class="modal-body-modern" id="check-results-body">
         <div id="check-progress" class="text-center">
-          <div class="spinner-border" role="status"></div>
+          <div class="spinner-modern"></div>
           <p>Running checks...</p>
         </div>
         <div id="check-output" class="d-none">
-          <pre class="bg-dark text-light p-3"></pre>
+          <pre class="code-output"></pre>
         </div>
       </div>
     </div>
