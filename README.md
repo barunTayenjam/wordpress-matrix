@@ -5,14 +5,14 @@ A streamlined WordPress development environment with Docker/Podman support, comp
 ## Key Features
 
 - **Simplified Management**: All-in-one `matrix` script for easy site management
-- **Web Interface**: Beautiful dashboard at http://localhost:8500 for visual management
+- **Modern Web Interface**: Beautiful dashboard at http://localhost:8500 with real-time status, keyboard shortcuts, and action modals
 - **Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
 - **Multi-Site Environment**: Create and manage multiple WordPress instances
 - **Container Runtime Support**: Full Docker and Podman support
-- **Real-time Monitoring**: Track site status and health
+- **Real-time Dashboard**: Live status bar, auto-refresh on actions, keyboard shortcuts (R to refresh, 1-6 for tabs, ? for help)
 - **Database Operations**: Import/export SQL dumps, backups, restore
-- **Resource Limits**: Configure memory and CPU limits per site
-- **Activity Log**: Track all site operations in dashboard
+- **Resource Limits**: Configure memory and CPU limits per site (`./matrix edit site --memory=512M --cpu=1`)
+- **Activity Log**: Track all site operations in dashboard activity tab
 
 ## Requirements
 

@@ -64,12 +64,47 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .stat-card-modern:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
 }
+
+.stat-card-modern:hover::before {
+  opacity: 1;
+}
+
+.stat-card-success::before { background: var(--success); }
+.stat-card-primary::before { background: var(--primary); }
+.stat-card-info::before { background: var(--info); }
+.stat-card-warning::before { background: var(--warning); }
+
+.stat-trend {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-trend.neutral { color: var(--gray-400); }
+.stat-trend.hint { color: var(--info); }
 
 .stat-icon {
   width: 56px;
@@ -80,7 +115,12 @@
   justify-content: center;
   font-size: 1.5rem;
   color: white;
+  background: var(--primary);
 }
+
+.stat-card-success .stat-icon { background: var(--success); }
+.stat-card-info .stat-icon { background: var(--info); }
+.stat-card-warning .stat-icon { background: var(--warning); }
 
 .stat-icon.bg-primary { background: linear-gradient(135deg, #6366f1, #4f46e5); }
 .stat-icon.bg-success { background: linear-gradient(135deg, #22c55e, #16a34a); }
@@ -102,6 +142,123 @@
   font-size: 0.875rem;
   color: var(--gray-500);
   margin: 0;
+}
+
+/* Live Status Bar */
+.live-status-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.status-pill.running {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: var(--success);
+}
+
+.status-pill.stopped {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.3);
+  color: var(--gray-500);
+}
+
+.status-pill.services {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--primary);
+}
+
+.status-pill.auto-refresh {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: var(--warning);
+}
+
+.status-pill.manual-refresh {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.status-pill.manual-refresh:hover {
+  background: rgba(99, 102, 241, 0.2);
+  transform: scale(1.02);
+}
+
+.status-pill.manual-refresh i {
+  font-size: 0.875rem;
+}
+
+.status-pill.last-update {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: rgba(100, 116, 139, 0.3);
+  color: var(--gray-500);
+  font-size: 0.75rem;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s infinite;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+}
+
+.refresh-icon {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Action hint */
+.action-hint {
+  font-size: 0.75rem;
+  color: var(--gray-400);
+}
+
+.action-hint kbd {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  font-family: inherit;
 }
 
 /* Action Buttons */
@@ -150,8 +307,22 @@
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  overflow: hidden;
+  overflow: visible;
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.site-card-modern .dropdown {
+  position: static;
+}
+
+.site-card-modern .dropdown-menu {
+  position: absolute;
+  z-index: 1000;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
 }
 
 .site-card-modern:hover {
@@ -436,13 +607,15 @@
 .terminal-muted { color: var(--gray-400); }
 .terminal-separator { color: var(--gray-600); }
 
-/* Modal Modern */
+/* Modal Modern - Use Bootstrap defaults, minimal override */
 .modal-content-modern {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+}
+
+.form-control-modern, .form-select-modern {
+  background: white;
 }
 
 .modal-header-modern {

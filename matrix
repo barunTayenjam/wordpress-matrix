@@ -196,7 +196,9 @@ get_sites() {
             sites+=("$(basename "$dir" | sed 's/^wp_//')")
         fi
     done
-    printf '%s\n' "${sites[@]}" | sort -u
+    if [[ ${#sites[@]} -gt 0 ]]; then
+        printf '%s\n' "${sites[@]}" | sort -u
+    fi
 }
 
 # Check if site exists

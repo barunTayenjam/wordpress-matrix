@@ -127,9 +127,14 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Initialize the application
+let autoRefreshInterval = null;
+let lastUpdateTime = null;
+
 document.addEventListener('DOMContentLoaded', () => {
   loadDashboard();
   initWebSocket();
+  initAutoRefresh();
+  initKeyboardShortcuts();
 
   // Setup event listeners
   document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
@@ -187,6 +192,8 @@ async function loadDashboard() {
     if (data.success) {
       currentData = data;
       updateDashboard();
+      updateLiveStatus();
+      updateLastUpdateTime();
       hideLoading();
     } else {
       showError('Failed to load dashboard data');
@@ -195,6 +202,95 @@ async function loadDashboard() {
     console.error('Error loading dashboard:', error);
     showError('Network error while loading dashboard');
   }
+}
+
+function initAutoRefresh() {
+  // Auto-refresh disabled - refresh on action instead
+  // Uncomment below to enable auto-refresh:
+  // if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+  // autoRefreshInterval = setInterval(() => {
+  //   console.log('[Auto-refresh] Updating dashboard...');
+  //   loadDashboard();
+  // }, 30000);
+}
+
+function updateLastUpdateTime() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString();
+  const timeEl = document.getElementById('last-update-time');
+  const displayEl = document.getElementById('last-update-display');
+  if (timeEl) timeEl.textContent = timeStr;
+  if (displayEl) displayEl.textContent = timeStr;
+  lastUpdateTime = now;
+}
+
+function updateLiveStatus() {
+  const running = currentData.sites.filter(s => s.status === 'Running').length;
+  const stopped = currentData.sites.filter(s => s.status === 'Stopped').length;
+  const services = currentData.services.filter(s => s.status === 'Running').length;
+  
+  const liveRunning = document.getElementById('live-running');
+  const liveStopped = document.getElementById('live-stopped');
+  const liveServices = document.getElementById('live-services');
+  
+  if (liveRunning) liveRunning.textContent = running;
+  if (liveStopped) liveStopped.textContent = stopped;
+  if (liveServices) liveServices.textContent = services;
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Don't trigger if typing in input fields
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    switch(e.key.toLowerCase()) {
+      case 'r':
+        if (!e.ctrlKey && !e.metaKey) {
+          loadDashboard();
+          showNotification('Refreshing...', 'info');
+        }
+        break;
+      case '?':
+        showKeyboardShortcuts();
+        break;
+      case '1':
+        document.getElementById('dashboard-tab')?.click();
+        break;
+      case '2':
+        document.getElementById('sites-tab')?.click();
+        break;
+      case '3':
+        document.getElementById('services-tab')?.click();
+        break;
+      case '4':
+        document.getElementById('frontend-tab')?.click();
+        break;
+      case '5':
+        document.getElementById('terminal-tab')?.click();
+        break;
+      case '6':
+        document.getElementById('activity-tab')?.click();
+        break;
+    }
+  });
+}
+
+function showKeyboardShortcuts() {
+  const shortcuts = [
+    { key: 'R', action: 'Refresh dashboard' },
+    { key: '1-6', action: 'Switch tabs' },
+    { key: '?', action: 'Show this help' },
+    { key: 'Enter', action: 'Execute terminal command' }
+  ];
+  
+  let html = '<div class="keyboard-shortcuts-modal"><h5>Keyboard Shortcuts</h5><table class="table table-sm">';
+  shortcuts.forEach(s => {
+    html += `<tr><td><kbd>${s.key}</kbd></td><td>${s.action}</td></tr>`;
+  });
+  html += '</table></div>';
+  
+  // Show as modal or notification
+  showNotification(html, 'info', 5000);
 }
 
 // Load activity log
@@ -271,12 +367,13 @@ async function quickAction(action) {
     
     if (data.success) {
       showNotification(`Command "${action}" executed successfully`, 'success');
-      await loadDashboard();
     } else {
       const errorMsg = data.error?.message || data.error || 'Unknown error';
       showNotification(`Command "${action}" failed: ${errorMsg}`, 'danger');
     }
     
+    // Always refresh after any action
+    await loadDashboard();
     hideLoading();
   } catch (error) {
     console.error('Error executing quick action:', error);
@@ -339,6 +436,11 @@ async function siteAction(action, siteName) {
       endpoint = '/api/sites/edit';
       body = { siteName, phpVersion };
       break;
+    case 'remove':
+    case 'delete':
+      endpoint = `/api/sites/${action}`;
+      body = { siteName, forceYes: '--yes' };
+      break;
     case 'clone':
       const destName = prompt(`Clone "${siteName}" to new site name:`);
       if (!destName) return;
@@ -346,8 +448,9 @@ async function siteAction(action, siteName) {
       body = { sourceName: siteName, destName };
       break;
     case 'reset':
+      if (!confirm(`Are you sure you want to reset site "${siteName}" to a fresh WordPress install? All data will be lost.`)) return;
       endpoint = '/api/sites/reset';
-      body = { siteName };
+      body = { siteName, forceYes: '--yes' };
       break;
     default:
       endpoint = `/api/sites/${action}`;
@@ -367,13 +470,19 @@ async function siteAction(action, siteName) {
     const data = await response.json();
     
     if (data.success) {
-      showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
-      await loadDashboard();
+      // Show output for info, url, logs actions
+      if (['info', 'url', 'logs'].includes(action) && data.output) {
+        showActionOutput(action, siteName, data.output);
+      } else {
+        showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
+      }
     } else {
       const errorMsg = data.error?.message || data.error || 'Unknown error';
       showNotification(`Command "${action} ${siteName}" failed: ${errorMsg}`, 'danger');
     }
     
+    // Always refresh after any action (success or failure)
+    await loadDashboard();
     hideLoading();
   } catch (error) {
     console.error('Error executing site action:', error);
@@ -411,19 +520,29 @@ async function createSite() {
     
     const data = await response.json();
     
-    if (data.success) {
+    if (data.success && (!data.exitCode || data.exitCode === 0)) {
       showNotification(`Site "${siteName}" created successfully`, 'success');
       siteNameInput.value = '';
       
       // Close modal
       const modal = bootstrap.Modal.getInstance(document.getElementById('createSiteModal'));
       modal.hide();
-      
-      await loadDashboard();
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      // Extract error message from output (last non-empty line)
+      let errorMsg = 'Unknown error';
+      if (data.output) {
+        const lines = data.output.split('\n').filter(l => l.trim());
+        if (lines.length > 0) {
+          errorMsg = lines[lines.length - 1].replace(/✅|❌|ℹ️|⚠️| - /g, '').trim();
+        }
+      } else if (data.error) {
+        errorMsg = data.error;
+      }
       showNotification(`Failed to create site: ${errorMsg}`, 'danger');
     }
+    
+    // Always refresh after create attempt (success or failure)
+    await loadDashboard();
     
     hideLoading();
   } catch (error) {
@@ -632,6 +751,72 @@ function showNotification(message, type = 'info') {
       notification.parentNode.removeChild(notification);
     }
   }, 5000);
+}
+
+function showActionOutput(action, siteName, output) {
+  // Clean up ANSI codes and format output
+  const cleanOutput = output
+    .replace(/\x1b\[[0-9;]*m/g, '')  // Remove ANSI colors
+    .replace(/✅|❌|ℹ️|⚠️| - /g, '')  // Remove icons
+    .trim();
+  
+  // Show in modal
+  const modalHtml = `
+    <div class="modal fade" id="actionOutputModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-${getActionIcon(action)} me-2"></i>
+              ${getActionTitle(action)}: ${siteName}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <pre class="bg-dark text-light p-3 rounded" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${escapeHtml(cleanOutput)}</pre>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if any
+  const existingModal = document.getElementById('actionOutputModal');
+  if (existingModal) existingModal.remove();
+  
+  // Add modal to page
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  
+  // Show modal
+  const modal = new bootstrap.Modal(document.getElementById('actionOutputModal'));
+  modal.show();
+}
+
+function getActionIcon(action) {
+  const icons = {
+    'info': 'info-circle',
+    'url': 'link-45deg',
+    'logs': 'terminal',
+    'edit': 'pencil',
+    'backup': 'download',
+    'clone': 'copy'
+  };
+  return icons[action] || 'gear';
+}
+
+function getActionTitle(action) {
+  const titles = {
+    'info': 'Site Information',
+    'url': 'Site URL',
+    'logs': 'Site Logs',
+    'edit': 'Edit Configuration',
+    'backup': 'Backup',
+    'clone': 'Clone Site'
+  };
+  return titles[action] || 'Action Result';
 }
 
 function showError(message) {
