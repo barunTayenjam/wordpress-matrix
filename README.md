@@ -21,7 +21,7 @@ A streamlined WordPress development environment with Docker/Podman support, comp
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/wordpress-matrix.git
+git clone https://github.com/barunTayenjam/wordpress-matrix.git
 cd wordpress-matrix
 
 # Make script executable
