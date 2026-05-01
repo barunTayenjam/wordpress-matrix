@@ -33,12 +33,14 @@ chmod +x matrix
 # Create your first site
 ./matrix create mysite
 
-# Start your site
-./matrix start mysite
-
 # Access the web dashboard
 open http://localhost:8500
+
+# Access your site (port shown after creation)
+open http://localhost:8201
 ```
+
+After creating a site, the command output shows the direct access URL (e.g., http://localhost:8201).
 
 ## Documentation
 
@@ -171,10 +173,12 @@ docker exec wp_blog php -v
 - **Dashboard**: http://localhost:8500
 
 ### WordPress Sites
-Sites are accessible on sequentially assigned ports starting from 8100:
-- First site: http://localhost:8100
-- Second site: http://localhost:8101
+Sites are accessible on sequentially assigned ports starting from 8201 (8200 is reserved for phpMyAdmin):
+- First site: http://localhost:8201
+- Second site: http://localhost:8202
 - And so on...
+
+The site URL is displayed after running `./matrix create <name>` or `./matrix url <name>`. You can also view all site URLs via the web dashboard.
 
 ### Management Tools
 - **phpMyAdmin**: http://localhost:8200
@@ -290,7 +294,7 @@ wordpress-matrix/
 |---------|------|
 | Frontend Dashboard | 8500 |
 | phpMyAdmin | 8200 |
-| WordPress Sites | 8100+ |
+| WordPress Sites | 8201+ |
 | Database | 3306 |
 
 ## Security
