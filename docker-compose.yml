@@ -100,7 +100,10 @@ services:
 
   # WordPress site: pimmsaa
   wp_pimmsaa:
-    image: wordpress:php8.3-fpm
+    build:
+      context: .
+      dockerfile: Dockerfile.wp-pimmsaa
+    image: wp_pimmsaa:latest
     container_name: wp_pimmsaa
     restart: unless-stopped
     environment:

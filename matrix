@@ -292,7 +292,12 @@ create_site() {
     log_info "Installing WordPress (PHP $php_version)..."
     $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
         bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
-    
+
+    # Install WP-CLI in site directory (persists via volume)
+    log_info "Installing WP-CLI..."
+    $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
+        bash -c "curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && mv wp-cli.phar /var/www/html/wp && chown www-data:www-data /var/www/html/wp"
+
     # Create site-specific nginx configuration
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
     if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
