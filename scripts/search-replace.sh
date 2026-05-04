@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/.."
 source "$SCRIPT_DIR/common.sh"
 
@@ -54,23 +54,27 @@ log_info "Search and replace for: $SITE_NAME"
 log_info "Search: $SEARCH"
 log_info "Replace: $REPLACE"
 
-# Build wp-cli command
-CMD="$DOCKER_COMPOSE exec -T wp-cli wp search-replace \"$SEARCH\" \"$REPLACE\" --path=\"/var/www/html/wp_$SITE_NAME\" --skip-plugins --skip-themes --quiet"
-
-if [[ "$PRECISE" == true ]]; then
-    CMD="$CMD --precise"
-fi
-
-if [[ "$DRY_RUN" == true ]]; then
-    CMD="$CMD --dry-run"
-    log_warning "DRY RUN MODE - No changes will be made"
-fi
-
 log_info "Running search and replace..."
 ensure_wp_cli_running
 
-# Execute and show results
-if eval "$CMD"; then
+# Build wp-cli command as array (avoids eval injection)
+WP_CMD=(
+    $DOCKER_COMPOSE exec -T wp-cli
+    wp search-replace "$SEARCH" "$REPLACE"
+    --path="/var/www/html/wp_$SITE_NAME"
+    --skip-plugins --skip-themes --quiet
+)
+
+if [[ "$PRECISE" == true ]]; then
+    WP_CMD+=(--precise)
+fi
+
+if [[ "$DRY_RUN" == true ]]; then
+    WP_CMD+=(--dry-run)
+    log_warning "DRY RUN MODE - No changes will be made"
+fi
+
+if "${WP_CMD[@]}"; then
     if [[ "$DRY_RUN" == true ]]; then
         log_success "Dry run complete. Review the changes above."
     else
