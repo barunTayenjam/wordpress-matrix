@@ -77,7 +77,7 @@ site_exists() {
 # Get site port from compose file
 get_site_port() {
     local site="$1"
-    grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | \
+    grep -A 15 "wp_$site:" "$COMPOSE_FILE" 2>/dev/null | \
         grep -E '^\s*-\s*"[0-9]+:80"' | \
         grep -oE '[0-9]+' | head -1
 }
