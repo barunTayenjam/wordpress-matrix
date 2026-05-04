@@ -64,8 +64,9 @@ clear_redis() {
 clear_wp_cache() {
     local site="$1"
     log_info "Clearing WordPress cache for: $site"
+    ensure_wp_cli_running
 
-    if $DOCKER_COMPOSE exec -T wpcli wp cache flush --path="/var/www/html/$site" --quiet; then
+    if $DOCKER_COMPOSE exec -T wp-cli wp cache flush --path="/var/www/html/wp_$site" --quiet; then
         log_success "WordPress cache cleared for: $site"
     else
         log_warning "Failed to clear WordPress cache for: $site (may not have object cache)"

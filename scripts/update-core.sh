@@ -62,8 +62,10 @@ update_site() {
         return
     fi
 
+    ensure_wp_cli_running
+
     # Update core
-    if $DOCKER_COMPOSE exec -T wpcli wp core update --path="/var/www/html/$site" $FORCE_FLAG --quiet; then
+    if $DOCKER_COMPOSE exec -T wp-cli wp core update --path="/var/www/html/wp_$site" $FORCE_FLAG --quiet; then
         log_success "WordPress updated for: $site"
     else
         log_error "Failed to update: $site"
@@ -71,7 +73,7 @@ update_site() {
 
     # Update database
     log_info "Updating database for: $site"
-    if $DOCKER_COMPOSE exec -T wpcli wp core update-db --path="/var/www/html/$site" --quiet; then
+    if $DOCKER_COMPOSE exec -T wp-cli wp core update-db --path="/var/www/html/wp_$site" --quiet; then
         log_success "Database updated for: $site"
     else
         log_error "Failed to update database for: $site"
