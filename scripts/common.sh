@@ -16,6 +16,25 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
+# Cross-platform port check (lsof on macOS, ss on Linux)
+port_in_use() {
+    local port="$1"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        lsof -iTCP:"$port" -sTCP:LISTEN -P -n >/dev/null 2>&1
+    else
+        ss -tln 2>/dev/null | grep -q ":${port} "
+    fi
+}
+
+# Ensure wp-cli container is running (it uses profiles: [tools])
+ensure_wp_cli_running() {
+    if ! $DOCKER_COMPOSE ps wp-cli 2>/dev/null | grep -q "Up"; then
+        log_info "Starting wp-cli container..."
+        $DOCKER_COMPOSE --profile tools up -d wp-cli >/dev/null 2>&1
+        sleep 2
+    fi
+}
+
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/.."
@@ -74,7 +93,7 @@ get_next_port() {
         fi
     fi
     ((max_port++))
-    while ss -tln 2>/dev/null | grep -q ":$max_port " 2>/dev/null; do
+    while port_in_use "$max_port"; do
         ((max_port++))
     done
     echo "$max_port"
@@ -85,7 +104,7 @@ create_database() {
     local site="$1"
     local db_name="${site}_db"
 
-    $DOCKER_COMPOSE exec db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e \
+    $DOCKER_COMPOSE exec db mysql -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" -e \
         "CREATE DATABASE IF NOT EXISTS $db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
 }
 
