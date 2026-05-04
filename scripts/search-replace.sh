@@ -55,7 +55,7 @@ log_info "Search: $SEARCH"
 log_info "Replace: $REPLACE"
 
 # Build wp-cli command
-CMD="$DOCKER_COMPOSE exec -T wpcli wp search-replace \"$SEARCH\" \"$REPLACE\" --path=\"/var/www/html/$SITE_NAME\" --skip-plugins --skip-themes --quiet"
+CMD="$DOCKER_COMPOSE exec -T wp-cli wp search-replace \"$SEARCH\" \"$REPLACE\" --path=\"/var/www/html/wp_$SITE_NAME\" --skip-plugins --skip-themes --quiet"
 
 if [[ "$PRECISE" == true ]]; then
     CMD="$CMD --precise"
@@ -67,6 +67,7 @@ if [[ "$DRY_RUN" == true ]]; then
 fi
 
 log_info "Running search and replace..."
+ensure_wp_cli_running
 
 # Execute and show results
 if eval "$CMD"; then

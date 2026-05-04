@@ -65,8 +65,9 @@ OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"
 NEW_URL="http://localhost:$(get_next_port)"
 
 log_info "Updating URLs in database..."
-$DOCKER_COMPOSE exec -T wpcli wp search-replace "$OLD_URL" "$NEW_URL" \
-    --path="/var/www/html/$NEW_SITE" --skip-plugins --skip-themes --quiet
+ensure_wp_cli_running
+$DOCKER_COMPOSE exec -T wp-cli wp search-replace "$OLD_URL" "$NEW_URL" \
+    --path="/var/www/html/wp_$NEW_SITE" --skip-plugins --skip-themes --quiet
 
 # Update docker-compose.yml
 log_info "Updating docker-compose configuration..."
