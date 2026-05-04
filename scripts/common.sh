@@ -108,8 +108,93 @@ create_database() {
         "CREATE DATABASE IF NOT EXISTS $db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/dev/null
 }
 
-# Update docker-compose.yml (simplified)
+# Update docker-compose.yml to add a new site service
 update_compose_file() {
     local site="$1"
-    log_info "Please manually add $site to docker-compose.yml or use: ./matrix create $site"
+    local port
+
+    # Get next available port
+    port=$(get_next_port)
+
+    log_info "Adding site '$site' to docker-compose.yml (port $port)..."
+
+    local temp_file=$(mktemp)
+
+    # Copy everything before the volumes: section
+    awk '/^volumes:/ {exit} {print}' "$COMPOSE_FILE" > "$temp_file"
+
+    # Add new service definition
+    cat >> "$temp_file" << EOF
+
+  # WordPress site: $site
+  wp_$site:
+    image: wordpress:php8.3-apache
+    container_name: wp_$site
+    restart: unless-stopped
+    ports:
+      - "$port:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${site}_db
+      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
+    volumes:
+      - ./wp_$site:/var/www/html
+    networks:
+      - wp-net
+    depends_on:
+      db:
+        condition: service_healthy
+
+EOF
+
+    # Copy the volumes: section and everything after
+    awk '/^volumes:/ {print; while(getline) print}' "$COMPOSE_FILE" >> "$temp_file"
+
+    mv "$temp_file" "$COMPOSE_FILE"
+    log_info "Site '$site' added to docker-compose.yml"
+}
+
+# Create nginx configuration for a site
+create_nginx_config() {
+    local site="$1"
+    local nginx_conf_dir="$PROJECT_ROOT/config/nginx"
+    local nginx_conf_path="$nginx_conf_dir/$site.conf"
+
+    # Skip if site uses Apache (no nginx needed)
+    if grep -A 5 "wp_${site}:" "$COMPOSE_FILE" 2>/dev/null | grep -qE 'image:.*-apache'; then
+        log_info "Site '$site' uses Apache — skipping nginx config"
+        return 0
+    fi
+
+    mkdir -p "$nginx_conf_dir"
+
+    cat > "$nginx_conf_path" << EOF
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html;
+    index index.php index.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        fastcgi_pass wp_$site:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+    log_info "Created nginx config: $nginx_conf_path"
 }
