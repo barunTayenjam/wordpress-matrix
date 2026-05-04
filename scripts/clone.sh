@@ -57,8 +57,8 @@ create_database "$NEW_SITE"
 
 # Import database
 log_info "Importing database..."
-$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${SOURCE_SITE}_db" \
-    | $DOCKER_COMPOSE exec -T db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${NEW_SITE}_db"
+$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${SOURCE_SITE}_db" \
+    | $DOCKER_COMPOSE exec -T db mysql -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${NEW_SITE}_db"
 
 # Search and replace URLs in database
 OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"

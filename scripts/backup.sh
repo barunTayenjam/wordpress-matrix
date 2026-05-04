@@ -72,12 +72,9 @@ backup_site() {
     if [[ "$FILES_ONLY" == false ]]; then
         DB_NAME="${site}_db"
         local db_backup="$site_backup_dir/database.sql"
-
         log_info "  Exporting database..."
-        $DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" \
-            --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup"
-
-        if [[ $? -eq 0 ]]; then
+        if $DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" \
+            --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup" 2>/dev/null; then
             local size=$(du -h "$db_backup" | cut -f1)
             log_success "  Database backed up ($size)"
         else
@@ -90,11 +87,8 @@ backup_site() {
     if [[ "$DB_ONLY" == false ]]; then
         local site_dir="$PROJECT_ROOT/wp_$site"
         local files_backup="$site_backup_dir/files"
-
         log_info "  Backing up files..."
-        cp -R "$site_dir/wp-content" "$files_backup"
-
-        if [[ $? -eq 0 ]]; then
+        if cp -R "$site_dir/wp-content" "$files_backup"; then
             local size=$(du -sh "$files_backup" | cut -f1)
             log_success "  Files backed up ($size)"
         else
@@ -132,10 +126,10 @@ fi
 # Compress if requested
 if [[ "$COMPRESS" == true ]]; then
     log_info "Compressing backups..."
-    local compressed_file="$BACKUP_DIR.tar.gz"
+    compressed_file="$BACKUP_DIR.tar.gz"
 
     if tar -czf "$compressed_file" -C "$PROJECT_ROOT/backups" "$(basename "$BACKUP_DIR")" 2>/dev/null; then
-        local size=$(du -h "$compressed_file" | cut -f1)
+        size=$(du -h "$compressed_file" | cut -f1)
         log_success "Backup compressed: $compressed_file ($size)"
 
         # Remove uncompressed backup
@@ -145,4 +139,9 @@ if [[ "$COMPRESS" == true ]]; then
     fi
 fi
 
-log_info "Backup location: $BACKUP_DIR"
+# Show backup location (tar.gz if compressed, directory otherwise)
+if [[ "$COMPRESS" == true ]]; then
+    log_info "Backup location: ${BACKUP_DIR}.tar.gz"
+else
+    log_info "Backup location: $BACKUP_DIR"
+fi

@@ -70,7 +70,7 @@ log_info "Backing up to: $BACKUP_DIR"
 
 # Export database
 DB_NAME="${SITE_NAME}_db"
-$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "$DB_NAME" \
+$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$DB_NAME" \
     > "$BACKUP_DIR/database.sql"
 
 # Backup wp-content
@@ -86,7 +86,7 @@ fi
 
 # Drop and recreate database
 log_info "Resetting database..."
-$DOCKER_COMPOSE exec db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e \
+$DOCKER_COMPOSE exec db mysql -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" -e \
     "DROP DATABASE IF EXISTS $DB_NAME; CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 
 # Restore wp-content if needed
