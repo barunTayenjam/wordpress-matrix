@@ -53,6 +53,16 @@ log_success() { echo -e "${GREEN}✅ $1${NC}"; }
 log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 log_error() { echo -e "${RED}❌ $1${NC}"; }
 
+# Cross-platform port check (lsof on macOS, ss on Linux)
+port_in_use() {
+    local port="$1"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        lsof -iTCP:"$port" -sTCP:LISTEN -P -n >/dev/null 2>&1
+    else
+        ss -tln 2>/dev/null | grep -q ":${port} "
+    fi
+}
+
 json_log_override() {
     if [[ "$JSON_OUTPUT" == true ]]; then
         log_info() { :; }
@@ -186,7 +196,7 @@ get_next_port() {
     fi
     # Find next available port that's not in use
     ((max_port++))
-    while ss -tln 2>/dev/null | grep -q ":$max_port " 2>/dev/null; do
+    while port_in_use "$max_port"; do
         ((max_port++))
     done
     echo $max_port
@@ -2243,9 +2253,6 @@ main() {
         "web-server")
             web_server_set "$@"
             ;;
-        "backup")
-            backup_site "$@"
-            ;;
         "restore")
             restore_site "$@"
             ;;
@@ -2279,12 +2286,6 @@ main() {
             ;;
         "edit"|"update-site")
             edit_site "$@"
-            ;;
-        "info")
-            show_urls "$@"
-            ;;
-        "check"|"quality")
-            run_checks "$@"
             ;;
         "test")
             run_checks "$@"  # Same as check for now

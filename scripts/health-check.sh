@@ -121,7 +121,7 @@ log_info "Checking port conflicts..."
 for site in $(get_sites); do
     port=$(get_site_port "$site")
     if [[ -n "$port" ]]; then
-        if ss -tln 2>/dev/null | grep -q ":$port "; then
+        if port_in_use "$port"; then
             log_success "  Port $port ($site): In use"
         else
             log_warning "  Port $port ($site): Not listening"
