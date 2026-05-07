@@ -128,15 +128,16 @@ Usage: ./matrix <command> [options]
    stop <name>       Stop specific site
    remove <name>     Remove site
    info <name>       Show site details
+   rest <name>       Show WordPress REST API routes for a site (JSON)
 
-Environment Management:
-  install [name]    One-command install (creates site and starts services)
-  start             Start all sites, services, and frontend
-  stop              Stop all services and frontend
-  restart           Restart all services and frontend
-  status            Show system status including frontend
-  logs [site]       Show logs (all or specific site)
-  clean             Clean up unused resources
+ Environment Management:
+   install [name]    One-command install (creates site and starts services)
+   start             Start all sites, services, and frontend
+   stop              Stop all services and frontend
+   restart           Restart all services and frontend
+   status            Show system status including frontend
+   logs [site]       Show logs (all or specific site)
+   clean             Clean up unused resources
 
  Code Quality:
    check [name] [path]   Run code quality checks (all sites or specific site/path)
@@ -161,28 +162,10 @@ Environment Management:
  System:
    health            Run system health check
 
-  Examples:
-    ./matrix create blog      # Create new site
-    ./matrix create oldsite --php-version=7.4  # Create site with PHP 7.4
-    ./matrix edit blog --php-version=8.2       # Change PHP version
-    ./matrix edit blog --port=8105             # Change port
-    ./matrix start            # Start everything including frontend
-   ./matrix check            # Run quality checks on all sites
-   ./matrix check blog       # Run quality checks on specific site
-   ./matrix check blog wp-content/themes/custom-theme  # Check specific path
-   ./matrix shell wp         # Access WordPress CLI
-   ./matrix import-db blog dump.sql  # Import database
-   ./matrix export-db blog backup.sql # Export database
-   ./matrix clone blog blog-copy     # Clone site
-   ./matrix reset blog --keep-plugins    # Reset site
-   ./matrix update --all          # Update all sites
-   ./matrix backup --all --compress  # Backup all sites
-   ./matrix health                # Check system health
-
  Frontend:
-  ./matrix start            # Starts frontend at http://localhost:8500
-  ./matrix status            # Shows frontend status
-  ./matrix stop            # Stops frontend with other services
+   ./matrix start            # Starts frontend at http://localhost:8500
+   ./matrix status           # Shows frontend status
+   ./matrix stop             # Stops frontend with other services
 
 EOF
 }
@@ -2026,7 +2009,9 @@ main() {
         "url"|"urls")
             show_urls "$@"
             ;;
-        "clean")
+        "rest")
+            rest_site "$@"
+            ;;        "clean")
             clean_env "$@"
             ;;
         "install")
