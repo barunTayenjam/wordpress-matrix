@@ -7,6 +7,7 @@ A streamlined WordPress development environment with Docker/Podman support, comp
 - **Simplified Management**: All-in-one `matrix` script for easy site management
 - **Modern Web Interface**: Beautiful dashboard at http://localhost:8500 with real-time status, keyboard shortcuts, and action modals
 - **Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
+- **Development Tools**: Email testing (Mailpit), Xdebug, theme/plugin scaffolding, site presets, file watching
 - **Multi-Site Environment**: Create and manage multiple WordPress instances
 - **Container Runtime Support**: Full Docker and Podman support
 - **Real-time Dashboard**: Live status bar, auto-refresh on actions, keyboard shortcuts (R to refresh, 1-6 for tabs, ? for help)
@@ -187,9 +188,35 @@ The site URL is displayed after running `./matrix create <name>` or `./matrix ur
 
 ### Management Tools
 - **phpMyAdmin**: http://localhost:8200
+- **Mailpit (Email Testing)**: http://localhost:8025
 - **Database**: localhost:3306
 
 ## Features
+
+### Development Tools
+
+```bash
+# Email Testing (Mailpit)
+./matrix mail                    # Opens email UI at http://localhost:8025
+
+# Enable Xdebug for PHP debugging
+./matrix xdebug mysite          # Always-on step debugging
+
+# Scaffold themes and plugins
+./matrix scaffold theme my-theme
+./matrix scaffold plugin my-plugin
+./matrix scaffold child my-parent-theme my-child
+
+# View available site presets
+./matrix preset
+
+# Create site with preset
+./matrix create myshop --preset=woocommerce
+./matrix create myforum --preset=bbpress
+
+# Watch files and clear OPcache on changes
+./matrix watch mysite           # Requires fswatch (brew install fswatch)
+```
 
 ### PHP Version Management
 
