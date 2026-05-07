@@ -75,6 +75,17 @@ services:
     profiles:
       - tools
 
+  # Email Testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: wp_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI
+    networks:
+      - wp-net
+
   # Development Tools
   wp-cli:
     image: wordpress:cli

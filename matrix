@@ -152,21 +152,26 @@ Usage: ./matrix <command> [options]
 
  Site Maintenance:
    clone <src> <dst> Clone existing site
-   reset <name>      Reset site to fresh install
-   update <name>     Update WordPress core
-   cache <name>      Clear site caches
-   search-replace    Database search/replace
-   backup <name>     Backup site database/files
+    reset <name>      Reset site to fresh install
+    update <name>     Update WordPress core
+    cache <name>      Clear site caches
+    search-replace    Database search/replace
+    backup <name>     Backup site database/files
 
- Development:
-   shell <service>   Access container shell (wp, db, nginx)
-   url <name>        Show site URLs
-   import-db <n> <f> Import SQL dump (site name, file path)
-   export-db <n> [f> Export database (site name, optional file)
-   frontend <action> Manage frontend (start|stop|restart|status)
+  Development:
+    shell <service>   Access container shell (wp, db, nginx)
+    url <name>        Show site URLs
+    import-db <n> <f> Import SQL dump (site name, file path)
+    export-db <n> [f> Export database (site name, optional file)
+    frontend <action> Manage frontend (start|stop|restart|status)
+    mail             Open Mailpit email testing UI
+    xdebug <site>    Enable Xdebug (always on) for site
+    scaffold <type> <name> Scaffold theme/plugin (theme|plugin)
+    preset <name>    List available site presets
+    watch <site>     Watch files and clear OPcache on changes
 
- System:
-   health            Run system health check
+  System:
+    health            Run system health check
 
  Frontend:
    ./matrix start            # Starts frontend at http://localhost:8500
@@ -228,7 +233,8 @@ get_next_port() {
 create_site() {
     local site_name=""
     local php_version="$DEFAULT_PHP_VERSION"
-    
+    local preset="blank"
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -240,8 +246,17 @@ create_site() {
                 php_version="$2"
                 shift 2
                 ;;
+            --preset=*)
+                preset="${1#*=}"
+                shift
+                ;;
+            --preset)
+                preset="$2"
+                shift 2
+                ;;
             -*)
                 log_error "Unknown option: $1"
+                echo "Usage: ./matrix create <name> [--php-version=X.X] [--preset=preset-name]"
                 return 1
                 ;;
             *)
@@ -280,11 +295,11 @@ create_site() {
     local site_dir="$PROJECT_ROOT/wp_$site_name"
     
     log_info "Creating WordPress site: $site_name (PHP $php_version)"
-    
+
     # Create directory
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
-    
+
     # Copy WordPress files using Docker/Podman
     log_info "Installing WordPress (PHP $php_version)..."
     $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
@@ -294,6 +309,11 @@ create_site() {
     log_info "Installing WP-CLI..."
     $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
         bash -c "curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && mv wp-cli.phar /var/www/html/wp && chown www-data:www-data /var/www/html/wp"
+
+    # Apply preset if not blank
+    if [[ "$preset" != "blank" ]]; then
+        apply_preset "$site_name" "$preset"
+    fi
 
     # Create site-specific nginx configuration
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
@@ -704,9 +724,17 @@ list_sites() {
     printf "%-15s %-10s %-30s %-30s\n" "phpMyAdmin" "$phpmyadmin_status" \
         "http://localhost:8200" \
         "Database Management"
-    
 
-    
+    # Mailpit
+    local mailpit_status="Stopped"
+    if compose_ps_names | grep -q "wp_mailpit"; then
+        mailpit_status="Running"
+    fi
+    printf "%-15s %-10s %-30s %-30s\n" "Mailpit" "$mailpit_status" \
+        "http://localhost:8025" \
+        "Email Testing (SMTP: 1025)"
+
+
     # Code Quality Tools
     local phpcs_status="Stopped"
     if compose_ps_names | grep -q "wp_phpcs"; then
@@ -1840,6 +1868,300 @@ clean_env() {
     fi
 }
 
+# Configure Xdebug for a site
+configure_xdebug() {
+    local site_name="${1:-}"
+
+    if [[ -z "$site_name" ]]; then
+        log_error "Usage: ./matrix xdebug <site-name>"
+        return 1
+    fi
+
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+
+    local site_dir="$PROJECT_ROOT/wp_$site_name"
+    local wp_config="$site_dir/wp-config.php"
+
+    if [[ ! -f "$wp_config" ]]; then
+        log_error "wp-config.php not found for site '$site_name'"
+        return 1
+    fi
+
+    log_info "Configuring Xdebug for site '$site_name'..."
+
+    # Check if Xdebug config already exists
+    if grep -q "XDEBUG_CONFIG" "$wp_config" 2>/dev/null; then
+        log_warning "Xdebug already configured for '$site_name'"
+        echo ""
+        echo "Xdebug settings:"
+        grep -A2 "XDEBUG_CONFIG" "$wp_config" || true
+        return 0
+    fi
+
+    # Add Xdebug configuration
+    cat >> "$wp_config" << 'EOF'
+
+// Xdebug Configuration
+xdebug.mode = develop,debug;
+    xdebug.client_host = host.docker.internal;
+    xdebug.start_with_request = yes;
+    xdebug.idekey = "VSCODE";
+EOF
+
+    log_success "Xdebug enabled for '$site_name' (always on)"
+    echo ""
+    echo "For VS Code:"
+    echo "1. Install PHP Debug extension"
+    echo "2. Add this to .vscode/launch.json:"
+    echo '   { "name": "Listen for Xdebug", "type": "php", "request": "launch", "pathMappings": { "/var/www/html": "${workspaceFolder}" }, "port": 9003 }'
+    echo ""
+    echo "For PHPStorm:"
+    echo "1. Settings > PHP > Servers: Add mapping /var/www/html -> $site_dir"
+    echo "2. Use browser extension or add ?XDEBUG_SESSION_START to URL"
+}
+
+# Scaffold theme or plugin
+scaffold_project() {
+    local type="${1:-}"
+    local name="${2:-}"
+
+    if [[ -z "$type" || -z "$name" ]]; then
+        log_error "Usage: ./matrix scaffold <type> <name>"
+        echo ""
+        echo "Types:"
+        echo "  theme <name>  - Create a new theme"
+        echo "  plugin <name>  - Create a new plugin"
+        echo "  child <name>  - Create a child theme"
+        return 1
+    fi
+
+    case "$type" in
+        "theme")
+            scaffold_theme "$name"
+            ;;
+        "plugin")
+            scaffold_plugin "$name"
+            ;;
+        "child")
+            scaffold_child_theme "$name"
+            ;;
+        *)
+            log_error "Unknown scaffold type: $type"
+            echo "Valid types: theme, plugin, child"
+            return 1
+            ;;
+    esac
+}
+
+scaffold_theme() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        log_error "Usage: ./matrix scaffold theme <name>"
+        return 1
+    fi
+
+    local themes_dir="$PROJECT_ROOT/wp_content/themes"
+    local theme_dir="$themes_dir/$name"
+
+    if [[ -d "$theme_dir" ]]; then
+        log_error "Theme directory already exists: $theme_dir"
+        return 1
+    fi
+
+    log_info "Creating theme '$name'..."
+
+    mkdir -p "$theme_dir"
+
+    # Create style.css
+    cat > "$theme_dir/style.css" << EOF
+/*
+Theme Name: $name
+Theme URI: http://example.com/$name
+Description: Custom theme created with WordPress Matrix
+Author: Developer
+Version: 1.0.0
+Text Domain: $name
+*/
+
+EOF
+
+    # Create index.php
+    cat > "$theme_dir/index.php" << 'EOF'
+<?php
+/**
+ * Theme functions and definitions
+ */
+
+defined('ABSPATH') || exit;
+
+if (!defined('THEME_VERSION')) {
+    define('THEME_VERSION', '1.0.0');
+}
+
+// Theme setup
+function theme_setup() {
+    add_theme_support('title-tag');
+    add_theme_support('post-thumbnails');
+    add_theme_support('automatic-feed-links');
+
+    register_nav_menus(array(
+        'primary' => __('Primary Menu', 'THEME_TEXT_DOMAIN'),
+    ));
+}
+add_action('after_setup_theme', 'theme_setup');
+
+// Enqueue scripts and styles
+function theme_scripts() {
+    wp_enqueue_style('theme-style', get_stylesheet_uri(), array(), THEME_VERSION);
+    wp_enqueue_script('theme-script', get_template_directory_uri() . '/assets/js/main.js', array('jquery'), THEME_VERSION, true);
+}
+add_action('wp_enqueue_scripts', 'theme_scripts');
+EOF
+
+    mkdir -p "$theme_dir/assets/css" "$theme_dir/assets/js" "$theme_dir/template-parts"
+
+    cat > "$theme_dir/assets/css/style.css" << 'EOF'
+/*** $name styles ***/
+EOF
+
+    cat > "$theme_dir/assets/js/main.js" << 'EOF'
+(function() {
+    'use strict';
+    console.log('$name theme loaded');
+})();
+EOF
+
+    mkdir -p "$theme_dir/inc"
+    cat > "$theme_dir/inc/setup.php" << 'EOF'
+<?php
+// Theme setup functions
+EOF
+
+    log_success "Theme '$name' created at $theme_dir"
+    echo ""
+    echo "Activate with: ./matrix shell wp theme activate $name"
+}
+
+# Apply preset to a site
+apply_preset() {
+    local site_name="${1:-}"
+    local preset="${2:-}"
+
+    if [[ -z "$site_name" || -z "$preset" ]]; then
+        return 1
+    fi
+
+    local site_dir="$PROJECT_ROOT/wp_$site_name"
+    local plugins_dir="$site_dir/wp-content/plugins"
+    local themes_dir="$site_dir/wp-content/themes"
+
+    mkdir -p "$plugins_dir" "$themes_dir"
+
+    case "$preset" in
+        "woocommerce")
+            log_info "Installing WooCommerce preset..."
+            $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version:-8.3}-fpm \
+                wp plugin install woocommerce --activate --allow-root 2>/dev/null || \
+                log_warning "WooCommerce installation may have failed"
+            ;;
+        "elementor")
+            log_info "Installing Elementor preset..."
+            $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version:-8.3}-fpm \
+                wp plugin install elementor --activate --allow-root 2>/dev/null || \
+                log_warning "Elementor installation may have failed"
+            ;;
+        "bbpress")
+            log_info "Installing bbPress preset..."
+            $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version:-8.3}-fpm \
+                wp plugin install bbpress --activate --allow-root 2>/dev/null || \
+                log_warning "bbPress installation may have failed"
+            ;;
+        "buddypress")
+            log_info "Installing BuddyPress preset..."
+            $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version:-8.3}-fpm \
+                wp plugin install buddypress --activate --allow-root 2>/dev/null || \
+                log_warning "BuddyPress installation may have failed"
+            ;;
+        "multisite")
+            log_info "Configuring Multisite..."
+            $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version:-8.3}-fpm \
+                wp core install --url="localhost" --title="WordPress Multisite" --admin_user=admin --admin_password=admin --admin_email=admin@example.com --allow-root 2>/dev/null || true
+            log_info "Enabling Multisite..."
+            cat >> "$site_dir/wp-config.php" << 'EOF'
+
+// Enable Multisite
+define('WP_ALLOW_MULTISITE', true);
+EOF
+            ;;
+        *)
+            log_warning "Unknown preset: $preset"
+            return 1
+            ;;
+    esac
+
+    log_success "Preset '$preset' applied to '$site_name'"
+}
+
+watch_site() {
+    local site_name="${1:-}"
+    local site_path=""
+
+    if [[ -z "$site_name" ]]; then
+        log_error "Usage: ./matrix watch <site-name>"
+        return 1
+    fi
+
+    if [[ ! -d "$PROJECT_ROOT/wp_$site_name" ]]; then
+        log_error "Site not found: $site_name"
+        return 1
+    fi
+
+    site_path="$PROJECT_ROOT/wp_$site_name"
+    log_info "Watching $site_path for changes..."
+
+    local last_check=0
+    local poll_interval=2
+
+    if command -v fswatch >/dev/null 2>&1; then
+        log_info "Using fswatch for file monitoring"
+        fswatch -r "$site_path" --exclude=.git --exclude=node_modules --exclude=vendor --exclude=cache 2>/dev/null | while read -r event; do
+            echo "Change detected: $event"
+            docker exec "wp_$site_name" php -r "opcache_get_status()['opcache_enabled'] && opcache_reset();" 2>/dev/null || true
+        done
+    else
+        log_info "Using polling mode (install fswatch for better performance)"
+        log_info "Press Ctrl+C to stop watching"
+        while true; do
+            local current_mtime=$(find "$site_path/wp-content" -type f -name "*.php" -mmin -"$poll_interval" 2>/dev/null | head -1 | xargs stat -f %m 2>/dev/null || echo "0")
+            if [[ "$current_mtime" != "$last_check" && "$last_check" != "0" ]]; then
+                echo "Change detected, clearing OPcache..."
+                docker exec "wp_$site_name" php -r "if (function_exists('opcache_get_status') && opcache_get_status()) { opcache_reset(); echo 'OPcache cleared'; }" 2>/dev/null || echo "Could not clear OPcache"
+            fi
+            last_check=$current_mtime
+            sleep "$poll_interval"
+        done
+    fi
+}
+
+list_presets() {
+    log_info "Available Site Presets:"
+    echo ""
+    printf "%-15s %-40s\n" "Preset" "Description"
+    echo "─────────────────────────────────────────────────────────────────"
+    printf "%-15s %-40s\n" "blank" "Empty WordPress installation"
+    printf "%-15s %-40s\n" "woocommerce" "WooCommerce with starter theme"
+    printf "%-15s %-40s\n" "elementor" "Elementor page builder"
+    printf "%-15s %-40s\n" "bbpress" "bbPress forum plugin"
+    printf "%-15s %-40s\n" "buddypress" "BuddyPress social network"
+    printf "%-15s %-40s\n" "multisite" "WordPress Multisite"
+    echo ""
+    echo "Usage: ./matrix create mysite --preset=woocommerce"
+}
+
 # Frontend management
 manage_frontend() {
     local action="${1:-}"
@@ -2164,8 +2486,27 @@ main() {
         "cache"|"cache-clear")
             "$PROJECT_ROOT/scripts/cache-clear.sh" "$@"
             ;;
-        "search-replace")
+            "search-replace")
             "$PROJECT_ROOT/scripts/search-replace.sh" "$@"
+            ;;
+        "mail")
+            if command -v open >/dev/null 2>&1; then
+                open "http://localhost:8025"
+            else
+                echo "Open http://localhost:8025 in your browser"
+            fi
+            ;;
+        "xdebug")
+            configure_xdebug "$@"
+            ;;
+        "scaffold")
+            scaffold_project "$@"
+            ;;
+        "preset")
+            list_presets "$@"
+            ;;
+        "watch")
+            watch_site "$@"
             ;;
         "health")
             "$PROJECT_ROOT/scripts/health-check.sh"
