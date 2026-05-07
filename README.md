@@ -1,21 +1,29 @@
-# 🚀 WordPress Development Platform
+# WordPress Development Platform
 
-A streamlined WordPress development environment with Docker support, comprehensive code quality tools, web-based management interface, and simplified management.
+A streamlined WordPress development environment with Docker/Podman support, comprehensive code quality tools, web-based management interface, and simplified management.
 
-## ✨ Key Features
+## Key Features
 
-- **⚡ Simplified Management**: All-in-one `matrix` script for easy site management
-- **🌐 Web Interface**: Beautiful dashboard at http://localhost:8500 for visual management
-- **🧪 Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
-- **🔧 Multi-Site Environment**: Create and manage multiple WordPress instances
-- **🐳 Docker Support**: Full Docker and docker-compose support
-- **📊 Real-time Monitoring**: Track site status and health
+- **Simplified Management**: All-in-one `matrix` script for easy site management
+- **Modern Web Interface**: Beautiful dashboard at http://localhost:8500 with real-time status, keyboard shortcuts, and action modals
+- **Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
+- **Multi-Site Environment**: Create and manage multiple WordPress instances
+- **Container Runtime Support**: Full Docker and Podman support
+- **Real-time Dashboard**: Live status bar, auto-refresh on actions, keyboard shortcuts (R to refresh, 1-6 for tabs, ? for help)
+- **Database Operations**: Import/export SQL dumps, backups, restore
+- **Resource Limits**: Configure memory and CPU limits per site (`./matrix edit site --memory=512M --cpu=1`)
+- **Activity Log**: Track all site operations in dashboard activity tab
 
-## 🚀 Quick Start
+## Requirements
+
+- Docker OR Podman with docker-compose/podman-compose
+- Node.js (for frontend web interface)
+
+## Quick Start
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/wordpress-matrix.git
+git clone https://github.com/barunTayenjam/wordpress-matrix.git
 cd wordpress-matrix
 
 # Make script executable
@@ -27,21 +35,24 @@ chmod +x matrix
 # Create your first site
 ./matrix create mysite
 
-# Start your site
-./matrix start mysite
-
 # Access the web dashboard
 open http://localhost:8500
+
+# Access your site (port shown after creation)
+open http://localhost:8201
 ```
 
-## 📖 Documentation
+After creating a site, the command output shows the direct access URL (e.g., http://localhost:8201).
+
+## Documentation
 
 - **[AGENTS.md](AGENTS.md)** - Comprehensive guide for AI agents and developers
 - **Web Dashboard** - Interactive management interface at http://localhost:8500
 
-## 🎯 Common Tasks
+## Common Tasks
 
 ### Site Management
+
 ```bash
 # Create a new site (default PHP 8.3)
 ./matrix create blog
@@ -49,7 +60,6 @@ open http://localhost:8500
 # Create a site with specific PHP version
 ./matrix create oldsite --php-version=7.4
 ./matrix create testsite --php-version=8.1
-./matrix create modernsite --php-version=8.2
 
 # List all sites
 ./matrix list
@@ -63,14 +73,63 @@ open http://localhost:8500
 # Stop specific site
 ./matrix stop blog
 
-# Stop all services (including frontend)
-./matrix stop
+# Restart a site
+./matrix restart blog
+
+# View site info
+./matrix info blog
+
+# Show site URL
+./matrix url blog
 
 # Remove a site
-./matrix remove blog
+./matrix remove blog --yes
+
+# Edit site configuration (PHP version, port, resources)
+./matrix edit blog --php-version=8.2
+./matrix edit blog --port=8203
+./matrix edit blog --memory=512M --cpu=1
 ```
 
+### Backup & Restore
+
+```bash
+# Backup a site
+./matrix backup blog
+
+# Restore from backup
+./matrix restore blog backups/blog-20260501.tar.gz
+```
+
+### Database Operations
+
+```bash
+# Export database
+./matrix export-db blog
+
+# Export to specific file
+./matrix export-db blog mydump.sql
+
+# Import database
+./matrix import-db blog dumpfile.sql
+```
+
+### Site Operations via Web Dashboard
+
+The frontend at http://localhost:8500 provides:
+- **Start/Stop/Restart** sites with one click
+- **Create** new sites with PHP version selector
+- **Backup** sites to tar.gz archives
+- **Edit** PHP version, port, memory, and CPU
+- **Clone** existing sites
+- **Reset** to fresh WordPress install
+- **Export/Import** SQL databases
+- **View** site logs
+- **Delete** sites
+- **Activity Log** - Track all site operations
+
 ### Code Quality Checks
+
 ```bash
 # Check all sites
 ./matrix check
@@ -83,6 +142,7 @@ open http://localhost:8500
 ```
 
 ### Frontend Management
+
 ```bash
 # Start web interface
 ./matrix frontend start
@@ -94,40 +154,45 @@ open http://localhost:8500
 ./matrix frontend status
 ```
 
-### WordPress CLI
+### Shell Access
+
 ```bash
-# Access WordPress CLI
+# Access WordPress container shell
 ./matrix shell wp
 
+# Access database
+./matrix shell db
+
+# Access nginx container
+./matrix shell nginx
+
 # Check PHP version in running container
-docker exec wp_mysite php -v
-
-# Install plugins
-wp plugin install query-monitor --activate --path=/var/www/html/mysite
-
-# Database operations
-wp db export backup.sql --path=/var/www/html/mysite
+podman exec wp_blog php -v
+# or with docker:
+docker exec wp_blog php -v
 ```
 
-## 🌐 Access URLs
+## Access URLs
 
 ### Web Dashboard
 - **Dashboard**: http://localhost:8500
 
 ### WordPress Sites
-Sites are accessible on sequentially assigned ports:
-- First site: http://localhost:8100
-- Second site: http://localhost:8101
-- Third site: http://localhost:8102
+Sites are accessible on sequentially assigned ports starting from 8201 (8200 is reserved for phpMyAdmin):
+- First site: http://localhost:8201
+- Second site: http://localhost:8202
 - And so on...
+
+The site URL is displayed after running `./matrix create <name>` or `./matrix url <name>`. You can also view all site URLs via the web dashboard.
 
 ### Management Tools
 - **phpMyAdmin**: http://localhost:8200
 - **Database**: localhost:3306
 
-## 🔧 Features
+## Features
 
 ### PHP Version Management
+
 ```bash
 # Supported PHP versions
 ./matrix create site74 --php-version=7.4   # Legacy WordPress testing
@@ -141,18 +206,6 @@ Each site can run a different PHP version, allowing you to:
 - Test plugins/themes across multiple PHP versions
 - Debug compatibility issues
 - Gradually migrate legacy sites to newer PHP
-- Reproduce customer environments
-
-### Code Quality Tools
-- **PHPStan Level 9**: Strict static analysis
-- **PHP CodeSniffer**: WordPress coding standards
-- **Automated Checks**: Run on specific sites or paths
-
-### Development Tools
-- **WordPress CLI**: Pre-configured WP-CLI access
-- **Database Management**: phpMyAdmin integration
-- **Web Dashboard**: Visual site management
-- **API Endpoints**: Programmatic control
 
 ### Container Services
 - **MySQL 8.0**: Database server with health checks
@@ -162,15 +215,21 @@ Each site can run a different PHP version, allowing you to:
 - **phpMyAdmin**: Database management interface
 
 ### Web Dashboard Features
-- **Site Management**: Create, start, stop, remove sites
+- **Site Management**: Create, start, stop, restart, remove sites
+- **Backup & Restore**: Full site backup/restore functionality
+- **Database Operations**: Import/export SQL dumps
+- **Edit Configuration**: Change PHP version per site
+- **Clone Sites**: Duplicate existing sites
+- **Reset Sites**: Reset to fresh WordPress installation
+- **View Logs**: Real-time site log streaming
 - **Real-time Status**: View all sites and services at a glance
 - **Code Quality**: Run checks directly from the UI
-- **Environment Control**: Start/stop entire environment
-- **Modern Interface**: Responsive, clean design
+- **Modern Interface**: Responsive, clean design with dark mode
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Quick Fixes
+
 ```bash
 # Services won't start
 ./matrix clean
@@ -187,11 +246,12 @@ lsof -ti:8500 | xargs kill -9  # Clear frontend port
 ```
 
 ### Logs
+
 ```bash
 # View frontend logs
 tail -f logs/frontend.log
 
-# View Docker logs
+# View site logs
 ./matrix logs <site-name>
 ```
 
@@ -200,23 +260,23 @@ tail -f logs/frontend.log
 2. **View Dashboard**: http://localhost:8500
 3. **Review Documentation**: Check [AGENTS.md](AGENTS.md)
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 wordpress-matrix/
 ├── matrix                 # Main management script
 ├── docker-compose.yml     # Docker services configuration
-├── frontend/             # Web management interface
-│   ├── app.js           # Express server
-│   ├── public/          # Static assets
-│   └── views/           # Handlebars templates
-├── scripts/             # Utility scripts
-├── config/nginx/        # Nginx configurations
-├── logs/                # Application logs
-└── wp_*/               # WordPress site directories
+├── frontend/              # Web management interface
+│   ├── app.js            # Express server
+│   ├── public/           # Static assets & JS
+│   └── views/            # Handlebars templates
+├── scripts/              # Utility scripts
+├── config/nginx/         # Nginx configurations
+├── logs/                 # Application logs
+└── wp_*/                # WordPress site directories
 ```
 
-## 🚀 Getting Started Checklist
+## Getting Started Checklist
 
 ### First-Time Setup
 - [ ] Clone repository
@@ -231,36 +291,50 @@ wordpress-matrix/
 - [ ] Create sites as needed
 - [ ] Use web dashboard for visual management
 - [ ] Run code quality checks before commits
-- [ ] Monitor logs when troubleshooting
+- [ ] Use backups before major changes
 
-## 📊 Port Configuration
+## Port Configuration
 
-| Service | Port Range |
-|---------|-----------|
+| Service | Port |
+|---------|------|
 | Frontend Dashboard | 8500 |
 | phpMyAdmin | 8200 |
-| WordPress Sites | 8100+ |
+| WordPress Sites | 8201+ |
 | Database | 3306 |
 
-## 🔒 Security
+## Security
 
 - Frontend runs as non-root user
 - No docker socket mounting required
 - Database credentials in `.env` file
 - Site name validation prevents conflicts
 
-## 🤝 Contributing
+## Quick Reference
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+```bash
+./matrix create mysite          # Create site (PHP 8.3)
+./matrix create mysite --php-version=8.1  # PHP 8.1
+./matrix start                 # Start all services
+./matrix start mysite          # Start specific site
+./matrix stop mysite           # Stop specific site
+./matrix restart mysite        # Restart specific site
+./matrix remove mysite --yes   # Remove site
+./matrix backup mysite         # Backup site
+./matrix restore mysite backups/myfile.tar.gz
+./matrix export-db mysite      # Export database
+./matrix import-db mysite dump.sql
+./matrix edit mysite --php-version=8.2
+./matrix logs mysite           # View logs
+./matrix check mysite          # Code quality check
+./matrix list                  # List sites
+./matrix status                # System status
+./matrix frontend start        # Start web UI
+```
 
-## 📝 License
+## License
 
 MIT License - feel free to use this for your projects
 
-## 🎉 Happy Developing!
+## Happy Developing!
 
 **Quick Start**: `chmod +x matrix && ./matrix start && ./matrix create mysite && ./matrix start mysite && open http://localhost:8500`
