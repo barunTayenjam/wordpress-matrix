@@ -46,5 +46,6 @@ See: .planning/PROJECT.md
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260418-22ju | Fix podman compatibility for site creation and management | 2026-04-18 | fc6b972 | [260418-22ju-fix-podman-compat](./quick/260418-22ju-fix-podman-compat/) |
+| 260507-qna | Fix matrix script syntax + unresponsive frontend | 2026-05-07 | 2edd76e | [260507-qna-cant-start-the-sites-front-end-seems-to-](./quick/260507-qna-cant-start-the-sites-front-end-seems-to-/) |
 
-Last activity: 2026-04-18 - Completed quick task 260418-22ju: Fix podman compatibility for site creation and management
+Last activity: 2026-05-07 - Completed quick task 260507-qna: Fix matrix script syntax + unresponsive frontend
