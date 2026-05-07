@@ -264,7 +264,7 @@ tail -f logs/frontend.log
 
 ```
 wordpress-matrix/
-├── matrix                 # Main management script
+├── matrix                 # Unified management script (works from any directory)
 ├── docker-compose.yml     # Docker services configuration
 ├── frontend/              # Web management interface
 │   ├── app.js            # Express server
@@ -275,6 +275,8 @@ wordpress-matrix/
 ├── logs/                 # Application logs
 └── wp_*/                # WordPress site directories
 ```
+
+> **Note**: The `matrix` script is unified - it works from the project root or the `frontend/` subdirectory. When run from `frontend/`, it automatically adjusts paths to the project root.
 
 ## Getting Started Checklist
 
