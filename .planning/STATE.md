@@ -47,6 +47,6 @@ See: .planning/PROJECT.md
 |---|-------------|------|--------|-----------|
 | 260418-22ju | Fix podman compatibility for site creation and management | 2026-04-18 | fc6b972 | [260418-22ju-fix-podman-compat](./quick/260418-22ju-fix-podman-compat/) |
 | 260507-qna | Fix matrix script syntax + unresponsive frontend | 2026-05-07 | 2edd76e | [260507-qna-cant-start-the-sites-front-end-seems-to-](./quick/260507-qna-cant-start-the-sites-front-end-seems-to-/) |
-| 260508-001 | Fix site logs command hanging forever (follow mode) | 2026-05-08 | 5921bcd | [260508-001-fix-site-logs](./quick/260508-001-fix-site-logs/) |
+| 260508-001 | Fix site logs — no follow mode, newest-first order | 2026-05-08 | 373c8ae | [260508-001-fix-site-logs](./quick/260508-001-fix-site-logs/) |
 
-Last activity: 2026-05-08 - Completed quick task 260508-001: Fix site logs command hanging forever (follow mode)
+Last activity: 2026-05-08 - Completed quick task 260508-001: Fix site logs (no follow mode, newest-first order)
