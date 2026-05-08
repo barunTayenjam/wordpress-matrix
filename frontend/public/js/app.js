@@ -65,7 +65,8 @@ function initWebSocket() {
 function updateStatusFromWebSocket(data) {
   if (data.containers && Array.isArray(data.containers)) {
     data.containers.forEach(container => {
-      if (container.name && container.name.startsWith('wp_')) {
+      // Only process WordPress site containers (wp_sitename format)
+      if (container.name && container.name.startsWith('wp_') && !container.name.startsWith('wp_phpmyadmin') && !container.name.startsWith('wp_db') && !container.name.startsWith('wp_redis')) {
         const siteName = container.name.replace('wp_', '');
         const site = currentData.sites.find(s => s.name === siteName);
         if (site) {
@@ -75,6 +76,7 @@ function updateStatusFromWebSocket(data) {
     });
   }
   updateDashboard();
+  updateLiveStatus();
 }
 
 function handleOperationEvent(data) {
@@ -225,17 +227,20 @@ function updateLastUpdateTime() {
 }
 
 function updateLiveStatus() {
-  const running = currentData.sites.filter(s => s.status === 'Running').length;
-  const stopped = currentData.sites.filter(s => s.status === 'Stopped').length;
-  const services = currentData.services.filter(s => s.status === 'Running').length;
+  const running = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
+  const stopped = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'stopped').length;
+  const services = currentData.services.filter(s => s.status && s.status.toLowerCase() === 'running').length;
+  const total = currentData.sites.length;
   
   const liveRunning = document.getElementById('live-running');
   const liveStopped = document.getElementById('live-stopped');
   const liveServices = document.getElementById('live-services');
+  const totalSites = document.getElementById('total-sites-count');
   
   if (liveRunning) liveRunning.textContent = running;
   if (liveStopped) liveStopped.textContent = stopped;
   if (liveServices) liveServices.textContent = services;
+  if (totalSites) totalSites.textContent = total;
 }
 
 function initKeyboardShortcuts() {
@@ -341,8 +346,8 @@ function getActionClass(action) {
 
 // Update dashboard UI
 function updateDashboard() {
-  const runningSites = currentData.sites.filter(site => site.status === 'Running');
-  const runningServices = currentData.services.filter(service => service.status === 'Running');
+  const runningSites = currentData.sites.filter(site => site.status && site.status.toLowerCase() === 'running');
+  const runningServices = currentData.services.filter(service => service.status && service.status.toLowerCase() === 'running');
   
   // Update counters (only if elements exist)
   const runningSitesCount = document.getElementById('running-sites-count');

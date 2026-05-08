@@ -224,8 +224,14 @@ app.get('/', async (req, res) => {
     if (result.stdout) {
       try {
         const parsed = JSON.parse(result.stdout);
-        sites = parsed.sites || [];
-        services = parsed.services || [];
+        sites = (parsed.sites || []).map(s => ({
+          ...s,
+          status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+        }));
+        services = (parsed.services || []).map(s => ({
+          ...s,
+          status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+        }));
       } catch (e) {
         console.error('Failed to parse sites JSON:', e);
       }
@@ -269,8 +275,14 @@ app.get('/api/sites', async (req, res) => {
     
     const response = {
       success: true,
-      sites: data.sites || [],
-      services: data.services || []
+      sites: (data.sites || []).map(s => ({
+        ...s,
+        status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+      })),
+      services: (data.services || []).map(s => ({
+        ...s,
+        status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+      }))
     };
     
     // Cache the response
@@ -531,14 +543,38 @@ app.post('/api/environment/:action', async (req, res) => {
   }
 
   try {
-    const result = await executeMatrix(action);
-    
-    res.json({
-      success: result.success,
-      output: result.stdout,
-      error: result.stderr,
-      exitCode: result.exitCode
-    });
+    if (action === 'restart') {
+      // For restart, respond immediately and restart in background
+      // to avoid the server killing itself before sending the response
+      res.json({
+        success: true,
+        output: 'Environment restart initiated...',
+        exitCode: 0
+      });
+      
+      // Restart environment in background without waiting for completion
+      setTimeout(() => {
+        const { spawn } = require('child_process');
+        const path = require('path');
+        const matrixPath = path.join(__dirname, '..', 'matrix');
+        const matrixCmd = spawn(matrixPath, ['restart'], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        
+        matrixCmd.unref(); // Prevent the parent from waiting for the child
+      }, 100);
+    } else {
+      // For other actions, proceed normally
+      const result = await executeMatrix(action);
+      
+      res.json({
+        success: result.success,
+        output: result.stdout,
+        error: result.stderr,
+        exitCode: result.exitCode
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -559,14 +595,38 @@ app.post('/api/frontend/:action', async (req, res) => {
   }
 
   try {
-    const result = await executeMatrix('frontend', [action]);
-    
-    res.json({
-      success: result.success,
-      output: result.stdout,
-      error: result.stderr,
-      exitCode: result.exitCode
-    });
+    if (action === 'restart') {
+      // For restart, respond immediately and restart in background
+      // to avoid the server killing itself before sending the response
+      res.json({
+        success: true,
+        output: 'Frontend restart initiated...',
+        exitCode: 0
+      });
+      
+      // Restart frontend in background without waiting for completion
+      setTimeout(() => {
+        const { spawn } = require('child_process');
+        const path = require('path');
+        const matrixPath = path.join(__dirname, '..', 'matrix');
+        const matrixCmd = spawn(matrixPath, ['frontend', 'restart'], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        
+        matrixCmd.unref(); // Prevent the parent from waiting for the child
+      }, 100);
+    } else {
+      // For other actions, proceed normally
+      const result = await executeMatrix('frontend', [action]);
+      
+      res.json({
+        success: result.success,
+        output: result.stdout,
+        error: result.stderr,
+        exitCode: result.exitCode
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,
