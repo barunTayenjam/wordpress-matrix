@@ -88,6 +88,12 @@ opcache/
 wp-cache/
 sess_*
 
+# GSD Planning files (local only, never commit)
+.planning/
+
+# Frontend process ID (local only)
+.frontend.pid
+
 # WordPress Matrix: Keep core app files, exclude content
 !matrix
 !docker-compose.yml
