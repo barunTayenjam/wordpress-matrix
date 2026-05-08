@@ -862,27 +862,28 @@ show_status() {
     list_sites
 }
 
-# Show logs
+# Show logs (newest first)
 show_logs() {
     local service="${1:-}"
+    local reverse_cmd="perl -e 'print reverse <>'"
 
     if [[ -n "$service" ]]; then
         if [[ "$service" == "db" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 "$service"
+            $DOCKER_COMPOSE logs --tail=100 "$service" | eval "$reverse_cmd"
         elif [[ "$service" == "nginx" ]]; then
             local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -gt 0 ]]; then
-                $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}"
+                $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}" | eval "$reverse_cmd"
             else
                 # Try direct docker
-                $CONTAINER_RUNTIME logs --tail=100 nginx_su21 2>/dev/null || \
-                $CONTAINER_RUNTIME logs --tail=100 nginx_su26 2>/dev/null || \
+                $CONTAINER_RUNTIME logs --tail=100 nginx_su21 2>/dev/null | eval "$reverse_cmd" || \
+                $CONTAINER_RUNTIME logs --tail=100 nginx_su26 2>/dev/null | eval "$reverse_cmd" || \
                 log_error "No nginx containers running"
             fi
         elif [[ "$service" == "redis" || "$service" == "cache" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 redis
+            $DOCKER_COMPOSE logs --tail=100 redis | eval "$reverse_cmd"
         elif [[ "$service" == "phpmyadmin" || "$service" == "pma" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 phpmyadmin
+            $DOCKER_COMPOSE logs --tail=100 phpmyadmin | eval "$reverse_cmd"
         else
             # Assume it's a site name
             local wp_container="wp_$service"
@@ -890,20 +891,20 @@ show_logs() {
 
             # Try docker-compose first
             if $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
-                $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null
+                $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null | eval "$reverse_cmd"
             else
                 # Fall back to direct docker logs
                 if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                    $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1
+                    $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1 | eval "$reverse_cmd"
                 elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                    $CONTAINER_RUNTIME logs --tail=100 "$wp_container" 2>&1
+                    $CONTAINER_RUNTIME logs --tail=100 "$wp_container" 2>&1 | eval "$reverse_cmd"
                 else
                     log_error "No containers found for site: $service"
                 fi
             fi
         fi
     else
-        $DOCKER_COMPOSE logs --tail=100
+        $DOCKER_COMPOSE logs --tail=100 | eval "$reverse_cmd"
     fi
 }
 
