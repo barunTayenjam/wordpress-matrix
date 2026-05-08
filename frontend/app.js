@@ -125,7 +125,7 @@ const executeMatrix = async (command, args = []) => {
     const projectRoot = path.join(__dirname, '..');
     const matrixPath = path.join(projectRoot, 'matrix');
 
-    const isLongRunning = ['check', 'start', 'stop', 'restart', 'create', 'import-db', 'export-db', 'restore', 'clone', 'reset', 'install', 'edit', 'remove', 'backup'].includes(command);
+    const isLongRunning = ['check', 'start', 'stop', 'restart', 'create', 'logs', 'import-db', 'export-db', 'restore', 'clone', 'reset', 'install', 'edit', 'remove', 'backup'].includes(command);
     const timeout = isLongRunning ? 300000 : 30000;
 
     console.log(`[Frontend] Executing: matrix ${command} ${args.join(' ')}`);

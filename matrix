@@ -868,42 +868,42 @@ show_logs() {
 
     if [[ -n "$service" ]]; then
         if [[ "$service" == "db" ]]; then
-            $DOCKER_COMPOSE logs -f db
+            $DOCKER_COMPOSE logs --tail=100 "$service"
         elif [[ "$service" == "nginx" ]]; then
             local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -gt 0 ]]; then
-                $DOCKER_COMPOSE logs -f "${nginx_containers[0]}"
+                $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}"
             else
                 # Try direct docker
-                $CONTAINER_RUNTIME logs -f nginx_su21 2>/dev/null || \
-                $CONTAINER_RUNTIME logs -f nginx_su26 2>/dev/null || \
+                $CONTAINER_RUNTIME logs --tail=100 nginx_su21 2>/dev/null || \
+                $CONTAINER_RUNTIME logs --tail=100 nginx_su26 2>/dev/null || \
                 log_error "No nginx containers running"
             fi
         elif [[ "$service" == "redis" || "$service" == "cache" ]]; then
-            $DOCKER_COMPOSE logs -f redis
+            $DOCKER_COMPOSE logs --tail=100 redis
         elif [[ "$service" == "phpmyadmin" || "$service" == "pma" ]]; then
-            $DOCKER_COMPOSE logs -f phpmyadmin
+            $DOCKER_COMPOSE logs --tail=100 phpmyadmin
         else
-            # Assume it's a site name - try both compose and direct docker
+            # Assume it's a site name
             local wp_container="wp_$service"
             local nginx_container="nginx_$service"
 
             # Try docker-compose first
-            if $DOCKER_COMPOSE logs "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
-                $DOCKER_COMPOSE logs -f "$wp_container" "$nginx_container" 2>/dev/null
+            if $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
+                $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null
             else
                 # Fall back to direct docker logs
                 if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                    $CONTAINER_RUNTIME logs -f "$nginx_container" 2>&1
+                    $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1
                 elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                    $CONTAINER_RUNTIME logs -f "$wp_container" 2>&1
+                    $CONTAINER_RUNTIME logs --tail=100 "$wp_container" 2>&1
                 else
                     log_error "No containers found for site: $service"
                 fi
             fi
         fi
     else
-        $DOCKER_COMPOSE logs -f
+        $DOCKER_COMPOSE logs --tail=100
     fi
 }
 
@@ -2181,20 +2181,30 @@ manage_frontend() {
     case "$action" in
         "start")
             # Check if port 8500 is already in use
-            local port_pid=$(lsof -ti:8500 2>/dev/null)
-            if [[ -n "$port_pid" ]]; then
+            local port_pids=$(lsof -ti:8500 2>/dev/null | tr '\n' ' ')
+            if [[ -n "$port_pids" ]]; then
                 # Check if it's already our frontend
                 if [[ -f "$pid_file" ]]; then
                     local existing_pid=$(cat "$pid_file")
-                    if [[ "$port_pid" == "$existing_pid" ]] || ps -p "$port_pid" > /dev/null 2>&1; then
-                        log_warning "Frontend is already running on port 8500 (PID: $port_pid)"
+                    # Check if any of the port PIDs match our expected PID
+                    local match=false
+                    for pid in $port_pids; do
+                        if [[ "$pid" == "$existing_pid" ]]; then
+                            match=true
+                            break
+                        fi
+                    done
+                    if $match && ps -p "$existing_pid" > /dev/null 2>&1; then
+                        log_warning "Frontend is already running on port 8500 (PID: $existing_pid)"
                         return 0
                     fi
                 fi
-                # Port is in use by another process
-                log_error "Port 8500 is already in use by another process (PID: $port_pid)"
-                log_info "Kill it with: kill -9 $port_pid"
-                return 1
+                # Port is in use by leftover processes - kill them all
+                log_warning "Cleaning up leftover processes on port 8500..."
+                for pid in $port_pids; do
+                    kill -9 "$pid" 2>/dev/null || true
+                done
+                sleep 1
             fi
 
             if [[ ! -d "$frontend_dir" ]]; then
@@ -2231,11 +2241,13 @@ manage_frontend() {
                 fi
             fi
 
-            # Also check by port
-            local port_pid=$(lsof -ti:8500 2>/dev/null)
-            if [[ -n "$port_pid" ]]; then
+            # Kill ALL processes on port 8500 (handle stale/leftover processes)
+            local port_pids=$(lsof -ti:8500 2>/dev/null | tr '\n' ' ')
+            if [[ -n "$port_pids" ]]; then
                 is_running=true
-                current_pid=${current_pid:-$port_pid}
+                if [[ -z "$current_pid" ]]; then
+                    current_pid=$(echo "$port_pids" | awk '{print $1}')
+                fi
             fi
 
             if ! $is_running; then
@@ -2245,12 +2257,17 @@ manage_frontend() {
             fi
 
             log_info "Stopping frontend (PID: $current_pid)..."
-            kill "$current_pid" 2>/dev/null
+            # Kill all found PIDs on port 8500
+            for pid in $port_pids; do
+                kill "$pid" 2>/dev/null || true
+            done
             sleep 1
 
-            if ps -p "$current_pid" > /dev/null 2>&1; then
-                kill -9 "$current_pid" 2>/dev/null
-            fi
+            for pid in $port_pids; do
+                if ps -p "$pid" > /dev/null 2>&1; then
+                    kill -9 "$pid" 2>/dev/null || true
+                fi
+            done
 
             rm -f "$pid_file"
             log_success "Frontend stopped"
