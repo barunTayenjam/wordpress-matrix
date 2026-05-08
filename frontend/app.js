@@ -452,14 +452,14 @@ app.post('/api/sites/reset', async (req, res) => {
 
 // Site logs endpoint
 app.post('/api/sites/logs', async (req, res) => {
-  const { siteName } = req.body;
+  const { siteName, lines = 100 } = req.body;
 
   if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+    return res.status(400).json({ success: false, error: 'Site name required' });
   }
 
   try {
-    const result = await executeMatrix('logs', [siteName]);
+    const result = await executeMatrix('logs', [siteName, '--tail', lines.toString()]);
     res.json({ success: result.success, output: result.stdout, error: result.stderr });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });

@@ -225,9 +225,9 @@ function updateLastUpdateTime() {
 }
 
 function updateLiveStatus() {
-  const running = currentData.sites.filter(s => s.status === 'Running').length;
-  const stopped = currentData.sites.filter(s => s.status === 'Stopped').length;
-  const services = currentData.services.filter(s => s.status === 'Running').length;
+  const running = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
+  const stopped = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'stopped').length;
+  const services = currentData.services.filter(s => s.status && s.status.toLowerCase() === 'running').length;
   
   const liveRunning = document.getElementById('live-running');
   const liveStopped = document.getElementById('live-stopped');
@@ -341,8 +341,8 @@ function getActionClass(action) {
 
 // Update dashboard UI
 function updateDashboard() {
-  const runningSites = currentData.sites.filter(site => site.status === 'Running');
-  const runningServices = currentData.services.filter(service => service.status === 'Running');
+  const runningSites = currentData.sites.filter(site => site.status && site.status.toLowerCase() === 'running');
+  const runningServices = currentData.services.filter(service => service.status && service.status.toLowerCase() === 'running');
   
   // Update counters (only if elements exist)
   const runningSitesCount = document.getElementById('running-sites-count');

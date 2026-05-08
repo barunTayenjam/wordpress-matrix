@@ -865,45 +865,85 @@ show_status() {
 # Show logs
 show_logs() {
     local service="${1:-}"
+    local follow="${2:-true}"
+    local tail_lines="${3:-100}"
 
     if [[ -n "$service" ]]; then
         if [[ "$service" == "db" ]]; then
-            $DOCKER_COMPOSE logs -f db
+            if [[ "$follow" == "true" ]]; then
+                $DOCKER_COMPOSE logs -f --tail="$tail_lines" db
+            else
+                $DOCKER_COMPOSE logs --tail="$tail_lines" db
+            fi
         elif [[ "$service" == "nginx" ]]; then
             local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -gt 0 ]]; then
-                $DOCKER_COMPOSE logs -f "${nginx_containers[0]}"
+                if [[ "$follow" == "true" ]]; then
+                    $DOCKER_COMPOSE logs -f --tail="$tail_lines" "${nginx_containers[0]}"
+                else
+                    $DOCKER_COMPOSE logs --tail="$tail_lines" "${nginx_containers[0]}"
+                fi
             else
                 # Try direct docker
-                $CONTAINER_RUNTIME logs -f nginx_su21 2>/dev/null || \
-                $CONTAINER_RUNTIME logs -f nginx_su26 2>/dev/null || \
-                log_error "No nginx containers running"
+                if [[ "$follow" == "true" ]]; then
+                    $CONTAINER_RUNTIME logs -f --tail="$tail_lines" nginx_su21 2>/dev/null || \
+                    $CONTAINER_RUNTIME logs -f --tail="$tail_lines" nginx_su26 2>/dev/null || \
+                    log_error "No nginx containers running"
+                else
+                    $CONTAINER_RUNTIME logs --tail="$tail_lines" nginx_su21 2>/dev/null || \
+                    $CONTAINER_RUNTIME logs --tail="$tail_lines" nginx_su26 2>/dev/null || \
+                    log_error "No nginx containers running"
+                fi
             fi
         elif [[ "$service" == "redis" || "$service" == "cache" ]]; then
-            $DOCKER_COMPOSE logs -f redis
+            if [[ "$follow" == "true" ]]; then
+                $DOCKER_COMPOSE logs -f --tail="$tail_lines" redis
+            else
+                $DOCKER_COMPOSE logs --tail="$tail_lines" redis
+            fi
         elif [[ "$service" == "phpmyadmin" || "$service" == "pma" ]]; then
-            $DOCKER_COMPOSE logs -f phpmyadmin
+            if [[ "$follow" == "true" ]]; then
+                $DOCKER_COMPOSE logs -f --tail="$tail_lines" phpmyadmin
+            else
+                $DOCKER_COMPOSE logs --tail="$tail_lines" phpmyadmin
+            fi
         else
             # Assume it's a site name - try both compose and direct docker
             local wp_container="wp_$service"
             local nginx_container="nginx_$service"
 
             # Try docker-compose first
-            if $DOCKER_COMPOSE logs "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
-                $DOCKER_COMPOSE logs -f "$wp_container" "$nginx_container" 2>/dev/null
+            if $DOCKER_COMPOSE logs --tail="$tail_lines" "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
+                if [[ "$follow" == "true" ]]; then
+                    $DOCKER_COMPOSE logs -f --tail="$tail_lines" "$wp_container" "$nginx_container" 2>/dev/null
+                else
+                    $DOCKER_COMPOSE logs --tail="$tail_lines" "$wp_container" "$nginx_container" 2>/dev/null
+                fi
             else
                 # Fall back to direct docker logs
                 if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                    $CONTAINER_RUNTIME logs -f "$nginx_container" 2>&1
+                    if [[ "$follow" == "true" ]]; then
+                        $CONTAINER_RUNTIME logs -f --tail="$tail_lines" "$nginx_container" 2>&1
+                    else
+                        $CONTAINER_RUNTIME logs --tail="$tail_lines" "$nginx_container" 2>&1
+                    fi
                 elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                    $CONTAINER_RUNTIME logs -f "$wp_container" 2>&1
+                    if [[ "$follow" == "true" ]]; then
+                        $CONTAINER_RUNTIME logs -f --tail="$tail_lines" "$wp_container" 2>&1
+                    else
+                        $CONTAINER_RUNTIME logs --tail="$tail_lines" "$wp_container" 2>&1
+                    fi
                 else
                     log_error "No containers found for site: $service"
                 fi
             fi
         fi
     else
-        $DOCKER_COMPOSE logs -f
+        if [[ "$follow" == "true" ]]; then
+            $DOCKER_COMPOSE logs -f --tail="$tail_lines"
+        else
+            $DOCKER_COMPOSE logs --tail="$tail_lines"
+        fi
     fi
 }
 
