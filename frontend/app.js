@@ -237,10 +237,12 @@ app.get('/', async (req, res) => {
       }
     }
     
+    const runningSitesCount = sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
     res.render('dashboard', {
       title: 'WordPress Matrix Dashboard',
       sites,
       services,
+      runningSitesCount,
       matrixCommand: './matrix'
     });
   } catch (error) {
