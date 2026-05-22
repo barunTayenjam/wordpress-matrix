@@ -53,7 +53,7 @@ done
 # Clear Redis cache
 clear_redis() {
     log_info "Clearing Redis cache..."
-    if $DOCKER_COMPOSE exec -T redis redis-cli FLUSHALL > /dev/null 2>&1; then
+    if $CONTAINER_RUNTIME exec wp_redis redis-cli FLUSHALL > /dev/null 2>&1; then
         log_success "Redis cache cleared"
     else
         log_error "Failed to clear Redis cache"
@@ -63,9 +63,10 @@ clear_redis() {
 # Clear WordPress object cache
 clear_wp_cache() {
     local site="$1"
+    validate_site_name "$site" || return 1
     log_info "Clearing WordPress cache for: $site"
 
-    if $DOCKER_COMPOSE exec -T wpcli wp cache flush --path="/var/www/html/$site" --quiet; then
+    if run_wp_cli "$site" cache flush --quiet; then
         log_success "WordPress cache cleared for: $site"
     else
         log_warning "Failed to clear WordPress cache for: $site (may not have object cache)"
@@ -80,6 +81,7 @@ if [[ "$REDIS_ONLY" == false ]]; then
             clear_wp_cache "$site"
         done
     else
+        validate_site_name "$SITE_NAME" || exit 1
         if ! site_exists "$SITE_NAME"; then
             log_error "Site '$SITE_NAME' not found"
             exit 1

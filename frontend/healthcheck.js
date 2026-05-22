@@ -2,7 +2,7 @@
 
  const options = {
    hostname: 'localhost',
-   port: 8500,
+   port: process.env.PORT || 8500,
    path: '/api/sites',
    method: 'GET',
    timeout: 2000

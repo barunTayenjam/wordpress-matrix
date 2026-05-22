@@ -18,6 +18,24 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const PROJECT_ROOT = path.join(__dirname, '..');
+const MATRIX_PATH = path.join(PROJECT_ROOT, 'matrix');
+const VALID_SITE_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
+const RESERVED_SITE_NAMES = new Set(['frontend', 'matrix', 'db', 'redis', 'phpmyadmin', 'nginx']);
+const SUPPORTED_PHP_VERSIONS = new Set(['7.4', '8.0', '8.1', '8.2', '8.3']);
+const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check']);
+const ALLOWED_SITE_ACTIONS = new Set([...SITE_ACTIONS_REQUIRING_NAME]);
+const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install']);
+const ALLOWED_FRONTEND_ACTIONS = new Set(['start', 'stop', 'restart', 'status']);
+const MUTATING_SITE_ACTIONS = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check']);
+const MUTATING_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'clean', 'check', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install']);
+const ERROR_STATUS_MAP = {
+  INVALID_ACTION: 400,
+  INVALID_NAME: 400,
+  INVALID_INPUT: 400,
+  COMMAND_FAILED: 500,
+  DOCKER_ERROR: 503,
+};
 
 // Redis client for caching (optional)
 let redisClient = null;
@@ -36,7 +54,9 @@ const initRedis = async () => {
     console.log('[Redis] Not available, caching disabled');
   }
 };
-initRedis();
+if (process.env.NODE_ENV !== 'test') {
+  initRedis();
+}
 
 // Cache middleware
 const cacheGet = async (key) => {
@@ -52,6 +72,88 @@ const cacheSet = async (key, data, ttl = CACHE_TTL) => {
   try {
     await redisClient.setEx(key, ttl, JSON.stringify(data));
   } catch {}
+};
+
+const cacheDel = async (key) => {
+  if (!redisClient) return;
+  try {
+    await redisClient.del(key);
+  } catch {}
+};
+
+const parseJsonOutput = (stdout) => {
+  if (!stdout || !stdout.trim()) return null;
+  return JSON.parse(stdout);
+};
+
+const validateSiteName = (name) => {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, code: 'INVALID_NAME', message: 'Site name is required' };
+  }
+  if (!VALID_SITE_NAME.test(name)) {
+    return { valid: false, code: 'INVALID_NAME', message: 'Site name must start with a letter and contain only alphanumeric characters, hyphens, and underscores' };
+  }
+  if (RESERVED_SITE_NAMES.has(name.toLowerCase())) {
+    return { valid: false, code: 'INVALID_NAME', message: `"${name}" is a reserved site name` };
+  }
+  return { valid: true };
+};
+
+const validatePhpVersion = (version) => {
+  if (!version) return { valid: true };
+  if (!SUPPORTED_PHP_VERSIONS.has(String(version))) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Unsupported PHP version' };
+  }
+  return { valid: true };
+};
+
+const validateRelativeFilePath = (value, label) => {
+  if (!value || typeof value !== 'string') {
+    return { valid: false, code: 'INVALID_INPUT', message: `${label} is required` };
+  }
+  if (path.isAbsolute(value) || value.includes('..') || /[\0\r\n]/.test(value)) {
+    return { valid: false, code: 'INVALID_INPUT', message: `${label} must be a relative path inside the project` };
+  }
+  return { valid: true };
+};
+
+const validateCommandArgs = (args) => {
+  if (!Array.isArray(args)) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Command arguments must be an array' };
+  }
+  for (const arg of args) {
+    if (typeof arg !== 'string' || /[\0\r\n]/.test(arg)) {
+      return { valid: false, code: 'INVALID_INPUT', message: 'Command arguments contain invalid characters' };
+    }
+  }
+  return { valid: true };
+};
+
+const sendError = (res, code, message, overrideStatus) => {
+  const status = overrideStatus || ERROR_STATUS_MAP[code] || 500;
+  return res.status(status).json({ success: false, error: { code, message } });
+};
+
+const getErrorMessage = (result) => {
+  if (!result) return 'Unknown error';
+  if (result.error && typeof result.error === 'string') return result.error;
+  if (result.stderr && result.stderr.trim()) return result.stderr.trim();
+  if (result.stdout && result.stdout.trim()) {
+    const lines = result.stdout.split('\n').map(line => line.trim()).filter(Boolean);
+    return lines[lines.length - 1] || 'Command failed';
+  }
+  return 'Command failed';
+};
+
+const invalidateSitesCache = () => cacheDel('api:sites');
+
+const validateRequestSiteName = (res, siteName) => {
+  const validation = validateSiteName(siteName);
+  if (!validation.valid) {
+    sendError(res, validation.code, validation.message);
+    return false;
+  }
+  return true;
 };
 
 // Create HTTP server and initialize socket.io
@@ -74,7 +176,7 @@ const POLL_INTERVAL = 30000; // 30 seconds
 
 const pollStatus = async () => {
   try {
-    const result = await executeMatrix('status', [], true);
+    const result = await executeMatrix('status', [], { json: true });
     if (result.success && result.data) {
       const currentStatus = JSON.stringify(result.data);
       
@@ -93,17 +195,24 @@ const pollStatus = async () => {
   }
 };
 
-// Start status polling
-setInterval(pollStatus, POLL_INTERVAL);
-console.log(`[WebSocket] Status polling started (every ${POLL_INTERVAL/1000}s)`);
-
-// Initial status fetch after server starts
-setTimeout(() => {
-  pollStatus();
-}, 2000);
+const startStatusPolling = () => {
+  const interval = setInterval(pollStatus, POLL_INTERVAL);
+  console.log(`[WebSocket] Status polling started (every ${POLL_INTERVAL/1000}s)`);
+  setTimeout(() => {
+    pollStatus();
+  }, 2000);
+  return interval;
+};
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  }
+}));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -120,18 +229,20 @@ app.set('view engine', 'handlebars');
 app.set('views', path.join(__dirname, 'views'));
 
 // Helper function to execute matrix command
-const executeMatrix = async (command, args = []) => {
+const executeMatrix = async (command, args = [], options = {}) => {
   return new Promise((resolve, reject) => {
-    const projectRoot = path.join(__dirname, '..');
-    const matrixPath = path.join(projectRoot, 'matrix');
-
     const isLongRunning = ['check', 'start', 'stop', 'restart', 'create', 'logs', 'import-db', 'export-db', 'restore', 'clone', 'reset', 'install', 'edit', 'remove', 'backup'].includes(command);
     const timeout = isLongRunning ? 300000 : 30000;
+    const matrixArgs = [command, ...args];
 
-    console.log(`[Frontend] Executing: matrix ${command} ${args.join(' ')}`);
+    if (options.json && !matrixArgs.includes('--json')) {
+      matrixArgs.push('--json');
+    }
 
-    const matrixCmd = spawn(matrixPath, [command, ...args], {
-      cwd: projectRoot,
+    console.log(`[Frontend] Executing: matrix ${matrixArgs.join(' ')}`);
+
+    const matrixCmd = spawn(MATRIX_PATH, matrixArgs, {
+      cwd: PROJECT_ROOT,
       timeout: timeout,
       env: { ...process.env, NODE_ENV: 'development' }
     });
@@ -149,10 +260,20 @@ const executeMatrix = async (command, args = []) => {
 
     matrixCmd.on('close', (code) => {
       console.log(`[Frontend] Command completed with code: ${code}`);
+      let data;
+      if (options.json && stdout) {
+        try {
+          data = parseJsonOutput(stdout);
+        } catch (parseError) {
+          resolve({ success: false, stdout, stderr, exitCode: code, error: `Invalid JSON output: ${parseError.message}` });
+          return;
+        }
+      }
+
       if (code === 0) {
-        resolve({ success: true, stdout, stderr });
+        resolve({ success: true, stdout, stderr, data });
       } else {
-        resolve({ success: false, stdout, stderr, exitCode: code });
+        resolve({ success: false, stdout, stderr, exitCode: code, data });
       }
     });
 
@@ -169,72 +290,22 @@ const executeMatrix = async (command, args = []) => {
   });
 };
 
-// Parse site list output
-const parseSiteList = (output) => {
-  const lines = output.split('\n');
-  const sites = [];
-  const services = [];
-  let inSitesSection = false;
-  let inServicesSection = false;
-
-  for (const line of lines) {
-    if (line.includes('WordPress Sites & Services')) {
-      inSitesSection = true;
-      continue;
-    }
-    
-    if (line.includes('Service') && line.includes('Status')) {
-      inSitesSection = false;
-      inServicesSection = true;
-      continue;
-    }
-
-    if (line.includes('─') || line.trim() === '') {
-      continue;
-    }
-
-    const parts = line.trim().split(/\s{2,}/);
-    if (parts.length >= 4) {
-      const item = {
-        name: parts[0],
-        status: parts[1],
-        localUrl: parts[2],
-        domainUrl: parts[3],
-        type: inSitesSection ? 'site' : 'service'
-      };
-
-      if (inSitesSection && !item.name.includes('Site')) {
-        sites.push(item);
-      } else if (inServicesSection && !item.name.includes('Service')) {
-        services.push(item);
-      }
-    }
-  }
-
-  return { sites, services };
-};
-
 // Routes
 app.get('/', async (req, res) => {
   try {
-    const result = await executeMatrix('list', ['--json']);
+    const result = await executeMatrix('list', [], { json: true });
     let sites = [];
     let services = [];
     
-    if (result.stdout) {
-      try {
-        const parsed = JSON.parse(result.stdout);
-        sites = (parsed.sites || []).map(s => ({
-          ...s,
-          status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
-        }));
-        services = (parsed.services || []).map(s => ({
-          ...s,
-          status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
-        }));
-      } catch (e) {
-        console.error('Failed to parse sites JSON:', e);
-      }
+    if (result.success && result.data) {
+      sites = (result.data.sites || []).map(s => ({
+        ...s,
+        status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+      }));
+      services = (result.data.services || []).map(s => ({
+        ...s,
+        status: s.status ? s.status.charAt(0).toUpperCase() + s.status.slice(1) : s.status
+      }));
     }
     
     const runningSitesCount = sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
@@ -263,16 +334,13 @@ app.get('/api/sites', async (req, res) => {
   }
   
   try {
-    const result = await executeMatrix('list', ['--json']);
+    const result = await executeMatrix('list', [], { json: true });
     
-    // Parse JSON from stdout since --json flag is used
     let data = { sites: [], services: [] };
-    if (result.success && result.stdout) {
-      try {
-        data = JSON.parse(result.stdout);
-      } catch (parseErr) {
-        console.error('[API] Failed to parse JSON:', parseErr.message);
-      }
+    if (result.success && result.data) {
+      data = result.data;
+    } else if (!result.success) {
+      return sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
     }
     
     const response = {
@@ -292,10 +360,7 @@ app.get('/api/sites', async (req, res) => {
     
     res.json(response);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -305,20 +370,21 @@ app.get('/api/sites', async (req, res) => {
 app.post('/api/sites/backup', async (req, res) => {
   const { siteName } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
 
   try {
     const result = await executeMatrix('backup', [siteName]);
 
     if (result.success) {
+      await invalidateSitesCache();
       res.json({ success: true, output: result.stdout });
     } else {
-      res.status(500).json({ success: false, error: result.stderr });
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
     }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -326,8 +392,8 @@ app.post('/api/sites/backup', async (req, res) => {
 app.post('/api/sites/restart', async (req, res) => {
   const { siteName } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
 
   try {
@@ -342,9 +408,14 @@ app.post('/api/sites/restart', async (req, res) => {
       io.emit('site.operation', { type: result.success ? 'success' : 'failure', operation: 'restart', site: siteName, timestamp: new Date().toISOString() });
     }
 
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -352,15 +423,19 @@ app.post('/api/sites/restart', async (req, res) => {
 app.post('/api/sites/url', async (req, res) => {
   const { siteName } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
 
   try {
     const result = await executeMatrix('url', [siteName]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr });
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -368,15 +443,24 @@ app.post('/api/sites/url', async (req, res) => {
 app.post('/api/sites/restore', async (req, res) => {
   const { siteName, backupFile } = req.body;
 
-  if (!siteName || !backupFile) {
-    return res.status(400).json({ success: false, error: 'Site name and backup file are required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
+  }
+  const backupValidation = validateRelativeFilePath(backupFile, 'Backup file');
+  if (!backupValidation.valid) {
+    return sendError(res, backupValidation.code, backupValidation.message);
   }
 
   try {
     const result = await executeMatrix('restore', [siteName, backupFile]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -384,17 +468,27 @@ app.post('/api/sites/restore', async (req, res) => {
 app.post('/api/sites/export-db', async (req, res) => {
   const { siteName, outputFile } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
+  }
+  if (outputFile) {
+    const outputValidation = validateRelativeFilePath(outputFile, 'Output file');
+    if (!outputValidation.valid) {
+      return sendError(res, outputValidation.code, outputValidation.message);
+    }
   }
 
   try {
     const args = [siteName];
     if (outputFile) args.push(outputFile);
     const result = await executeMatrix('export-db', args);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -402,15 +496,24 @@ app.post('/api/sites/export-db', async (req, res) => {
 app.post('/api/sites/import-db', async (req, res) => {
   const { siteName, dumpFile } = req.body;
 
-  if (!siteName || !dumpFile) {
-    return res.status(400).json({ success: false, error: 'Site name and dump file are required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
+  }
+  const dumpValidation = validateRelativeFilePath(dumpFile, 'Dump file');
+  if (!dumpValidation.valid) {
+    return sendError(res, dumpValidation.code, dumpValidation.message);
   }
 
   try {
     const result = await executeMatrix('import-db', [siteName, dumpFile]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -418,17 +521,26 @@ app.post('/api/sites/import-db', async (req, res) => {
 app.post('/api/sites/edit', async (req, res) => {
   const { siteName, phpVersion } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
+  }
+  const phpValidation = validatePhpVersion(phpVersion);
+  if (!phpValidation.valid) {
+    return sendError(res, phpValidation.code, phpValidation.message);
   }
 
   try {
     const args = [siteName];
     if (phpVersion) args.push(`--php-version=${phpVersion}`);
     const result = await executeMatrix('edit', args);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -436,15 +548,24 @@ app.post('/api/sites/edit', async (req, res) => {
 app.post('/api/sites/clone', async (req, res) => {
   const { sourceName, destName } = req.body;
 
-  if (!sourceName || !destName) {
-    return res.status(400).json({ success: false, error: 'Source and destination site names are required' });
+  if (!validateRequestSiteName(res, sourceName)) {
+    return;
+  }
+  const destValidation = validateSiteName(destName);
+  if (!destValidation.valid) {
+    return sendError(res, destValidation.code, destValidation.message);
   }
 
   try {
     const result = await executeMatrix('clone', [sourceName, destName]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -452,15 +573,20 @@ app.post('/api/sites/clone', async (req, res) => {
 app.post('/api/sites/reset', async (req, res) => {
   const { siteName } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
 
   try {
     const result = await executeMatrix('reset', [siteName]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr, exitCode: result.exitCode });
+    if (result.success) {
+      await invalidateSitesCache();
+      res.json({ success: true, output: result.stdout, exitCode: result.exitCode });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -468,15 +594,19 @@ app.post('/api/sites/reset', async (req, res) => {
 app.post('/api/sites/logs', async (req, res) => {
   const { siteName } = req.body;
 
-  if (!siteName) {
-    return res.status(400).json({ success: false, error: 'Site name is required' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
 
   try {
     const result = await executeMatrix('logs', [siteName]);
-    res.json({ success: result.success, output: result.stdout, error: result.stderr });
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -485,11 +615,19 @@ app.post('/api/sites/:action', async (req, res) => {
   const { action } = req.params;
   const { siteName, phpVersion } = req.body;
 
-  if (!siteName && ['create', 'start', 'stop', 'remove', 'info', 'url'].includes(action)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Site name is required'
-    });
+  if (!ALLOWED_SITE_ACTIONS.has(action)) {
+    return sendError(res, 'INVALID_ACTION', `Invalid site action: ${action}`);
+  }
+
+  if (SITE_ACTIONS_REQUIRING_NAME.has(action) && !validateRequestSiteName(res, siteName)) {
+    return;
+  }
+
+  if (action === 'create') {
+    const phpValidation = validatePhpVersion(phpVersion || '8.3');
+    if (!phpValidation.valid) {
+      return sendError(res, phpValidation.code, phpValidation.message);
+    }
   }
 
   try {
@@ -520,28 +658,33 @@ app.post('/api/sites/:action', async (req, res) => {
       });
     }
     
-    res.json({
-      success: result.success,
-      output: result.stdout,
-      error: result.stderr,
-      exitCode: result.exitCode
-    });
+    if (result.success) {
+      if (MUTATING_SITE_ACTIONS.has(action)) {
+        await invalidateSitesCache();
+      }
+      res.json({
+        success: true,
+        output: result.stdout,
+        exitCode: result.exitCode
+      });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
 app.post('/api/environment/:action', async (req, res) => {
   const { action } = req.params;
+  const args = Array.isArray(req.body?.args) ? req.body.args : [];
 
-  if (!['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install'].includes(action)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid action'
-    });
+  if (!ALLOWED_ENV_ACTIONS.has(action)) {
+    return sendError(res, 'INVALID_ACTION', `Invalid environment action: ${action}`);
+  }
+  const argsValidation = validateCommandArgs(args);
+  if (!argsValidation.valid) {
+    return sendError(res, argsValidation.code, argsValidation.message);
   }
 
   try {
@@ -568,20 +711,22 @@ app.post('/api/environment/:action', async (req, res) => {
       }, 100);
     } else {
       // For other actions, proceed normally
-      const result = await executeMatrix(action);
-      
-      res.json({
-        success: result.success,
-        output: result.stdout,
-        error: result.stderr,
-        exitCode: result.exitCode
-      });
+      const result = await executeMatrix(action, args);
+      if (result.success) {
+        if (MUTATING_ENV_ACTIONS.has(action)) {
+          await invalidateSitesCache();
+        }
+        res.json({
+          success: true,
+          output: result.stdout,
+          exitCode: result.exitCode
+        });
+      } else {
+        sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+      }
     }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -589,11 +734,8 @@ app.post('/api/environment/:action', async (req, res) => {
 app.post('/api/frontend/:action', async (req, res) => {
   const { action } = req.params;
 
-  if (!['start', 'stop', 'restart', 'status'].includes(action)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid action'
-    });
+  if (!ALLOWED_FRONTEND_ACTIONS.has(action)) {
+    return sendError(res, 'INVALID_ACTION', `Invalid frontend action: ${action}`);
   }
 
   try {
@@ -621,19 +763,18 @@ app.post('/api/frontend/:action', async (req, res) => {
     } else {
       // For other actions, proceed normally
       const result = await executeMatrix('frontend', [action]);
-      
-      res.json({
-        success: result.success,
-        output: result.stdout,
-        error: result.stderr,
-        exitCode: result.exitCode
-      });
+      if (result.success) {
+        res.json({
+          success: true,
+          output: result.stdout,
+          exitCode: result.exitCode
+        });
+      } else {
+        sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+      }
     }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -656,39 +797,39 @@ app.get('/api/backups', async (req, res) => {
     
     res.json({ success: true, backups: files });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
 app.get('/api/status', async (req, res) => {
   try {
     const result = await executeMatrix('status');
-    
-    res.json({
-      success: true,
-      output: result.stdout
-    });
+    if (result.success) {
+      res.json({
+        success: true,
+        output: result.stdout
+      });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
 app.get('/api/help', async (req, res) => {
   try {
     const result = await executeMatrix('help');
-    
-    res.json({
-      success: true,
-      output: result.stdout
-    });
+    if (result.success) {
+      res.json({
+        success: true,
+        output: result.stdout
+      });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -701,17 +842,15 @@ app.get('/health', (req, res) => {
 app.get('/api/health/:siteName', async (req, res) => {
   const { siteName } = req.params;
   
-  if (!siteName || !/^[a-zA-Z0-9_-]+$/.test(siteName)) {
-    return res.status(400).json({ success: false, error: 'Invalid site name' });
+  if (!validateRequestSiteName(res, siteName)) {
+    return;
   }
   
   try {
-    const sitesResult = await executeMatrix('list', ['--json']);
+    const sitesResult = await executeMatrix('list', [], { json: true });
     let sites = [];
-    if (sitesResult.stdout) {
-      try {
-        sites = JSON.parse(sitesResult.stdout).sites || [];
-      } catch {}
+    if (sitesResult.success && sitesResult.data) {
+      sites = sitesResult.data.sites || [];
     }
     
     const site = sites.find(s => s.name === siteName);
@@ -744,7 +883,7 @@ app.get('/api/health/:siteName', async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
@@ -775,14 +914,40 @@ app.get('/api/activity', async (req, res) => {
 
     res.json({ success: true, activities });
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    sendError(res, 'COMMAND_FAILED', error.message);
   }
 });
 
-// Start server with socket.io
-server.listen(PORT, () => {
-  console.log(`WordPress Matrix Frontend running on http://localhost:${PORT}`);
-  console.log(`Dashboard: http://localhost:${PORT}`);
-  console.log(`API Endpoint: http://localhost:${PORT}/api`);
-  console.log(`WebSocket: Enabled`);
-});
+const startServer = (port = PORT) => {
+  startStatusPolling();
+  return server.listen(port, () => {
+    console.log(`WordPress Matrix Frontend running on http://localhost:${port}`);
+    console.log(`Dashboard: http://localhost:${port}`);
+    console.log(`API Endpoint: http://localhost:${port}/api`);
+    console.log('WebSocket: Enabled');
+  });
+};
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = {
+  app,
+  server,
+  startServer,
+  executeMatrix,
+  parseJsonOutput,
+  validateSiteName,
+  validatePhpVersion,
+  validateRelativeFilePath,
+  validateCommandArgs,
+  sendError,
+  constants: {
+    ALLOWED_SITE_ACTIONS,
+    ALLOWED_ENV_ACTIONS,
+    ALLOWED_FRONTEND_ACTIONS,
+    SUPPORTED_PHP_VERSIONS,
+    RESERVED_SITE_NAMES,
+  },
+};

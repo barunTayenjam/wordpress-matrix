@@ -22,6 +22,9 @@ fi
 SOURCE_SITE="$1"
 NEW_SITE="$2"
 
+validate_site_name "$SOURCE_SITE" || exit 1
+validate_site_name "$NEW_SITE" || exit 1
+
 # Validate source site exists
 if ! site_exists "$SOURCE_SITE"; then
     log_error "Source site '$SOURCE_SITE' not found"
@@ -57,23 +60,36 @@ create_database "$NEW_SITE"
 
 # Import database
 log_info "Importing database..."
-$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${SOURCE_SITE}_db" \
-    | $DOCKER_COMPOSE exec -T db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "${NEW_SITE}_db"
+DB_DUMP=$(mktemp)
+if ! $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${SOURCE_SITE}_db" > "$DB_DUMP"; then
+    rm -f "$DB_DUMP"
+    log_error "Failed to export source database"
+    exit 1
+fi
+if ! $CONTAINER_RUNTIME exec -i wp_db mysql -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${NEW_SITE}_db" < "$DB_DUMP"; then
+    rm -f "$DB_DUMP"
+    log_error "Failed to import target database"
+    exit 1
+fi
+rm -f "$DB_DUMP"
 
 # Search and replace URLs in database
 OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"
-NEW_URL="http://localhost:$(get_next_port)"
+NEW_PORT="$(get_next_port)"
+NEW_URL="http://localhost:$NEW_PORT"
 
 log_info "Updating URLs in database..."
-$DOCKER_COMPOSE exec -T wpcli wp search-replace "$OLD_URL" "$NEW_URL" \
-    --path="/var/www/html/$NEW_SITE" --skip-plugins --skip-themes --quiet
-
-# Update docker-compose.yml
-log_info "Updating docker-compose configuration..."
-update_compose_file "$NEW_SITE"
+run_wp_cli "$NEW_SITE" search-replace "$OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet
 
 # Create nginx config
 create_nginx_config "$NEW_SITE"
+
+# Update docker-compose.yml
+log_info "Updating docker-compose configuration..."
+update_compose_file "$NEW_SITE" "$NEW_PORT"
+
+log_info "Starting cloned site..."
+$DOCKER_COMPOSE up -d "wp_$NEW_SITE" "nginx_$NEW_SITE" 2>/dev/null || true
 
 log_success "Site cloned successfully!"
 log_info "Access: $NEW_URL"

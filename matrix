@@ -52,6 +52,26 @@ sanitize_sql_identifier() {
     echo "$input" | tr -cd 'a-zA-Z0-9_-'
 }
 
+validate_site_name() {
+    local site_name="${1:-}"
+    local reserved_names=" frontend matrix db redis phpmyadmin nginx content "
+
+    if [[ -z "$site_name" ]]; then
+        log_error "Site name required"
+        return 1
+    fi
+    if [[ ! "$site_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        log_error "Invalid site name '$site_name'. Use a letter first, then letters, numbers, hyphens, or underscores."
+        return 1
+    fi
+    local site_name_lc
+    site_name_lc=$(echo "$site_name" | tr '[:upper:]' '[:lower:]')
+    if [[ "$reserved_names" == *" $site_name_lc "* ]]; then
+        log_error "'$site_name' is a reserved site name"
+        return 1
+    fi
+}
+
 # Get container names from compose ps, with podman-compose fallback
 compose_ps_names() {
     local names
@@ -60,6 +80,20 @@ compose_ps_names() {
         names=$($DOCKER_COMPOSE ps 2>/dev/null | awk 'NR>1 {print $1}' | grep -v '^---$' || true)
     fi
     echo "$names"
+}
+
+container_is_running() {
+    local container_name="${1:-}"
+    [[ -n "$container_name" ]] && $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"
+}
+
+compose_or_container_running() {
+    local container_name="${1:-}"
+    compose_ps_names 2>/dev/null | grep -q "^${container_name}$" || container_is_running "$container_name"
+}
+
+get_db_network() {
+    $CONTAINER_RUNTIME inspect wp_db --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' 2>/dev/null | head -1
 }
 
 # Helper functions
@@ -160,6 +194,7 @@ Usage: ./matrix <command> [options]
 
   Development:
     shell <service>   Access container shell (wp, db, nginx)
+    wp <site> <args>  Run WP-CLI for a site
     url <name>        Show site URLs
     import-db <n> <f> Import SQL dump (site name, file path)
     export-db <n> [f> Export database (site name, optional file)
@@ -188,8 +223,10 @@ get_sites() {
     local site_name=""
     for dir in "$PROJECT_ROOT"/wp_*/; do
         if [[ -d "$dir" ]]; then
-            site_name=$(basename "$dir" | sed 's/^wp_//')
-            if [[ -n "$site_name" ]]; then
+            local base_dir="${dir%/}"
+            base_dir="${base_dir##*/}"
+            site_name="${base_dir#wp_}"
+            if [[ -n "$site_name" && "$site_name" != "content" ]]; then
                 output="${output}${site_name}"$'\n'
             fi
         fi
@@ -224,10 +261,22 @@ get_next_port() {
     fi
     # Find next available port that's not in use
     ((max_port++))
-    while ss -tln 2>/dev/null | grep -q ":$max_port " 2>/dev/null; do
+    while port_in_use "$max_port"; do
         ((max_port++))
     done
     echo $max_port
+}
+
+port_in_use() {
+    local port="${1:-}"
+    [[ -z "$port" ]] && return 1
+    if command -v lsof >/dev/null 2>&1 && lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+        return 0
+    fi
+    if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -q ":$port "; then
+        return 0
+    fi
+    $CONTAINER_RUNTIME ps --format "{{.Ports}}" 2>/dev/null | grep -q ":$port->"
 }
 
 # Create new site
@@ -277,6 +326,7 @@ create_site() {
         log_error "Site name required"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
     
     # Validate PHP version
     case "$php_version" in
@@ -355,6 +405,11 @@ EOF
     # Add to $DOCKER_COMPOSE.yml
     log_info "Adding services to $DOCKER_COMPOSE.yml..."
 
+    if [[ ! -f "$COMPOSE_FILE" ]]; then
+        log_warning "docker-compose.yml missing - recreating base file before adding site"
+        rebuild_compose_base
+    fi
+
     # Create a temporary file and reconstruct the compose file properly
     local temp_file=$(mktemp)
 
@@ -414,8 +469,8 @@ EOF
     mv "$temp_file" "$COMPOSE_FILE"
 
     # Create database and grant permissions
-    if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
-        $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+    if compose_or_container_running "wp_db"; then
+        $CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
             -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
@@ -441,6 +496,7 @@ backup_site() {
         log_error "Usage: ./matrix backup <site-name>"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
     
     if [[ ! -d "$PROJECT_ROOT/wp_$site_name" ]]; then
         log_error "Site '$site_name' not found"
@@ -479,6 +535,7 @@ restore_site() {
         log_error "Usage: ./matrix restore <site-name> <backup-file>"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
     
     if [[ ! -f "$backup_file" ]]; then
         log_error "Backup file not found: $backup_file"
@@ -635,7 +692,7 @@ get_container_port() {
     # If empty, try wp container (for apache-based sites)
     if [[ -z "$port" ]]; then
         local wp_container="${container_name/nginx_/wp_}"
-        port=$(docker port "$wp_container" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ')
+        port=$($CONTAINER_RUNTIME port "$wp_container" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ')
     fi
 
     echo "$port"
@@ -665,9 +722,7 @@ list_sites() {
             local port=""
 
             # Check if site is running (either in compose or directly)
-            if compose_ps_names | grep -q "wp_$site"; then
-                status="Running"
-            elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^wp_$site$"; then
+            if compose_or_container_running "wp_$site"; then
                 status="Running"
             fi
 
@@ -701,7 +756,7 @@ list_sites() {
     
     # Database
     local db_status="Stopped"
-    if compose_ps_names | grep -q "wp_db"; then
+    if compose_or_container_running "wp_db"; then
         db_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Database" "$db_status" \
@@ -710,7 +765,7 @@ list_sites() {
     
     # Redis Cache
     local redis_status="Stopped"
-    if compose_ps_names | grep -q "wp_redis"; then
+    if compose_or_container_running "wp_redis"; then
         redis_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Redis Cache" "$redis_status" \
@@ -719,7 +774,7 @@ list_sites() {
     
     # phpMyAdmin
     local phpmyadmin_status="Stopped"
-    if compose_ps_names | grep -q "wp_phpmyadmin"; then
+    if compose_or_container_running "wp_phpmyadmin"; then
         phpmyadmin_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "phpMyAdmin" "$phpmyadmin_status" \
@@ -728,7 +783,7 @@ list_sites() {
 
     # Mailpit
     local mailpit_status="Stopped"
-    if compose_ps_names | grep -q "wp_mailpit"; then
+    if compose_or_container_running "wp_mailpit"; then
         mailpit_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "Mailpit" "$mailpit_status" \
@@ -738,7 +793,7 @@ list_sites() {
 
     # Code Quality Tools
     local phpcs_status="Stopped"
-    if compose_ps_names | grep -q "wp_phpcs"; then
+    if compose_or_container_running "wp_phpcs"; then
         phpcs_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHP CodeSniffer" "$phpcs_status" \
@@ -746,7 +801,7 @@ list_sites() {
         "Code Quality - WordPress Standards"
     
     local phpstan_status="Stopped"
-    if compose_ps_names | grep -q "wp_phpstan"; then
+    if compose_or_container_running "wp_phpstan"; then
         phpstan_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "PHPStan" "$phpstan_status" \
@@ -754,7 +809,7 @@ list_sites() {
         "Code Quality - Static Analysis"
     
     local wpcli_status="Stopped"
-    if compose_ps_names | grep -q "wp_cli"; then
+    if compose_or_container_running "wp_cli"; then
         wpcli_status="Running"
     fi
     printf "%-15s %-10s %-30s %-30s\n" "WP-CLI" "$wpcli_status" \
@@ -852,7 +907,12 @@ show_status_json() {
 show_status() {
     log_info "System Status:"
     echo ""
-    $DOCKER_COMPOSE ps
+    if [[ -f "$COMPOSE_FILE" ]]; then
+        $DOCKER_COMPOSE ps
+    else
+        log_warning "docker-compose.yml missing; showing running containers directly"
+        $CONTAINER_RUNTIME ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || true
+    fi
     echo ""
     
     # Show frontend status if available
@@ -870,21 +930,38 @@ show_logs() {
 
     if [[ -n "$service" ]]; then
         if [[ "$service" == "db" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 "$service" | eval "$reverse_cmd"
+            if [[ -f "$COMPOSE_FILE" ]]; then
+                $DOCKER_COMPOSE logs --tail=100 "$service" | eval "$reverse_cmd"
+            else
+                $CONTAINER_RUNTIME logs --tail=100 wp_db 2>&1 | eval "$reverse_cmd"
+            fi
         elif [[ "$service" == "nginx" ]]; then
             local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
+            if [[ ${#nginx_containers[@]} -eq 0 ]]; then
+                nginx_containers=($($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            fi
             if [[ ${#nginx_containers[@]} -gt 0 ]]; then
-                $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}" | eval "$reverse_cmd"
+                if [[ -f "$COMPOSE_FILE" ]]; then
+                    $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}" 2>/dev/null | eval "$reverse_cmd" || \
+                    $CONTAINER_RUNTIME logs --tail=100 "${nginx_containers[0]}" 2>&1 | eval "$reverse_cmd"
+                else
+                    $CONTAINER_RUNTIME logs --tail=100 "${nginx_containers[0]}" 2>&1 | eval "$reverse_cmd"
+                fi
             else
-                # Try direct docker
-                $CONTAINER_RUNTIME logs --tail=100 nginx_su21 2>/dev/null | eval "$reverse_cmd" || \
-                $CONTAINER_RUNTIME logs --tail=100 nginx_su26 2>/dev/null | eval "$reverse_cmd" || \
                 log_error "No nginx containers running"
             fi
         elif [[ "$service" == "redis" || "$service" == "cache" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 redis | eval "$reverse_cmd"
+            if [[ -f "$COMPOSE_FILE" ]]; then
+                $DOCKER_COMPOSE logs --tail=100 redis | eval "$reverse_cmd"
+            else
+                $CONTAINER_RUNTIME logs --tail=100 wp_redis 2>&1 | eval "$reverse_cmd"
+            fi
         elif [[ "$service" == "phpmyadmin" || "$service" == "pma" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 phpmyadmin | eval "$reverse_cmd"
+            if [[ -f "$COMPOSE_FILE" ]]; then
+                $DOCKER_COMPOSE logs --tail=100 phpmyadmin | eval "$reverse_cmd"
+            else
+                $CONTAINER_RUNTIME logs --tail=100 wp_phpmyadmin 2>&1 | eval "$reverse_cmd"
+            fi
         else
             # Assume it's a site name
             local wp_container="wp_$service"
@@ -905,7 +982,15 @@ show_logs() {
             fi
         fi
     else
-        $DOCKER_COMPOSE logs --tail=100 | eval "$reverse_cmd"
+        if [[ -f "$COMPOSE_FILE" ]]; then
+            $DOCKER_COMPOSE logs --tail=100 | eval "$reverse_cmd"
+        else
+            $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | while read -r container; do
+                [[ -z "$container" ]] && continue
+                echo "==> $container <=="
+                $CONTAINER_RUNTIME logs --tail=50 "$container" 2>&1 || true
+            done | eval "$reverse_cmd"
+        fi
     fi
 }
 
@@ -913,6 +998,8 @@ show_logs() {
 remove_site() {
     local site_name="${1:-}"
     local force_yes="${2:-}"
+
+    validate_site_name "$site_name" || return 1
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
@@ -944,8 +1031,8 @@ remove_site() {
     rm -rf "$PROJECT_ROOT/logs/wp_$site_name"
 
     # Remove database
-    if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
-        $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+    if compose_or_container_running "wp_db"; then
+        $CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
             -e "DROP DATABASE IF EXISTS \`${site_name}_db\`; REVOKE ALL PRIVILEGES ON \`${site_name}_db\`.* FROM '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
@@ -1045,6 +1132,7 @@ edit_site() {
         log_error "Usage: ./matrix edit <name> [--php-version=X.X] [--port=XXXX] [--memory=512M] [--cpu=0.5]"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
@@ -1218,56 +1306,6 @@ edit_site() {
         has_changes=true
     fi
 
-    # Get current PHP version from docker-compose.yml
-    local current_php_version=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$site_name:" "$COMPOSE_FILE"; then
-        current_php_version=$(grep -A 3 "wp_$site_name:" "$COMPOSE_FILE" | grep "image:" | grep -oE 'php[0-9.]+')
-    fi
-
-    # Get current port from docker-compose.yml
-    local current_port=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "nginx_$site_name:" "$COMPOSE_FILE"; then
-        current_port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
-    fi
-
-    if [[ -z "$current_php_version" && -z "$current_port" ]]; then
-        log_error "Site '$site_name' is not configured in docker-compose.yml"
-        return 1
-    fi
-
-    # Make changes to docker-compose.yml
-    if [[ -f "$COMPOSE_FILE" ]]; then
-        local temp_file=$(mktemp)
-
-        if [[ -n "$new_php_version" ]]; then
-            awk -v site="wp_${site_name}:" -v newimg="wordpress:php${new_php_version}-fpm" '
-                /^[^[:space:]]/ { in_block=0 }
-                $0 ~ site { in_block=1 }
-                in_block && /wordpress:php[0-9.]+-fpm/ { gsub(/wordpress:php[0-9.]+-fpm/, newimg) }
-                { print }
-            ' "$COMPOSE_FILE" > "$temp_file" && mv "$temp_file" "$COMPOSE_FILE"
-        fi
-
-        if [[ -n "$new_port" ]]; then
-            awk -v site="nginx_${site_name}:" -v newport="\"${new_port}:80\"" '
-                /^[^[:space:]]/ { in_block=0 }
-                $0 ~ site { in_block=1 }
-                in_block && /"[0-9]+:80"/ { gsub(/"[0-9]+:80"/, newport) }
-                { print }
-            ' "$COMPOSE_FILE" > "$temp_file" && mv "$temp_file" "$COMPOSE_FILE"
-        fi
-    fi
-
-    # Report changes
-    if [[ -n "$new_php_version" ]]; then
-        log_info "PHP version: $current_php_version -> php$new_php_version"
-        has_changes=true
-    fi
-    if [[ -n "$new_port" ]]; then
-        log_info "Port: $current_port -> $new_port"
-        has_changes=true
-    fi
-
     if ! $has_changes; then
         echo "Current configuration for '$site_name':"
         [[ -n "$current_php_version" ]] && echo "  PHP version: $current_php_version"
@@ -1278,9 +1316,13 @@ edit_site() {
     fi
 
     # Restart the site if it was running
-    if compose_ps_names 2>/dev/null | grep -q "wp_$site_name"; then
+    if compose_or_container_running "wp_$site_name"; then
         log_info "Restarting site '$site_name' to apply changes..."
-        $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+        if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
+            $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+        else
+            $CONTAINER_RUNTIME restart "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+        fi
         log_success "Site restarted"
     fi
 
@@ -1300,17 +1342,23 @@ run_tool_container() {
     if $DOCKER_COMPOSE --profile tools run --rm "$service" "$@" 2>/dev/null; then
         return 0
     fi
+    local db_network
+    db_network=$(get_db_network)
+    local network_args=()
+    if [[ -n "$db_network" ]]; then
+        network_args=(--network "$db_network")
+    fi
     case "$service" in
         phpcs)
-            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/workspace:ro -w /workspace --network wp-net \
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/workspace:ro -w /workspace "${network_args[@]}" \
                 wpengine/phpcs:latest "$@"
             ;;
         phpstan)
-            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/project:ro -w /project --network wp-net \
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/project:ro -w /project "${network_args[@]}" \
                 ghcr.io/phpstan/phpstan:latest "$@"
             ;;
         wp-cli)
-            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT/wp_":/var/www/html:rw -w /var/www/html --network wp-net \
+            $CONTAINER_RUNTIME run --rm -v "$PROJECT_ROOT":/var/www/html:rw -w /var/www/html "${network_args[@]}" \
                 wordpress:cli "$@"
             ;;
         *)
@@ -1320,6 +1368,38 @@ run_tool_container() {
     esac
 }
 
+run_wp_cli() {
+    local site_name="${1:-}"
+    shift || true
+
+    validate_site_name "$site_name" || return 1
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+    if [[ $# -eq 0 ]]; then
+        log_error "Usage: ./matrix wp <site> <wp-cli arguments>"
+        return 1
+    fi
+
+    local db_network
+    db_network=$(get_db_network)
+    if [[ -z "$db_network" ]]; then
+        log_error "Could not determine database container network"
+        return 1
+    fi
+
+    $CONTAINER_RUNTIME run --rm \
+        -v "$PROJECT_ROOT":/var/www/html:rw \
+        -w /var/www/html \
+        --network "$db_network" \
+        -e WORDPRESS_DB_HOST=db:3306 \
+        -e WORDPRESS_DB_USER="${MYSQL_USER:-wp_user}" \
+        -e WORDPRESS_DB_PASSWORD="${MYSQL_PASSWORD:-wp_password}" \
+        -e WORDPRESS_DB_NAME="${site_name}_db" \
+        wordpress:cli --path="/var/www/html/wp_$site_name" "$@"
+}
+
 # Code quality checks
 run_checks() {
     local site_name="${1:-}"
@@ -1327,6 +1407,7 @@ run_checks() {
     local target_paths=""
     
     if [[ -n "$site_name" ]]; then
+        validate_site_name "$site_name" || return 1
         local site_dir="wp_${site_name}"
         if [[ ! -d "$site_dir" ]]; then
             log_error "Site '$site_name' not found (directory: $site_dir)"
@@ -1414,10 +1495,15 @@ access_shell() {
         return 1
     fi
 
+    local exec_flags=("-it")
+    if [[ ! -t 0 ]]; then
+        exec_flags=("-i")
+    fi
+
     case "$service" in
         "wp"|"wordpress")
             # Get running WordPress containers (exclude db, redis, and other services)
-            local running_containers=($(compose_ps_names | grep "^wp_" | grep -vE "wp_db|wp_redis|wp_phpmyadmin|wp_phpcs|wp_phpstan|wp_cli" || true))
+            local running_containers=($($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^wp_" | grep -vE "wp_db|wp_redis|wp_phpmyadmin|wp_phpcs|wp_phpstan|wp_cli" || true))
             if [[ ${#running_containers[@]} -eq 0 ]]; then
                 log_error "No WordPress containers running"
                 return 1
@@ -1426,14 +1512,14 @@ access_shell() {
             # Use first running WordPress container
             local container_name="${running_containers[0]}"
             echo "Accessing container: $container_name"
-            $DOCKER_COMPOSE exec "$container_name" bash || \
+            $CONTAINER_RUNTIME exec "${exec_flags[@]}" "$container_name" bash || \
             log_error "Failed to access WordPress container"
             ;;
         "db"|"database")
-            $DOCKER_COMPOSE exec db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
+            $CONTAINER_RUNTIME exec "${exec_flags[@]}" wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
             ;;
         "nginx"|"proxy")
-            local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
+            local nginx_containers=($($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
             if [[ ${#nginx_containers[@]} -eq 0 ]]; then
                 log_error "No nginx containers running"
                 return 1
@@ -1442,7 +1528,7 @@ access_shell() {
             # Use first running nginx container
             local container_name="${nginx_containers[0]}"
             echo "Accessing container: $container_name"
-            $DOCKER_COMPOSE exec "$container_name" sh || \
+            $CONTAINER_RUNTIME exec "${exec_flags[@]}" "$container_name" sh || \
             log_error "Failed to access nginx container"
             ;;
         *)
@@ -1459,6 +1545,9 @@ show_info_json() {
     if [[ -z "$site_name" ]]; then
         error_json "INVALID_NAME" "Site name is required"
     fi
+    if ! validate_site_name "$site_name" >/dev/null 2>&1; then
+        error_json "INVALID_NAME" "Invalid site name"
+    fi
 
     if ! site_exists "$site_name"; then
         error_json "SITE_NOT_FOUND" "Site '$site_name' does not exist"
@@ -1467,13 +1556,19 @@ show_info_json() {
     check_docker_json
 
     local status="stopped"
-    if compose_ps_names 2>/dev/null | grep -q "wp_$site_name"; then
+    if compose_or_container_running "wp_$site_name"; then
         status="running"
     fi
 
     local port=""
     if [[ -f "$COMPOSE_FILE" ]]; then
         port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || true)
+    fi
+    if [[ -z "$port" ]]; then
+        port=$(get_container_port "nginx_$site_name")
+    fi
+    if [[ -z "$port" ]]; then
+        port=$(get_container_port "wp_$site_name")
     fi
 
     local php_version=""
@@ -1495,8 +1590,8 @@ show_info_json() {
 
     local db_size="null"
     if [[ "$status" == "running" ]]; then
-        db_size=$($DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -sN -e "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) FROM information_schema.tables WHERE table_schema='${site_name}_db'" 2>/dev/null || true)
-        if [[ -n "$db_size" ]]; then
+        db_size=$($CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -sN -e "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) FROM information_schema.tables WHERE table_schema='${site_name}_db'" 2>/dev/null || true)
+        if [[ -n "$db_size" && "$db_size" != "NULL" ]]; then
             db_size="$db_size"
         else
             db_size="null"
@@ -1538,6 +1633,7 @@ show_urls() {
     local site_name="${1:-}"
 
     if [[ -n "$site_name" ]]; then
+        validate_site_name "$site_name" || return 1
         if site_exists "$site_name"; then
             local port=""
             if [[ -f "$COMPOSE_FILE" ]]; then
@@ -1566,6 +1662,36 @@ show_urls() {
         echo "WordPress sites: http://localhost:[assigned_port]"
         echo "Database admin: http://localhost:8200"
         echo "Email viewer: https://mailhog.$DOMAIN_SUFFIX"
+    fi
+}
+
+rest_site() {
+    local site_name="${1:-}"
+    validate_site_name "$site_name" || return 1
+
+    if ! site_exists "$site_name"; then
+        log_error "Site '$site_name' not found"
+        return 1
+    fi
+
+    local port=""
+    if [[ -f "$COMPOSE_FILE" ]] && grep -q "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null; then
+        port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+    fi
+    if [[ -z "$port" ]]; then
+        port=$(get_container_port "nginx_$site_name")
+    fi
+
+    if [[ -z "$port" ]]; then
+        log_error "No URL available for site '$site_name'"
+        return 1
+    fi
+
+    local rest_url="http://localhost:$port/wp-json/"
+    if command -v python3 >/dev/null 2>&1; then
+        curl -fsSL "$rest_url" | python3 -m json.tool
+    else
+        curl -fsSL "$rest_url"
     fi
 }
 
@@ -1794,6 +1920,7 @@ import_db() {
         log_error "Usage: ./matrix import-db <site-name> <dump-file>"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
 
     if [[ ! -f "$dump_file" ]]; then
         log_error "Dump file not found: $dump_file"
@@ -1809,10 +1936,10 @@ import_db() {
     log_info "Importing database for '$site_name' ($db_name)..."
 
     # Set log_bin_trust_function_creators to allow triggers/procedures without SUPER privilege
-    $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -e "SET GLOBAL log_bin_trust_function_creators = 1;" 2>/dev/null || true
+    $CONTAINER_RUNTIME exec wp_db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" -e "SET SESSION sql_log_bin = 0;" 2>/dev/null || true
 
     # Import the SQL dump
-    cat "$dump_file" | $DOCKER_COMPOSE exec -T db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" 2>/dev/null
+    $CONTAINER_RUNTIME exec -i wp_db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" < "$dump_file"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database imported successfully for '$site_name'"
@@ -1831,6 +1958,7 @@ export_db() {
         log_error "Usage: ./matrix export-db <site-name> [output-file]"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
@@ -1847,7 +1975,7 @@ export_db() {
     fi
 
     # Export the database
-    $DOCKER_COMPOSE exec -T db mysqldump -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file" 2>/dev/null
+    $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database exported successfully to '$output_file'"
@@ -1878,6 +2006,7 @@ configure_xdebug() {
         log_error "Usage: ./matrix xdebug <site-name>"
         return 1
     fi
+    validate_site_name "$site_name" || return 1
 
     if ! site_exists "$site_name"; then
         log_error "Site '$site_name' not found"
@@ -1885,32 +2014,25 @@ configure_xdebug() {
     fi
 
     local site_dir="$PROJECT_ROOT/wp_$site_name"
-    local wp_config="$site_dir/wp-config.php"
-
-    if [[ ! -f "$wp_config" ]]; then
-        log_error "wp-config.php not found for site '$site_name'"
-        return 1
-    fi
-
     log_info "Configuring Xdebug for site '$site_name'..."
 
+    local user_ini="$site_dir/.user.ini"
+
     # Check if Xdebug config already exists
-    if grep -q "XDEBUG_CONFIG" "$wp_config" 2>/dev/null; then
+    if [[ -f "$user_ini" ]] && grep -q "xdebug.mode" "$user_ini" 2>/dev/null; then
         log_warning "Xdebug already configured for '$site_name'"
         echo ""
         echo "Xdebug settings:"
-        grep -A2 "XDEBUG_CONFIG" "$wp_config" || true
+        grep "xdebug\\." "$user_ini" || true
         return 0
     fi
 
-    # Add Xdebug configuration
-    cat >> "$wp_config" << 'EOF'
-
-// Xdebug Configuration
+    # Xdebug is configured with PHP INI directives, not wp-config.php PHP code.
+    cat >> "$user_ini" << 'EOF'
 xdebug.mode = develop,debug;
-    xdebug.client_host = host.docker.internal;
-    xdebug.start_with_request = yes;
-    xdebug.idekey = "VSCODE";
+xdebug.client_host = host.docker.internal;
+xdebug.start_with_request = yes;
+xdebug.idekey = "VSCODE";
 EOF
 
     log_success "Xdebug enabled for '$site_name' (always on)"
@@ -2046,6 +2168,94 @@ EOF
     log_success "Theme '$name' created at $theme_dir"
     echo ""
     echo "Activate with: ./matrix shell wp theme activate $name"
+}
+
+scaffold_plugin() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        log_error "Usage: ./matrix scaffold plugin <name>"
+        return 1
+    fi
+    if [[ ! "$name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        log_error "Invalid plugin name: $name"
+        return 1
+    fi
+
+    local plugins_dir="$PROJECT_ROOT/wp_content/plugins"
+    local plugin_dir="$plugins_dir/$name"
+    local plugin_file="$plugin_dir/$name.php"
+
+    if [[ -d "$plugin_dir" ]]; then
+        log_error "Plugin directory already exists: $plugin_dir"
+        return 1
+    fi
+
+    log_info "Creating plugin '$name'..."
+    mkdir -p "$plugin_dir/includes" "$plugin_dir/assets/css" "$plugin_dir/assets/js"
+
+    cat > "$plugin_file" << EOF
+<?php
+/**
+ * Plugin Name: $name
+ * Description: Custom plugin created with WordPress Matrix.
+ * Version: 1.0.0
+ * Author: Developer
+ * Text Domain: $name
+ */
+
+defined('ABSPATH') || exit;
+
+define('WM_PLUGIN_${name//-/_}_VERSION', '1.0.0');
+EOF
+
+    cat > "$plugin_dir/includes/index.php" << 'EOF'
+<?php
+// Silence is golden.
+EOF
+
+    log_success "Plugin '$name' created at $plugin_dir"
+}
+
+scaffold_child_theme() {
+    local name="${1:-}"
+
+    if [[ -z "$name" ]]; then
+        log_error "Usage: ./matrix scaffold child <name>"
+        return 1
+    fi
+    if [[ ! "$name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
+        log_error "Invalid child theme name: $name"
+        return 1
+    fi
+
+    local themes_dir="$PROJECT_ROOT/wp_content/themes"
+    local theme_dir="$themes_dir/$name"
+
+    if [[ -d "$theme_dir" ]]; then
+        log_error "Child theme directory already exists: $theme_dir"
+        return 1
+    fi
+
+    log_info "Creating child theme '$name'..."
+    mkdir -p "$theme_dir"
+
+    cat > "$theme_dir/style.css" << EOF
+/*
+Theme Name: $name
+Template: parent-theme
+Description: Child theme created with WordPress Matrix
+Version: 1.0.0
+Text Domain: $name
+*/
+EOF
+
+    cat > "$theme_dir/functions.php" << 'EOF'
+<?php
+defined('ABSPATH') || exit;
+EOF
+
+    log_success "Child theme '$name' created at $theme_dir"
 }
 
 # Apply preset to a site
@@ -2628,7 +2838,7 @@ services:
     image: wordpress:cli
     container_name: wp_cli
     volumes:
-      - ./wp_:/var/www/html:rw
+      - ./:/var/www/html:rw
     working_dir: /var/www/html
     networks:
       - wp-net
@@ -2676,6 +2886,7 @@ main() {
         "start")
             if [[ -n "${1:-}" ]]; then
                 local site_name="${1:-}"
+                validate_site_name "$site_name" || exit 1
                 if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
                     log_error "Site '$site_name' not found"
                     exit 1
@@ -2692,10 +2903,10 @@ main() {
                     local nginx_container="nginx_${site_name}"
 
                     if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                        docker start "$wp_container" 2>/dev/null || true
+                        $CONTAINER_RUNTIME start "$wp_container" 2>/dev/null || true
                     fi
                     if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                        docker start "$nginx_container" 2>/dev/null || true
+                        $CONTAINER_RUNTIME start "$nginx_container" 2>/dev/null || true
                     fi
                 fi
 
@@ -2711,13 +2922,18 @@ main() {
             if [[ -n "${1:-}" ]]; then
                 # Stop a specific site
                 local site_name="${1:-}"
+                validate_site_name "$site_name" || exit 1
                 if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
                     log_error "Site '$site_name' not found"
                     exit 1
                 fi
 
                 log_info "Stopping site '$site_name'..."
-                $DOCKER_COMPOSE stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
+                    $DOCKER_COMPOSE stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                else
+                    $CONTAINER_RUNTIME stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                fi
                 log_success "Site '$site_name' stopped"
                 log_activity "STOP" "$site_name" "Stopped manually"
             else
@@ -2728,13 +2944,18 @@ main() {
         "restart")
             if [[ -n "${1:-}" ]]; then
                 local site_name="${1:-}"
+                validate_site_name "$site_name" || exit 1
                 if [[ ! -d "$PROJECT_ROOT/wp_${site_name}" ]]; then
                     log_error "Site '$site_name' not found"
                     exit 1
                 fi
                 log_info "Restarting site '$site_name'..."
-                $DOCKER_COMPOSE restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || \
-                $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
+                    $DOCKER_COMPOSE restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || \
+                    $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                else
+                    $CONTAINER_RUNTIME restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                fi
                 log_success "Site '$site_name' restarted"
                 show_urls "$site_name"
             else
@@ -2799,6 +3020,9 @@ main() {
             ;;
         "shell")
             access_shell "$@"
+            ;;
+        "wp"|"wp-cli")
+            run_wp_cli "$@"
             ;;
         "url"|"urls")
             show_urls "$@"

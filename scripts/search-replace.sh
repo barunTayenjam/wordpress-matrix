@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/.."
 source "$SCRIPT_DIR/common.sh"
 
@@ -45,6 +45,8 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+validate_site_name "$SITE_NAME" || exit 1
+
 if ! site_exists "$SITE_NAME"; then
     log_error "Site '$SITE_NAME' not found"
     exit 1
@@ -54,22 +56,21 @@ log_info "Search and replace for: $SITE_NAME"
 log_info "Search: $SEARCH"
 log_info "Replace: $REPLACE"
 
-# Build wp-cli command
-CMD="$DOCKER_COMPOSE exec -T wpcli wp search-replace \"$SEARCH\" \"$REPLACE\" --path=\"/var/www/html/$SITE_NAME\" --skip-plugins --skip-themes --quiet"
+CMD=(run_wp_cli "$SITE_NAME" search-replace "$SEARCH" "$REPLACE" --skip-plugins --skip-themes --quiet)
 
 if [[ "$PRECISE" == true ]]; then
-    CMD="$CMD --precise"
+    CMD+=(--precise)
 fi
 
 if [[ "$DRY_RUN" == true ]]; then
-    CMD="$CMD --dry-run"
+    CMD+=(--dry-run)
     log_warning "DRY RUN MODE - No changes will be made"
 fi
 
 log_info "Running search and replace..."
 
 # Execute and show results
-if eval "$CMD"; then
+if "${CMD[@]}"; then
     if [[ "$DRY_RUN" == true ]]; then
         log_success "Dry run complete. Review the changes above."
     else

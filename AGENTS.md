@@ -4,7 +4,9 @@ This document serves as a comprehensive guide for agents working with the WordPr
 
 ## Project Overview
 
-This is a streamlined WordPress development environment that supports multiple WordPress instances with Docker, designed for professional WordPress development. The platform includes code quality tools, monitoring, caching layers, and simplified management.
+This is a streamlined WordPress development environment that supports multiple WordPress instances with Docker or Podman, designed for professional WordPress development. The platform includes code quality tools, monitoring, caching layers, a web dashboard, and simplified management.
+
+The current release has been audit-hardened: core `matrix` CLI paths use live Docker/Podman state as a fallback when `docker-compose.yml` is missing or stale, site names are validated consistently, JSON output is parseable, and database/WP-CLI flows run without requiring a long-running `wp-cli` service.
 
 ## Architecture
 
@@ -34,7 +36,7 @@ Host Machine (macOS/Linux)
 
 ```
 wordpress-matrix/
-├── wp_*/                      # WordPress sites
+├── wp_*/                      # WordPress sites; wp_content is shared scaffolding content, not a site
 ├── frontend/                  # Web management interface
 │   ├── app.js                # Express server
 │   ├── public/               # Static assets
@@ -55,6 +57,7 @@ wordpress-matrix/
 ./matrix stop            # Stop all services and frontend
 ./matrix restart         # Restart all services and frontend
 ./matrix status          # Show system status
+scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports, and logs
 ./matrix clean           # Clean up unused Docker resources
 ```
 
@@ -68,7 +71,9 @@ wordpress-matrix/
 ./matrix stop <site-name>                        # Stop specific site
 ./matrix remove <site-name>                      # Remove site
 ./matrix info <site-name>                        # Show site details
+./matrix info <site-name> --json                 # Show machine-readable site details
 ./matrix url <site-name>                         # Show site URLs
+./matrix rest <site-name>                        # Show WordPress REST API metadata
 ```
 
 ### Code Quality Tools
@@ -81,7 +86,13 @@ wordpress-matrix/
 ### Development Tools
 ```bash
 ./matrix shell wp            # Access WordPress container shell
+./matrix shell db            # Access database shell
+./matrix shell nginx         # Access nginx shell
+./matrix wp <site> <args>    # Run WP-CLI via on-demand wordpress:cli container
 ./matrix logs <site>         # Show site logs
+./matrix logs db             # Show DB logs
+./matrix logs redis          # Show Redis logs
+./matrix logs phpmyadmin     # Show phpMyAdmin logs
 ./matrix clone <src> <dst>   # Clone existing site
 ./matrix reset <name>        # Reset site to fresh install
 ```
@@ -102,10 +113,11 @@ wordpress-matrix/
 - Naming convention: alphanumeric, hyphens, underscores, starts with letter
 
 ### Port Assignment
-- Sites automatically get ports starting from 8100
+- Sites automatically get ports starting from 8201
 - phpMyAdmin: 8200
 - Frontend: 8500
 - Database: 3306
+- Port allocation checks Compose config, live container port bindings, and local listeners where available
 
 ### PHP Version Support
 - **Supported versions**: PHP 7.4, 8.0, 8.1, 8.2, 8.3
@@ -124,12 +136,14 @@ wordpress-matrix/
 
 ### Testing
 - PHPUnit for unit tests
+- Frontend API tests use Jest and Supertest from `frontend/`
 - Coverage reports generated in `./tests/coverage/`
+- Current verified release bar: `bash -n matrix`, `bash -n scripts/*.sh`, `npm --prefix frontend test`, `./matrix * --json | python3 -m json.tool`, and `scripts/health-check.sh`
 
 ## Access URLs
 
 ### WordPress Sites
-- Direct access: http://localhost:8100, 8201, 8202, etc.
+- Direct access: http://localhost:8201, 8202, 8203, etc.
 - Each site gets unique port assignment
 
 ### Management Tools
@@ -152,7 +166,7 @@ This automatically:
 1. Creates WordPress core files in `wp_mysite/`
 2. Creates database named `mysite_db`
 3. Generates Nginx configuration
-4. Assigns port (8100+)
+4. Assigns port (8201+)
 5. Pulls appropriate Docker image with specified PHP version
 6. Starts Docker services
 
@@ -170,9 +184,10 @@ This automatically:
 
 ### Accessing WordPress CLI
 ```bash
-./matrix shell wp
-# Inside container, specify site path:
-wp plugin install query-monitor --activate --path=/var/www/html/mysite
+# Preferred: run WP-CLI directly for a site
+./matrix wp mysite core version
+./matrix wp mysite plugin list
+./matrix wp mysite plugin install query-monitor --activate
 
 # Check PHP version of a running site
 docker exec wp_mysite php -v
@@ -183,6 +198,7 @@ docker exec wp_mysite php -v
 ### Site Management
 - Sites cannot be named "frontend", "matrix", or other reserved words
 - Site directories follow pattern `wp_<sitename>`
+- `wp_content/` is shared scaffolding content and must not be treated as a site
 - Database names follow pattern `<sitename>_db`
 - Removing a site deletes all files and database
 - **IMPORTANT**: `./matrix start` only starts core services (db, redis, phpmyadmin, frontend)
@@ -193,6 +209,7 @@ docker exec wp_mysite php -v
 - Loaded from `.env` file if it exists
 - Port numbers dynamically assigned
 - Database credentials in `.env` file
+- MySQL database creation/reset requires root credentials; routine WP access uses the configured WordPress DB user
 
 ### Code Quality
 - PHPStan configured at Level 9 (strictest)
@@ -211,6 +228,7 @@ docker exec wp_mysite php -v
 - Check PHP version: `grep "wp_sitename:" -A 3 docker-compose.yml`
 - Change PHP version: Edit docker-compose.yml and `./matrix restart <sitename>`
 - Supported: wordpress:php7.4-fpm, wordpress:php8.0-fpm, wordpress:php8.1-fpm, wordpress:php8.2-fpm, wordpress:php8.3-fpm
+- If Compose state is stale or missing, status/log/info/shell paths should fall back to live container inspection rather than reporting false stopped states
 
 ## Docker Architecture
 
@@ -221,9 +239,11 @@ docker exec wp_mysite php -v
 - **redis** - In-memory cache
 - **phpmyadmin** - Database management UI
 - **phpcs/phpstan** - Code quality tools (on-demand)
+- **wp_cli / wordpress:cli** - WP-CLI runs on demand and joins the live DB container network
 
 ### Networks
-- `wp-net` - Internal Docker network for service communication
+- `wp-net` - Intended Compose network for service communication
+- When invoking one-off tool containers, discover the actual `wp_db` network dynamically instead of assuming the literal `wp-net` name
 
 ## Frontend Architecture
 
@@ -242,6 +262,8 @@ docker exec wp_mysite php -v
 - `POST /api/environment/check` - Run code quality checks
 - `GET /health` - Health check
 
+The Express app validates site names, PHP versions, relative file paths, and allowed actions before spawning `matrix`. JSON routes should call `matrix` with `--json` and parse structured output instead of scraping human text.
+
 ### Process Management
 - PID tracked in `.frontend.pid`
 - Logs written to `logs/frontend.log`
@@ -251,8 +273,8 @@ docker exec wp_mysite php -v
 
 ### Services Won't Start
 ```bash
-./matrix stop
-docker system prune -f
+./matrix status
+scripts/health-check.sh
 ./matrix start
 ```
 
@@ -264,7 +286,8 @@ tail -f logs/frontend.log
 
 ### Database Connection Issues
 ```bash
-./matrix restart db
+scripts/health-check.sh
+./matrix logs db
 ```
 
 ### Port Conflicts
@@ -279,7 +302,8 @@ lsof -ti:8500 | xargs kill -9  # Clear frontend port
 - Enabled by default
 
 ### XDebug
-- Pre-configured for debugging
+- Configured per site with `./matrix xdebug <site>`
+- Xdebug settings are written to `.user.ini`, not `wp-config.php`
 - Connect IDE to localhost:9003
 - Path mapping required
 
@@ -327,6 +351,11 @@ chmod -R 755 wp_*
 - `scripts/search-replace.sh` - Database search/replace
 - `scripts/health-check.sh` - System health check
 
+Script implementation notes:
+- Prefer `$CONTAINER_RUNTIME exec wp_db ...` for DB operations that must work even if Compose metadata is stale.
+- Use `mysqldump --no-tablespaces` to avoid MySQL `PROCESS` privilege failures.
+- Use shared `run_wp_cli` for WP-CLI operations instead of `docker-compose exec wp-cli`.
+
 ## Documentation Reference
 
 - `README.md` - Quick start guide
@@ -343,8 +372,10 @@ For issues or questions:
 ## Best Practices for Agents
 
 1. **Always verify current state** - Run `./matrix status` before making changes
-2. **Use specific commands** - Prefer `./matrix check <site>` over `./matrix check`
-3. **Monitor logs** - Check `logs/frontend.log` and Docker logs
-4. **Test changes** - Verify sites work after operations
-5. **Document changes** - Update this guide when adding features
-6. **Backup first** - Use scripts/backup.sh before major changes
+2. **Run health check for runtime issues** - Use `scripts/health-check.sh` when Docker/DB/Redis/port state is unclear
+3. **Use specific commands** - Prefer `./matrix check <site>` over `./matrix check`
+4. **Monitor logs** - Check `logs/frontend.log`, `./matrix logs <site>`, and service logs
+5. **Test changes** - Verify sites work after operations and validate JSON with `python3 -m json.tool`
+6. **Document changes** - Update this guide when adding features
+7. **Backup first** - Use `./matrix backup <site>` or `scripts/backup.sh` before major changes
+8. **Do not treat smoke-tested as guaranteed bug-free** - Use accurate release language such as "no known bugs in audited flows"

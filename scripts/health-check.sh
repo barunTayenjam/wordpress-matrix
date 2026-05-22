@@ -13,12 +13,15 @@ echo ""
 
 # Check Docker/Podman
 log_info "Checking container runtime..."
-if command -v docker >/dev/null 2>&1; then
+if command -v "$CONTAINER_RUNTIME" >/dev/null 2>&1; then
+    runtime_version=$($CONTAINER_RUNTIME --version 2>/dev/null || echo "$CONTAINER_RUNTIME")
+    log_success "Container runtime found: $runtime_version"
+elif command -v docker >/dev/null 2>&1; then
     log_success "Docker found: $(docker --version)"
-    DOCKER_CMD="docker"
+    CONTAINER_RUNTIME="docker"
 elif command -v podman >/dev/null 2>&1; then
     log_success "Podman found: $(podman --version)"
-    DOCKER_CMD="podman"
+    CONTAINER_RUNTIME="podman"
 else
     log_error "Neither Docker nor Podman found"
     exit 1
@@ -26,12 +29,14 @@ fi
 
 # Check docker-compose
 log_info "Checking docker-compose..."
-if $DOCKER_CMD compose version >/dev/null 2>&1; then
+if [[ "$DOCKER_COMPOSE" == "podman-compose" ]] && command -v podman-compose >/dev/null 2>&1; then
+    log_success "podman-compose found"
+elif [[ "$CONTAINER_RUNTIME" == "docker" ]] && docker compose version >/dev/null 2>&1; then
     log_success "docker-compose found"
 elif command -v docker-compose >/dev/null 2>&1; then
     log_success "docker-compose (standalone) found"
 else
-    log_error "docker-compose not found"
+    log_error "docker-compose/podman-compose not found"
     exit 1
 fi
 
@@ -39,19 +44,19 @@ echo ""
 
 # Check containers status
 log_info "Checking container status..."
-containers_running=$($DOCKER_CMD ps --format "{{.Names}}" | wc -l | tr -d ' ')
+containers_running=$($CONTAINER_RUNTIME ps --format "{{.Names}}" | wc -l | tr -d ' ')
 log_success "Containers running: $containers_running"
 
 # Check database
 log_info "Checking database..."
-if $DOCKER_CMD ps | grep -q "wp_db.*Up"; then
+if $CONTAINER_RUNTIME ps --format "{{.Names}}" | grep -q "^wp_db$"; then
     log_success "Database container: Running"
 else
     log_error "Database container: Not running"
 fi
 
 # Test database connection
-if $DOCKER_COMPOSE exec db mysqladmin ping -h localhost --silent 2>/dev/null; then
+if $CONTAINER_RUNTIME exec wp_db mysqladmin ping -h localhost --silent 2>/dev/null; then
     log_success "Database connection: OK"
 else
     log_error "Database connection: FAILED"
@@ -61,9 +66,9 @@ echo ""
 
 # Check Redis
 log_info "Checking Redis..."
-if $DOCKER_CMD ps | grep -q "wp_redis.*Up"; then
+if $CONTAINER_RUNTIME ps --format "{{.Names}}" | grep -q "^wp_redis$"; then
     log_success "Redis container: Running"
-    if $DOCKER_COMPOSE exec redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
+    if $CONTAINER_RUNTIME exec wp_redis redis-cli ping 2>/dev/null | grep -q "PONG"; then
         log_success "Redis connection: OK"
     else
         log_error "Redis connection: FAILED"
@@ -80,7 +85,7 @@ sites_count=$(get_sites | wc -l | tr -d ' ')
 log_success "WordPress sites: $sites_count"
 
 for site in $(get_sites); do
-    if $DOCKER_CMD ps | grep -q "wp_$site.*Up"; then
+    if $CONTAINER_RUNTIME ps --format "{{.Names}}" | grep -q "^wp_$site$"; then
         log_success "  $site: Running"
     else
         log_warning "  $site: Stopped"
@@ -121,7 +126,7 @@ log_info "Checking port conflicts..."
 for site in $(get_sites); do
     port=$(get_site_port "$site")
     if [[ -n "$port" ]]; then
-        if ss -tln 2>/dev/null | grep -q ":$port "; then
+        if port_in_use "$port"; then
             log_success "  Port $port ($site): In use"
         else
             log_warning "  Port $port ($site): Not listening"
@@ -135,7 +140,7 @@ echo ""
 log_info "Checking for errors in logs..."
 error_count=0
 for site in $(get_sites); do
-    if $DOCKER_COMPOSE logs --tail=50 "wp_$site" 2>&1 | grep -i "error\|fatal" | grep -q .; then
+    if $CONTAINER_RUNTIME logs --tail=50 "wp_$site" 2>&1 | grep -i "error\|fatal" | grep -q .; then
         log_warning "  Errors found in: $site"
         ((error_count++))
     fi

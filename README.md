@@ -2,16 +2,21 @@
 
 A streamlined WordPress development environment with Docker/Podman support, comprehensive code quality tools, web-based management interface, and simplified management.
 
+## Current Status
+
+This release has been audit-hardened across the main `matrix` CLI and dashboard flows. The CLI now prefers live Docker/Podman state when Compose metadata is missing or stale, validates user input at the CLI/API boundary, and has smoke-tested fallbacks for site lifecycle, logs, database, WP-CLI, clone/reset, health check, and JSON output paths.
+
 ## Key Features
 
 - **Simplified Management**: All-in-one `matrix` script for easy site management
 - **Modern Web Interface**: Beautiful dashboard at http://localhost:8500 with real-time status, keyboard shortcuts, and action modals
 - **Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
-- **Development Tools**: Email testing (Mailpit), Xdebug, theme/plugin scaffolding, site presets, file watching
+- **Development Tools**: WP-CLI, Email testing (Mailpit), Xdebug, theme/plugin scaffolding, site presets, file watching
 - **Multi-Site Environment**: Create and manage multiple WordPress instances
 - **Container Runtime Support**: Full Docker and Podman support
 - **Real-time Dashboard**: Live status bar, auto-refresh on actions, keyboard shortcuts (R to refresh, 1-6 for tabs, ? for help)
 - **Database Operations**: Import/export SQL dumps, backups, restore
+- **Reliable Fallbacks**: Status, logs, shell access, DB operations, and WP-CLI work against live containers even when Compose state is stale
 - **Resource Limits**: Configure memory and CPU limits per site (`./matrix edit site --memory=512M --cpu=1`)
 - **Activity Log**: Track all site operations in dashboard activity tab
 
@@ -115,6 +120,15 @@ After creating a site, the command output shows the direct access URL (e.g., htt
 ./matrix import-db blog dumpfile.sql
 ```
 
+### WP-CLI
+
+```bash
+# Run WP-CLI against a site without requiring a long-running wp-cli service
+./matrix wp blog core version
+./matrix wp blog plugin list
+./matrix wp blog option get siteurl
+```
+
 ### Site Operations via Web Dashboard
 
 The frontend at http://localhost:8500 provides:
@@ -140,6 +154,13 @@ The frontend at http://localhost:8500 provides:
 
 # Check specific path
 ./matrix check blog wp-content/themes/custom-theme
+```
+
+### Health Check
+
+```bash
+# Run a full runtime health check
+scripts/health-check.sh
 ```
 
 ### Frontend Management
@@ -168,9 +189,9 @@ The frontend at http://localhost:8500 provides:
 ./matrix shell nginx
 
 # Check PHP version in running container
-podman exec wp_blog php -v
-# or with docker:
 docker exec wp_blog php -v
+# or with Podman:
+podman exec wp_blog php -v
 ```
 
 ## Access URLs
@@ -200,12 +221,12 @@ The site URL is displayed after running `./matrix create <name>` or `./matrix ur
 ./matrix mail                    # Opens email UI at http://localhost:8025
 
 # Enable Xdebug for PHP debugging
-./matrix xdebug mysite          # Always-on step debugging
+./matrix xdebug mysite          # Writes .user.ini Xdebug settings
 
 # Scaffold themes and plugins
 ./matrix scaffold theme my-theme
 ./matrix scaffold plugin my-plugin
-./matrix scaffold child my-parent-theme my-child
+./matrix scaffold child my-child-theme
 
 # View available site presets
 ./matrix preset
@@ -245,11 +266,13 @@ Each site can run a different PHP version, allowing you to:
 - **Site Management**: Create, start, stop, restart, remove sites
 - **Backup & Restore**: Full site backup/restore functionality
 - **Database Operations**: Import/export SQL dumps
-- **Edit Configuration**: Change PHP version per site
+- **Edit Configuration**: Change PHP version, port, memory, and CPU per site
 - **Clone Sites**: Duplicate existing sites
 - **Reset Sites**: Reset to fresh WordPress installation
 - **View Logs**: Real-time site log streaming
 - **Real-time Status**: View all sites and services at a glance
+- **Filtering & Sorting**: Search, filter, and sort site cards
+- **Safer Workflows**: Modal-based clone, restore, import, and edit actions instead of browser prompts
 - **Code Quality**: Run checks directly from the UI
 - **Modern Interface**: Responsive, clean design with dark mode
 
@@ -263,7 +286,8 @@ Each site can run a different PHP version, allowing you to:
 ./matrix start
 
 # Database issues
-./matrix restart db
+./matrix status
+scripts/health-check.sh
 
 # Frontend issues
 ./matrix frontend restart
@@ -280,6 +304,11 @@ tail -f logs/frontend.log
 
 # View site logs
 ./matrix logs <site-name>
+
+# View service logs
+./matrix logs db
+./matrix logs redis
+./matrix logs phpmyadmin
 ```
 
 ### Getting Help
@@ -331,6 +360,15 @@ wordpress-matrix/
 | WordPress Sites | 8201+ |
 | Database | 3306 |
 
+## Release Verification
+
+The current release was verified with:
+- Shell syntax checks for `matrix` and all `scripts/*.sh`
+- Frontend Jest suite: 11/11 tests passing
+- Valid JSON output for `./matrix list --json`, `./matrix status --json`, and `./matrix info <site> --json`
+- Runtime health check via `scripts/health-check.sh`
+- Smoke tests for site lifecycle, database import/export, WP-CLI, cache, search-replace dry run, clone, reset, shell access, logs, and REST metadata
+
 ## Security
 
 - Frontend runs as non-root user
@@ -352,9 +390,12 @@ wordpress-matrix/
 ./matrix restore mysite backups/myfile.tar.gz
 ./matrix export-db mysite      # Export database
 ./matrix import-db mysite dump.sql
+./matrix wp mysite core version
+./matrix rest mysite           # Show WordPress REST API metadata
 ./matrix edit mysite --php-version=8.2
 ./matrix logs mysite           # View logs
 ./matrix check mysite          # Code quality check
+scripts/health-check.sh        # Runtime health check
 ./matrix list                  # List sites
 ./matrix status                # System status
 ./matrix frontend start        # Start web UI

@@ -63,6 +63,7 @@ mkdir -p "$BACKUP_DIR"
 # Backup single site
 backup_site() {
     local site="$1"
+    validate_site_name "$site" || return 1
     local site_backup_dir="$BACKUP_DIR/$site"
     mkdir -p "$site_backup_dir"
 
@@ -74,7 +75,7 @@ backup_site() {
         local db_backup="$site_backup_dir/database.sql"
 
         log_info "  Exporting database..."
-        $DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" \
+        $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" \
             --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup"
 
         if [[ $? -eq 0 ]]; then
@@ -121,6 +122,7 @@ else
         log_error "Site name required when not using --all"
         usage
     fi
+    validate_site_name "$SITE_NAME" || exit 1
     if ! site_exists "$SITE_NAME"; then
         log_error "Site '$SITE_NAME' not found"
         exit 1
@@ -132,10 +134,10 @@ fi
 # Compress if requested
 if [[ "$COMPRESS" == true ]]; then
     log_info "Compressing backups..."
-    local compressed_file="$BACKUP_DIR.tar.gz"
+    compressed_file="$BACKUP_DIR.tar.gz"
 
     if tar -czf "$compressed_file" -C "$PROJECT_ROOT/backups" "$(basename "$BACKUP_DIR")" 2>/dev/null; then
-        local size=$(du -h "$compressed_file" | cut -f1)
+        size=$(du -h "$compressed_file" | cut -f1)
         log_success "Backup compressed: $compressed_file ($size)"
 
         # Remove uncompressed backup

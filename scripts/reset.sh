@@ -24,6 +24,7 @@ SITE_NAME="$1"
 KEEP_PLUGINS=false
 KEEP_THEMES=false
 KEEP_UPLOADS=false
+validate_site_name "$SITE_NAME" || exit 1
 
 # Parse options
 shift
@@ -70,7 +71,7 @@ log_info "Backing up to: $BACKUP_DIR"
 
 # Export database
 DB_NAME="${SITE_NAME}_db"
-$DOCKER_COMPOSE exec -T db mysqldump -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" "$DB_NAME" \
+$CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$DB_NAME" \
     > "$BACKUP_DIR/database.sql"
 
 # Backup wp-content
@@ -86,8 +87,8 @@ fi
 
 # Drop and recreate database
 log_info "Resetting database..."
-$DOCKER_COMPOSE exec db mysql -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e \
-    "DROP DATABASE IF EXISTS $DB_NAME; CREATE DATABASE $DB_NAME CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+$CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -e \
+    "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;"
 
 # Restore wp-content if needed
 if [[ "$KEEP_PLUGINS" == true ]] || [[ "$KEEP_THEMES" == true ]] || [[ "$KEEP_UPLOADS" == true ]]; then

@@ -137,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initWebSocket();
   initAutoRefresh();
   initKeyboardShortcuts();
+  initSiteFilters();
 
   // Setup event listeners
   document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
@@ -282,20 +283,12 @@ function initKeyboardShortcuts() {
 
 function showKeyboardShortcuts() {
   const shortcuts = [
-    { key: 'R', action: 'Refresh dashboard' },
-    { key: '1-6', action: 'Switch tabs' },
-    { key: '?', action: 'Show this help' },
-    { key: 'Enter', action: 'Execute terminal command' }
+    'R: Refresh dashboard',
+    '1-6: Switch tabs',
+    '?: Show keyboard shortcuts',
+    'Enter: Execute terminal command'
   ];
-  
-  let html = '<div class="keyboard-shortcuts-modal"><h5>Keyboard Shortcuts</h5><table class="table table-sm">';
-  shortcuts.forEach(s => {
-    html += `<tr><td><kbd>${s.key}</kbd></td><td>${s.action}</td></tr>`;
-  });
-  html += '</table></div>';
-  
-  // Show as modal or notification
-  showNotification(html, 'info', 5000);
+  showNotification(`Keyboard shortcuts: ${shortcuts.join(' | ')}`, 'info');
 }
 
 // Load activity log
@@ -313,10 +306,10 @@ async function loadActivity() {
       tbody.innerHTML = data.activities.map(activity => {
         const actionClass = getActionClass(activity.action);
         return `<tr>
-          <td class="small text-muted">${activity.timestamp}</td>
-          <td><span class="badge ${actionClass}">${activity.action}</span></td>
-          <td><strong>${activity.site}</strong></td>
-          <td class="small">${activity.details}</td>
+          <td class="small text-muted">${escapeHtml(activity.timestamp)}</td>
+          <td><span class="badge ${actionClass}">${escapeHtml(activity.action)}</span></td>
+          <td><strong>${escapeHtml(activity.site)}</strong></td>
+          <td class="small">${escapeHtml(activity.details)}</td>
         </tr>`;
       }).join('');
     } else {
@@ -348,6 +341,7 @@ function getActionClass(action) {
 function updateDashboard() {
   const runningSites = currentData.sites.filter(site => site.status && site.status.toLowerCase() === 'running');
   const runningServices = currentData.services.filter(service => service.status && service.status.toLowerCase() === 'running');
+  renderSites();
   
   // Update counters (only if elements exist)
   const runningSitesCount = document.getElementById('running-sites-count');
@@ -355,6 +349,144 @@ function updateDashboard() {
   
   if (runningSitesCount) runningSitesCount.textContent = runningSites.length;
   if (runningServicesCount) runningServicesCount.textContent = runningServices.length;
+}
+
+function initSiteFilters() {
+  ['site-search', 'site-status-filter', 'site-sort'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', applySiteFilters);
+    if (el) el.addEventListener('change', applySiteFilters);
+  });
+}
+
+function resetSiteFilters() {
+  const search = document.getElementById('site-search');
+  const status = document.getElementById('site-status-filter');
+  const sort = document.getElementById('site-sort');
+  if (search) search.value = '';
+  if (status) status.value = 'all';
+  if (sort) sort.value = 'name-asc';
+  applySiteFilters();
+}
+
+function sortSites(sites) {
+  const sort = document.getElementById('site-sort')?.value || 'name-asc';
+  const sorted = [...sites];
+  sorted.sort((a, b) => {
+    if (sort === 'name-desc') return String(b.name || '').localeCompare(String(a.name || ''));
+    if (sort === 'status') return String(a.status || '').localeCompare(String(b.status || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+    if (sort === 'php') return String(a.phpVersion || '').localeCompare(String(b.phpVersion || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+  return sorted;
+}
+
+function renderSites() {
+  const grid = document.getElementById('sites-grid');
+  if (!grid || !Array.isArray(currentData.sites)) return;
+  grid.innerHTML = sortSites(currentData.sites).map(renderSiteCard).join('');
+  applySiteFilters();
+}
+
+function renderSiteCard(site) {
+  const name = escapeHtml(site.name || '');
+  const status = escapeHtml(site.status || 'Stopped');
+  const statusClass = String(site.status || '').toLowerCase() === 'running' ? 'status-running' : 'status-stopped';
+  const localUrl = site.localUrl ? escapeHtml(site.localUrl) : '';
+  const phpVersion = escapeHtml(site.phpVersion || '');
+  const urlMarkup = localUrl ? `
+            <div class="site-info">
+              <i class="bi bi-link me-2"></i>
+              <a href="${localUrl}" target="_blank" rel="noopener" class="site-link">${localUrl}</a>
+            </div>
+            <div class="site-actions-primary">
+              <a href="${localUrl}" target="_blank" rel="noopener" class="btn-modern-sm btn-modern-outline">
+                <i class="bi bi-box-arrow-up-right"></i> Open
+              </a>
+              <button class="btn-modern-sm btn-modern-outline" onclick="checkSiteHealth('${name}')" aria-label="Check health for ${name}">
+                <i class="bi bi-heart-pulse"></i> Health
+              </button>
+            </div>
+            <div id="health-${name}" class="site-health mt-2" style="display: none;" aria-live="polite">
+              <span class="health-status small"></span>
+            </div>` : `
+            <div class="site-info text-muted">
+              <i class="bi bi-info-circle me-2"></i>Not configured
+            </div>`;
+
+  return `
+      <div class="col-md-6 col-lg-4 site-card-wrapper" data-site-name="${name}" data-site-status="${status}" data-site-php="${phpVersion}" data-site-url="${localUrl}">
+        <div class="site-card-modern">
+          <div class="site-card-header">
+            <h5 class="site-title">${name}</h5>
+            <span class="status-badge ${statusClass}">${status}</span>
+          </div>
+          <div class="site-card-body">${urlMarkup}</div>
+          <div class="site-card-footer">
+            <div class="btn-group-modern">
+              <button class="btn-icon btn-success" onclick="siteAction('start', '${name}')" title="Start" aria-label="Start ${name}">
+                <i class="bi bi-play-fill"></i>
+              </button>
+              <button class="btn-icon btn-warning" onclick="siteAction('stop', '${name}')" title="Stop" aria-label="Stop ${name}">
+                <i class="bi bi-stop-fill"></i>
+              </button>
+              <button class="btn-icon btn-info" onclick="siteAction('restart', '${name}')" title="Restart" aria-label="Restart ${name}">
+                <i class="bi bi-arrow-clockwise"></i>
+              </button>
+              <button class="btn-icon btn-secondary" onclick="runChecksForSite('${name}')" title="Check" aria-label="Run checks for ${name}">
+                <i class="bi bi-clipboard-check"></i>
+              </button>
+              <button class="btn-icon btn-secondary" onclick="siteAction('backup', '${name}')" title="Backup" aria-label="Back up ${name}">
+                <i class="bi bi-download"></i>
+              </button>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="More actions for ${name}">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('info', '${name}')"><i class="bi bi-info-circle me-2"></i>Info</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('url', '${name}')"><i class="bi bi-link-45deg me-2"></i>Show URL</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('logs', '${name}')"><i class="bi bi-terminal me-2"></i>Logs</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('edit', '${name}')"><i class="bi bi-pencil me-2"></i>Edit Config</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('export-db', '${name}')"><i class="bi bi-database-export me-2"></i>Export DB</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('import-db', '${name}')"><i class="bi bi-database-import me-2"></i>Import DB</a></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('restore', '${name}')"><i class="bi bi-arrow-counterclockwise me-2"></i>Restore</a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item" href="#" onclick="siteAction('clone', '${name}')"><i class="bi bi-copy me-2"></i>Clone</a></li>
+                  <li><a class="dropdown-item text-warning" href="#" onclick="siteAction('reset', '${name}')"><i class="bi bi-exclamation-triangle me-2"></i>Reset</a></li>
+                  <li><a class="dropdown-item text-danger" href="#" onclick="siteAction('remove', '${name}')"><i class="bi bi-trash me-2"></i>Delete</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+}
+
+function applySiteFilters() {
+  const searchTerm = (document.getElementById('site-search')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('site-status-filter')?.value || 'all';
+  const cards = Array.from(document.querySelectorAll('.site-card-wrapper'));
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const haystack = [
+      card.dataset.siteName,
+      card.dataset.siteStatus,
+      card.dataset.sitePhp,
+      card.dataset.siteUrl
+    ].join(' ').toLowerCase();
+    const status = (card.dataset.siteStatus || '').toLowerCase();
+    const matchesSearch = !searchTerm || haystack.includes(searchTerm);
+    const matchesStatus = statusFilter === 'all' || status === statusFilter;
+    const visible = matchesSearch && matchesStatus;
+    card.classList.toggle('d-none', !visible);
+    if (visible) visibleCount += 1;
+  });
+
+  const emptyState = document.getElementById('sites-empty-state');
+  if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
 }
 
 // Quick actions
@@ -421,37 +553,26 @@ async function siteAction(action, siteName) {
       body = { siteName };
       break;
     case 'restore':
-      const backupFile = prompt('Enter the backup file path (e.g., backups/mysite-20260501.tar.gz):');
-      if (!backupFile) return;
-      endpoint = '/api/sites/restore';
-      body = { siteName, backupFile };
-      break;
+      openSiteWorkflowModal('restore', siteName);
+      return;
     case 'export-db':
       endpoint = '/api/sites/export-db';
       body = { siteName };
       break;
     case 'import-db':
-      const dumpFile = prompt('Enter the SQL dump file path:');
-      if (!dumpFile) return;
-      endpoint = '/api/sites/import-db';
-      body = { siteName, dumpFile };
-      break;
+      openSiteWorkflowModal('import-db', siteName);
+      return;
     case 'edit':
-      const phpVersion = prompt('Enter new PHP version (7.4, 8.0, 8.1, 8.2, 8.3) or cancel to view current config:');
-      endpoint = '/api/sites/edit';
-      body = { siteName, phpVersion };
-      break;
+      openSiteWorkflowModal('edit', siteName);
+      return;
     case 'remove':
     case 'delete':
       endpoint = `/api/sites/${action}`;
       body = { siteName, forceYes: '--yes' };
       break;
     case 'clone':
-      const destName = prompt(`Clone "${siteName}" to new site name:`);
-      if (!destName) return;
-      endpoint = '/api/sites/clone';
-      body = { sourceName: siteName, destName };
-      break;
+      openSiteWorkflowModal('clone', siteName);
+      return;
     case 'reset':
       if (!confirm(`Are you sure you want to reset site "${siteName}" to a fresh WordPress install? All data will be lost.`)) return;
       endpoint = '/api/sites/reset';
@@ -493,6 +614,149 @@ async function siteAction(action, siteName) {
     console.error('Error executing site action:', error);
     showNotification('Network error while executing command', 'danger');
     hideLoading();
+  }
+}
+
+function getWorkflowConfig(action, siteName) {
+  const configs = {
+    'restore': {
+      title: `Restore ${siteName}`,
+      description: 'Restore this site from a backup archive.',
+      fields: [{ id: 'backupFile', label: 'Backup file', placeholder: 'backups/site-20260501.tar.gz', type: 'text' }],
+      endpoint: '/api/sites/restore',
+      buildBody: (values) => ({ siteName, backupFile: values.backupFile })
+    },
+    'import-db': {
+      title: `Import database for ${siteName}`,
+      description: 'Import a SQL dump into this site database.',
+      fields: [{ id: 'dumpFile', label: 'SQL dump file', placeholder: 'backups/site.sql', type: 'text' }],
+      endpoint: '/api/sites/import-db',
+      buildBody: (values) => ({ siteName, dumpFile: values.dumpFile })
+    },
+    'edit': {
+      title: `Edit ${siteName}`,
+      description: 'Change this site PHP version.',
+      fields: [{ id: 'phpVersion', label: 'PHP version', type: 'select', options: ['8.3', '8.2', '8.1', '8.0', '7.4'] }],
+      endpoint: '/api/sites/edit',
+      buildBody: (values) => ({ siteName, phpVersion: values.phpVersion })
+    },
+    'clone': {
+      title: `Clone ${siteName}`,
+      description: 'Create a new site from this site.',
+      fields: [{ id: 'destName', label: 'New site name', placeholder: `${siteName}-copy`, type: 'text' }],
+      endpoint: '/api/sites/clone',
+      buildBody: (values) => ({ sourceName: siteName, destName: values.destName })
+    }
+  };
+  return configs[action];
+}
+
+function openSiteWorkflowModal(action, siteName) {
+  const config = getWorkflowConfig(action, siteName);
+  if (!config) return;
+
+  const fieldMarkup = config.fields.map(field => {
+    if (field.type === 'select') {
+      const options = field.options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
+      return `
+        <div class="mb-3">
+          <label class="form-label" for="workflow-${field.id}">${escapeHtml(field.label)}</label>
+          <select class="form-select" id="workflow-${field.id}">${options}</select>
+        </div>`;
+    }
+    return `
+      <div class="mb-3">
+        <label class="form-label" for="workflow-${field.id}">${escapeHtml(field.label)}</label>
+        <input type="${field.type}" class="form-control" id="workflow-${field.id}" placeholder="${escapeHtml(field.placeholder || '')}">
+      </div>`;
+  }).join('');
+
+  const modalHtml = `
+    <div class="modal fade" id="siteWorkflowModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">${escapeHtml(config.title)}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="text-muted">${escapeHtml(config.description)}</p>
+            <div id="workflow-error" class="alert alert-danger d-none" role="alert"></div>
+            ${fieldMarkup}
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="submitSiteWorkflow('${action}', '${siteName}')">Run</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  const existing = document.getElementById('siteWorkflowModal');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+  new bootstrap.Modal(document.getElementById('siteWorkflowModal')).show();
+}
+
+function validateWorkflowValues(action, values) {
+  if (action === 'clone' && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(values.destName || '')) {
+    return 'New site name must start with a letter and contain only alphanumeric characters, hyphens, and underscores.';
+  }
+  if (['restore', 'import-db'].includes(action)) {
+    const pathValue = values.backupFile || values.dumpFile || '';
+    if (!pathValue || pathValue.startsWith('/') || pathValue.includes('..')) {
+      return 'File path must be a relative path inside the project.';
+    }
+  }
+  return null;
+}
+
+async function submitSiteWorkflow(action, siteName) {
+  const config = getWorkflowConfig(action, siteName);
+  if (!config) return;
+
+  const values = {};
+  config.fields.forEach(field => {
+    values[field.id] = document.getElementById(`workflow-${field.id}`)?.value.trim();
+  });
+
+  const error = validateWorkflowValues(action, values);
+  const errorEl = document.getElementById('workflow-error');
+  if (error) {
+    if (errorEl) {
+      errorEl.textContent = error;
+      errorEl.classList.remove('d-none');
+    }
+    return;
+  }
+
+  try {
+    showLoading();
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config.buildBody(values))
+    });
+    const data = await response.json();
+    hideLoading();
+
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('siteWorkflowModal'))?.hide();
+      showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
+      await loadDashboard();
+    } else {
+      const errorMsg = data.error?.message || data.error || 'Unknown error';
+      if (errorEl) {
+        errorEl.textContent = errorMsg;
+        errorEl.classList.remove('d-none');
+      }
+    }
+  } catch (error) {
+    hideLoading();
+    if (errorEl) {
+      errorEl.textContent = 'Network error while executing command';
+      errorEl.classList.remove('d-none');
+    }
   }
 }
 
@@ -618,7 +882,7 @@ function updateFrontendStatus(action, output) {
   if (!statusDiv) return;
   
   if (action === 'status') {
-    statusDiv.innerHTML = output;
+    statusDiv.textContent = output || 'No status output';
   } else if (action === 'stop') {
     statusDiv.innerHTML = '<span class="badge bg-danger">Stopped</span>';
   } else if (action === 'start' || action === 'restart') {
@@ -732,10 +996,11 @@ function showNotification(message, type = 'info') {
   notification.setAttribute('role', 'alert');
   notification.innerHTML = `
     <div class="d-flex">
-      <div class="toast-body">${message}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      <div class="toast-body"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
     </div>
   `;
+  notification.querySelector('.toast-body').textContent = message;
   
   // Add to page
   document.body.appendChild(notification);
