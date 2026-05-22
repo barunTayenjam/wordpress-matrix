@@ -171,6 +171,7 @@ Usage: ./matrix <command> [options]
     watch <site>     Watch files and clear OPcache on changes
 
   System:
+    repair [site]     Repair missing configs, containers, and databases
     health            Run system health check
 
  Frontend:
@@ -2313,6 +2314,334 @@ manage_frontend() {
     esac
 }
 
+repair_env() {
+    local site_name="${1:-}"
+    local fixed_count=0
+    local checked_count=0
+
+    log_info "Scanning for issues..."
+
+    if [[ ! -f "$COMPOSE_FILE" ]]; then
+        log_warning "docker-compose.yml missing - recreating base file..."
+        rebuild_compose_base
+        fixed_count=$((fixed_count + 1))
+        log_success "Created base docker-compose.yml"
+    fi
+
+    if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
+        mkdir -p "$PROJECT_ROOT/config/nginx"
+        log_warning "Created missing config/nginx/ directory"
+        fixed_count=$((fixed_count + 1))
+    fi
+
+    if [[ ! -f "$PROJECT_ROOT/config/nginx/default.conf" ]]; then
+        cat > "$PROJECT_ROOT/config/nginx/default.conf" << 'NGINXEOF'
+server {
+    listen 80 default_server;
+    server_name _;
+    root /var/www/html;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass localhost:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+NGINXEOF
+        log_success "Created default nginx config"
+        fixed_count=$((fixed_count + 1))
+    fi
+
+    if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
+        log_warning ".env file missing - creating default..."
+        cat > "$PROJECT_ROOT/.env" << 'ENVEOF'
+# WordPress Environment
+MYSQL_USER=wp_user
+MYSQL_PASSWORD=wp_password
+MYSQL_ROOT_PASSWORD=root_password
+WP_DEBUG=true
+ENVEOF
+        log_success "Created .env file"
+        fixed_count=$((fixed_count + 1))
+    fi
+
+    mkdir -p "$PROJECT_ROOT/logs"
+
+    local sites_tmp
+    sites_tmp=$(mktemp)
+    get_sites > "$sites_tmp"
+    local site_list
+    site_list=$(cat "$sites_tmp")
+    rm -f "$sites_tmp"
+
+    if [[ -n "$site_name" ]]; then
+        if ! site_exists "$site_name"; then
+            log_error "Site '$site_name' not found (no wp_$site_name directory)"
+            return 1
+        fi
+        site_list="$site_name"
+    fi
+
+    while IFS= read -r site || [[ -n "$site" ]]; do
+        [[ -z "$site" ]] && continue
+        checked_count=$((checked_count + 1))
+        local site_fixed=0
+
+        local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
+        if [[ ! -f "$nginx_conf" ]]; then
+            log_warning "[$site] Missing nginx config"
+            cat > "$nginx_conf" << EOF
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html;
+    index index.php index.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        fastcgi_pass wp_$site:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+            log_success "[$site] Created nginx config"
+            site_fixed=$((site_fixed + 1))
+        fi
+
+        local in_compose=false
+        if [[ -f "$COMPOSE_FILE" ]] && grep -q "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null; then
+            in_compose=true
+        fi
+
+        if ! $in_compose; then
+            log_warning "[$site] Missing from docker-compose.yml"
+
+            local php_version="$DEFAULT_PHP_VERSION"
+            if [[ -f "$PROJECT_ROOT/wp_$site/wp-includes/version.php" ]]; then
+                local req_php
+                req_php=$(grep "required_php_version" "$PROJECT_ROOT/wp_$site/wp-includes/version.php" 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1 || true)
+                if [[ -n "$req_php" ]]; then
+                    case "$req_php" in
+                        7.*) php_version="7.4" ;;
+                        8.0*) php_version="8.0" ;;
+                        8.1*) php_version="8.1" ;;
+                        8.2*) php_version="8.2" ;;
+                        *) php_version="$DEFAULT_PHP_VERSION" ;;
+                    esac
+                fi
+            fi
+
+            local port
+            port=$(get_next_port)
+
+            local temp_file
+            temp_file=$(mktemp)
+            awk '/^volumes:/ {exit} {if (!/^volumes:/) print}' "$COMPOSE_FILE" > "$temp_file"
+
+            cat >> "$temp_file" << EOF
+
+  # WordPress site: $site
+  wp_$site:
+    image: wordpress:php${php_version}-fpm
+    container_name: wp_$site
+    restart: unless-stopped
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${site}_db
+      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
+    volumes:
+      - ./wp_$site:/var/www/html
+    networks:
+      - wp-net
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 0.5
+
+  nginx_$site:
+    image: nginx:alpine
+    container_name: nginx_$site
+    restart: unless-stopped
+    ports:
+      - "$port:80"
+    depends_on:
+      - wp_$site
+    volumes:
+      - ./wp_$site:/var/www/html:ro
+      - $nginx_conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - wp-net
+    mem_limit: 128m
+    cpus: 0.25
+
+EOF
+
+            awk '/^volumes:/ {print; while(getline) print}' "$COMPOSE_FILE" >> "$temp_file"
+            mv "$temp_file" "$COMPOSE_FILE"
+            log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port)"
+            site_fixed=$((site_fixed + 1))
+        fi
+
+        if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
+            local db_exists
+            db_exists=$($DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+                -sN -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='${site}_db'" 2>/dev/null || true)
+            if [[ -z "$db_exists" ]]; then
+                log_warning "[$site] Database '${site}_db' missing"
+                $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+                    -e "CREATE DATABASE IF NOT EXISTS \`${site}_db\`; GRANT ALL PRIVILEGES ON \`${site}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+                log_success "[$site] Created database '${site}_db'"
+                site_fixed=$((site_fixed + 1))
+            fi
+        fi
+
+        mkdir -p "$PROJECT_ROOT/logs/wp_$site"
+
+        if [[ $site_fixed -gt 0 ]]; then
+            fixed_count=$((fixed_count + site_fixed))
+        else
+            log_info "[$site] OK"
+        fi
+    done <<< "$site_list"
+
+    echo ""
+    if [[ $fixed_count -gt 0 ]]; then
+        log_success "Repair complete: $fixed_count issue(s) fixed across $checked_count site(s)"
+        log_info "Run './matrix start <site>' or './matrix start' to apply changes"
+    else
+        log_success "All $checked_count site(s) are healthy - no issues found"
+    fi
+    log_activity "REPAIR" "${site_name:-all}" "$fixed_count issue(s) fixed"
+}
+
+rebuild_compose_base() {
+    cat > "$COMPOSE_FILE" << 'EOF'
+networks:
+  wp-net:
+    driver: bridge
+
+services:
+  # Database
+  db:
+    image: mysql:8.0
+    container_name: wp_db
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: wp_main
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - wp_db_data:/var/lib/mysql
+    networks:
+      - wp-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # Cache
+  redis:
+    image: redis:alpine
+    container_name: wp_redis
+    restart: unless-stopped
+    networks:
+      - wp-net
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # Database Management
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2.1
+    container_name: wp_phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8200:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: ${MYSQL_USER:-wp_user}
+      PMA_PASSWORD: ${MYSQL_PASSWORD:-wp_password}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    networks:
+      - wp-net
+    depends_on:
+      - db
+
+  # Email Testing
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: wp_mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - wp-net
+
+  # Code Quality Tools
+  phpcs:
+    image: wpengine/phpcs:latest
+    container_name: wp_phpcs
+    volumes:
+      - ./:/workspace:ro
+    working_dir: /workspace
+    networks:
+      - wp-net
+    profiles:
+      - tools
+
+  phpstan:
+    image: ghcr.io/phpstan/phpstan:latest
+    container_name: wp_phpstan
+    volumes:
+      - ./:/project:ro
+    working_dir: /project
+    networks:
+      - wp-net
+    profiles:
+      - tools
+
+  # Development Tools
+  wp-cli:
+    image: wordpress:cli
+    container_name: wp_cli
+    volumes:
+      - ./wp_:/var/www/html:rw
+    working_dir: /var/www/html
+    networks:
+      - wp-net
+    profiles:
+      - tools
+    command: ["tail", "-f", "/dev/null"]
+
+
+volumes:
+  wp_db_data:
+EOF
+}
+
 # Main command dispatcher
 main() {
     if [[ $# -eq 0 ]]; then
@@ -2528,6 +2857,9 @@ main() {
             ;;
         "health")
             "$PROJECT_ROOT/scripts/health-check.sh"
+            ;;
+        "repair")
+            repair_env "$@"
             ;;
         "help"|"-h"|"--help")
             show_help
