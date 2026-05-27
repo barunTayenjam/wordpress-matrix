@@ -44,46 +44,11 @@ else
     CONTAINER_RUNTIME="docker"
 fi
 
-# Get all sites
-get_sites() {
-    local sites=()
-    for dir in "$PROJECT_ROOT"/wp_*; do
-        if [[ -d "$dir" ]]; then
-            local base_dir="${dir##*/}"
-            local site_name="${base_dir#wp_}"
-            if [[ -n "$site_name" && "$site_name" != "content" ]]; then
-                sites+=("$site_name")
-            fi
-        fi
-    done
-    printf '%s\n' "${sites[@]}" | sort -u
-}
+# Load shared validation rules
+source "$PROJECT_ROOT/config/validation.sh"
 
-# Check if site exists
-site_exists() {
-    local site_name="$1"
-    [[ -d "$PROJECT_ROOT/wp_$site_name" ]]
-}
-
-validate_site_name() {
-    local site_name="${1:-}"
-    local reserved_names=" frontend matrix db redis phpmyadmin nginx content "
-
-    if [[ -z "$site_name" ]]; then
-        log_error "Site name required"
-        return 1
-    fi
-    if [[ ! "$site_name" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
-        log_error "Invalid site name '$site_name'. Use a letter first, then letters, numbers, hyphens, or underscores."
-        return 1
-    fi
-    local site_name_lc
-    site_name_lc=$(echo "$site_name" | tr '[:upper:]' '[:lower:]')
-    if [[ "$reserved_names" == *" $site_name_lc "* ]]; then
-        log_error "'$site_name' is a reserved site name"
-        return 1
-    fi
-}
+# Load shared helper functions
+source "$PROJECT_ROOT/scripts/helpers.sh"
 
 # Get site port from compose file
 get_site_port() {
@@ -98,35 +63,6 @@ get_site_port() {
     echo "$port"
 }
 
-# Get next available port
-get_next_port() {
-    local max_port=8100
-    if [[ -f "$COMPOSE_FILE" ]]; then
-        local ports=$(grep -oE '^\s*-\s*"[0-9]+:80"' "$COMPOSE_FILE" 2>/dev/null | \
-            grep -oE '[0-9]+:80' | grep -oE '^[0-9]+' | sort -nr)
-        if [[ -n "$ports" ]]; then
-            max_port=$(echo "$ports" | head -n 1)
-        fi
-    fi
-    ((max_port++))
-    while port_in_use "$max_port"; do
-        ((max_port++))
-    done
-    echo "$max_port"
-}
-
-port_in_use() {
-    local port="${1:-}"
-    [[ -z "$port" ]] && return 1
-    if command -v lsof >/dev/null 2>&1 && lsof -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-        return 0
-    fi
-    if command -v ss >/dev/null 2>&1 && ss -tln 2>/dev/null | grep -q ":$port "; then
-        return 0
-    fi
-    $CONTAINER_RUNTIME ps --format "{{.Ports}}" 2>/dev/null | grep -q ":$port->"
-}
-
 # Create database
 create_database() {
     local site="$1"
@@ -135,33 +71,6 @@ create_database() {
 
     $CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -e \
         "CREATE DATABASE IF NOT EXISTS \`$db_name\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$db_name\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null
-}
-
-get_db_network() {
-    $CONTAINER_RUNTIME inspect wp_db --format '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' 2>/dev/null | head -1
-}
-
-run_wp_cli() {
-    local site="$1"
-    shift
-    validate_site_name "$site" || return 1
-
-    local db_network
-    db_network=$(get_db_network)
-    if [[ -z "$db_network" ]]; then
-        log_error "Could not determine database container network"
-        return 1
-    fi
-
-    $CONTAINER_RUNTIME run --rm \
-        -v "$PROJECT_ROOT":/var/www/html:rw \
-        -w /var/www/html \
-        --network "$db_network" \
-        -e WORDPRESS_DB_HOST=db:3306 \
-        -e WORDPRESS_DB_USER="${MYSQL_USER:-wp_user}" \
-        -e WORDPRESS_DB_PASSWORD="${MYSQL_PASSWORD:-wp_password}" \
-        -e WORDPRESS_DB_NAME="${site}_db" \
-        wordpress:cli --path="/var/www/html/wp_$site" "$@"
 }
 
 # Update docker-compose.yml (simplified)

@@ -1,63 +1,53 @@
-// Global variables
-let currentData = {
-  sites: [],
-  services: []
-};
+let currentData = { sites: [], services: [] };
 let socket = null;
+let flyoutSite = null;
 
-// Theme toggle
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('theme-icon');
-  const current = html.getAttribute('data-theme');
-  const next = current === 'dark' ? 'light' : 'dark';
-  
-  html.setAttribute('data-theme', next);
-  localStorage.setItem('theme', next);
-  
-  if (next === 'dark') {
-    icon.className = 'bi bi-sun';
+  const label = document.getElementById('theme-label');
+  const isLight = html.getAttribute('data-theme') === 'light';
+  if (isLight) {
+    html.removeAttribute('data-theme');
+    localStorage.setItem('theme', 'dark');
+    icon.className = 'ph-light ph-moon';
+    if (label) label.textContent = 'Dark';
   } else {
-    icon.className = 'bi bi-moon-stars';
+    html.setAttribute('data-theme', 'light');
+    localStorage.setItem('theme', 'light');
+    icon.className = 'ph-light ph-sun';
+    if (label) label.textContent = 'Light';
   }
 }
 
-// Load saved theme
 function loadTheme() {
-  const saved = localStorage.getItem('theme') || 'light';
-  if (saved === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-    const icon = document.getElementById('theme-icon');
-    if (icon) icon.className = 'bi bi-sun';
+  const saved = localStorage.getItem('theme') || 'dark';
+  const icon = document.getElementById('theme-icon');
+  const label = document.getElementById('theme-label');
+  if (saved === 'light') {
+    document.documentElement.setAttribute('data-theme', 'light');
+    if (icon) icon.className = 'ph-light ph-sun';
+    if (label) label.textContent = 'Light';
+  } else {
+    if (icon) icon.className = 'ph-light ph-moon';
+    if (label) label.textContent = 'Dark';
   }
 }
 
-// Initialize theme on load
 document.addEventListener('DOMContentLoaded', loadTheme);
 
-// Initialize WebSocket connection
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
-  const socketUrl = `${protocol}//${window.location.host}`;
-  
-  socket = io(socketUrl);
-  
-  socket.on('connect', () => {
-    console.log('[WebSocket] Connected to server');
-  });
-  
+  socket = io(`${protocol}//${window.location.host}`);
+  socket.on('connect', () => console.log('[WS] Connected'));
   socket.on('status.changed', (data) => {
-    console.log('[WebSocket] Status changed received:', data);
     updateStatusFromWebSocket(data);
   });
-  
   socket.on('site.operation', (data) => {
-    console.log('[WebSocket] Operation event:', data);
     handleOperationEvent(data);
   });
-  
   socket.on('disconnect', () => {
-    console.log('[WebSocket] Disconnected from server');
+    console.log('[WS] Disconnected');
     setTimeout(initWebSocket, 5000);
   });
 }
@@ -65,7 +55,6 @@ function initWebSocket() {
 function updateStatusFromWebSocket(data) {
   if (data.containers && Array.isArray(data.containers)) {
     data.containers.forEach(container => {
-      // Only process WordPress site containers (wp_sitename format)
       if (container.name && container.name.startsWith('wp_') && !container.name.startsWith('wp_phpmyadmin') && !container.name.startsWith('wp_db') && !container.name.startsWith('wp_redis')) {
         const siteName = container.name.replace('wp_', '');
         const site = currentData.sites.find(s => s.name === siteName);
@@ -81,38 +70,30 @@ function updateStatusFromWebSocket(data) {
 
 function handleOperationEvent(data) {
   const { type, operation } = data;
-  
   if (type === 'start') {
     showOperationLoading(operation);
   } else if (type === 'success' || type === 'failure') {
     hideOperationLoading(operation);
-    
-    const status = type === 'success' ? 'success' : 'danger';
-    const message = type === 'success' 
-      ? `Operation "${operation}" completed successfully`
-      : `Operation "${operation}" failed`;
-    showNotification(message, status);
-    
-    if (type === 'success') {
-      setTimeout(() => loadDashboard(), 1000);
-    }
+    const msg = type === 'success'
+      ? `"${operation}" completed`
+      : `"${operation}" failed`;
+    showNotification(msg, type === 'success' ? 'success' : 'danger');
+    if (type === 'success') setTimeout(() => loadDashboard(), 1000);
   }
 }
 
 function showOperationLoading(operation) {
-  const buttons = document.querySelectorAll('.btn');
-  buttons.forEach(btn => {
+  document.querySelectorAll('.action-btn, .action-chip, .toolbar-btn').forEach(btn => {
     if (btn.onclick && btn.onclick.toString().includes(operation)) {
       btn.disabled = true;
       btn.dataset.originalText = btn.innerHTML;
-      btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Working...';
+      btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div>';
     }
   });
 }
 
-function hideOperationLoading(operation) {
-  const buttons = document.querySelectorAll('.btn[disabled]');
-  buttons.forEach(btn => {
+function hideOperationLoading() {
+  document.querySelectorAll('[disabled]').forEach(btn => {
     if (btn.dataset.originalText) {
       btn.innerHTML = btn.dataset.originalText;
       btn.disabled = false;
@@ -121,15 +102,10 @@ function hideOperationLoading(operation) {
   });
 }
 
-// Cleanup on page unload
 window.addEventListener('beforeunload', () => {
-  if (socket) {
-    socket.disconnect();
-  }
+  if (socket) socket.disconnect();
 });
 
-// Initialize the application
-let autoRefreshInterval = null;
 let lastUpdateTime = null;
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -138,93 +114,99 @@ document.addEventListener('DOMContentLoaded', () => {
   initAutoRefresh();
   initKeyboardShortcuts();
   initSiteFilters();
-
-  // Setup event listeners
-  document.getElementById('refresh-btn').addEventListener('click', loadDashboard);
-
-  // Let Bootstrap handle tab switching automatically
-  // Setup tab switching for sidebar links since they use href="#" approach
-  const sidebarTabs = document.querySelectorAll('.sidebar .nav-link[data-bs-toggle="tab"]');
-  sidebarTabs.forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      e.preventDefault();
-
-      // Get the target from data-bs-target attribute
-      const target = e.currentTarget.getAttribute('data-bs-target');
-
-      // Remove active class from all sidebar nav links
-      document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-        link.classList.remove('active');
-      });
-
-      // Add active class to clicked link
-      e.currentTarget.classList.add('active');
-
-      // Also activate the corresponding top tab
-      const topTabButton = document.querySelector(`[data-bs-target="${target}"]`);
-      if (topTabButton) {
-        // Remove active class from all top tab buttons
-        document.querySelectorAll('.nav-tabs .nav-link').forEach(link => {
-          link.classList.remove('active');
-        });
-
-        // Add active class to the corresponding top tab
-        topTabButton.classList.add('active');
-      }
-
-      // Show the target tab pane
-      document.querySelectorAll('.tab-pane').forEach(pane => {
-        pane.classList.remove('show', 'active');
-      });
-
-      const targetPane = document.querySelector(target);
-      if (targetPane) {
-        targetPane.classList.add('show', 'active');
-      }
-    });
-  });
+  initScrollReveal();
+  initTabs();
+  initDropdownDismiss();
+  initParticles();
+  initCounters();
+  initSiteFlyout();
+  document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
 });
 
-// Load dashboard data
+function initScrollReveal() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+}
+
+function initTabs() {
+  document.querySelectorAll('.tab-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      const tab = pill.dataset.tab;
+      document.querySelectorAll('.tab-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const panel = document.getElementById(`panel-${tab}`);
+      if (panel) panel.classList.add('active');
+      if (tab === 'activity') loadActivity();
+      panel.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+    });
+  });
+}
+
+function initDropdownDismiss() {
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.dropdown-container')) {
+      document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+    }
+  });
+}
+
+function toggleDropdown(event, name) {
+  event.stopPropagation();
+  const menu = document.getElementById(`dropdown-${name}`);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
+  if (!isOpen) menu.classList.add('open');
+}
+
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
 async function loadDashboard() {
   try {
     showLoading();
     const response = await fetch('/api/sites');
     const data = await response.json();
-    
     if (data.success) {
       currentData = data;
       updateDashboard();
       updateLiveStatus();
       updateLastUpdateTime();
-      hideLoading();
+      setTimeout(initScrollReveal, 50);
     } else {
-      showError('Failed to load dashboard data');
+      showError('Failed to load dashboard');
     }
+    hideLoading();
   } catch (error) {
     console.error('Error loading dashboard:', error);
-    showError('Network error while loading dashboard');
+    showError('Network error');
+    hideLoading();
   }
 }
 
-function initAutoRefresh() {
-  // Auto-refresh disabled - refresh on action instead
-  // Uncomment below to enable auto-refresh:
-  // if (autoRefreshInterval) clearInterval(autoRefreshInterval);
-  // autoRefreshInterval = setInterval(() => {
-  //   console.log('[Auto-refresh] Updating dashboard...');
-  //   loadDashboard();
-  // }, 30000);
-}
+function initAutoRefresh() {}
 
 function updateLastUpdateTime() {
-  const now = new Date();
-  const timeStr = now.toLocaleTimeString();
-  const timeEl = document.getElementById('last-update-time');
-  const displayEl = document.getElementById('last-update-display');
-  if (timeEl) timeEl.textContent = timeStr;
-  if (displayEl) displayEl.textContent = timeStr;
-  lastUpdateTime = now;
+  const now = new Date().toLocaleTimeString();
+  const el = document.getElementById('lastUpdateTime');
+  const display = document.getElementById('lastUpdateDisplay');
+  if (el) el.textContent = now;
+  if (display) display.textContent = now;
 }
 
 function updateLiveStatus() {
@@ -232,145 +214,98 @@ function updateLiveStatus() {
   const stopped = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'stopped').length;
   const services = currentData.services.filter(s => s.status && s.status.toLowerCase() === 'running').length;
   const total = currentData.sites.length;
-  
-  const liveRunning = document.getElementById('live-running');
-  const liveStopped = document.getElementById('live-stopped');
-  const liveServices = document.getElementById('live-services');
-  const totalSites = document.getElementById('total-sites-count');
-  
-  if (liveRunning) liveRunning.textContent = running;
-  if (liveStopped) liveStopped.textContent = stopped;
-  if (liveServices) liveServices.textContent = services;
-  if (totalSites) totalSites.textContent = total;
+
+  const el = (id) => document.getElementById(id);
+  if (el('liveRunning')) el('liveRunning').textContent = running;
+  if (el('liveStopped')) el('liveStopped').textContent = stopped;
+  if (el('liveServices')) el('liveServices').textContent = services;
+  if (el('totalSitesCount')) el('totalSitesCount').textContent = total;
+  if (el('runningSitesCount')) el('runningSitesCount').textContent = running;
+  if (el('servicesCount')) el('servicesCount').textContent = services;
 }
 
 function initKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
-    // Don't trigger if typing in input fields
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
     switch(e.key.toLowerCase()) {
       case 'r':
-        if (!e.ctrlKey && !e.metaKey) {
-          loadDashboard();
-          showNotification('Refreshing...', 'info');
-        }
+        if (!e.ctrlKey && !e.metaKey) { loadDashboard(); showNotification('Refreshing...', 'info'); }
         break;
       case '?':
-        showKeyboardShortcuts();
+        showNotification('R:Refresh | 1-6:Tabs | Enter:Execute', 'info');
         break;
-      case '1':
-        document.getElementById('dashboard-tab')?.click();
-        break;
-      case '2':
-        document.getElementById('sites-tab')?.click();
-        break;
-      case '3':
-        document.getElementById('services-tab')?.click();
-        break;
-      case '4':
-        document.getElementById('frontend-tab')?.click();
-        break;
-      case '5':
-        document.getElementById('terminal-tab')?.click();
-        break;
-      case '6':
-        document.getElementById('activity-tab')?.click();
-        break;
+      case '1': document.querySelector('[data-tab="dashboard"]')?.click(); break;
+      case '2': document.querySelector('[data-tab="sites"]')?.click(); break;
+      case '3': document.querySelector('[data-tab="services"]')?.click(); break;
+      case '4': document.querySelector('[data-tab="frontend"]')?.click(); break;
+      case '5': document.querySelector('[data-tab="terminal"]')?.click(); break;
+      case '6': document.querySelector('[data-tab="activity"]')?.click(); break;
     }
   });
 }
 
-function showKeyboardShortcuts() {
-  const shortcuts = [
-    'R: Refresh dashboard',
-    '1-6: Switch tabs',
-    '?: Show keyboard shortcuts',
-    'Enter: Execute terminal command'
-  ];
-  showNotification(`Keyboard shortcuts: ${shortcuts.join(' | ')}`, 'info');
-}
-
-// Load activity log
 async function loadActivity() {
   try {
-    const tbody = document.getElementById('activity-table-body');
+    const tbody = document.getElementById('activityTableBody');
     if (!tbody) return;
-
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr>';
-
+    tbody.innerHTML = '<tr><td colspan="4" class="center"><div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto"></div> Loading...</td></tr>';
     const response = await fetch('/api/activity?limit=50');
     const data = await response.json();
-
     if (data.success && data.activities && data.activities.length > 0) {
-      tbody.innerHTML = data.activities.map(activity => {
-        const actionClass = getActionClass(activity.action);
-        return `<tr>
-          <td class="small text-muted">${escapeHtml(activity.timestamp)}</td>
-          <td><span class="badge ${actionClass}">${escapeHtml(activity.action)}</span></td>
-          <td><strong>${escapeHtml(activity.site)}</strong></td>
-          <td class="small">${escapeHtml(activity.details)}</td>
-        </tr>`;
-      }).join('');
+      tbody.innerHTML = data.activities.map(a => `<tr>
+        <td class="muted" style="font-size:0.8125rem">${escapeHtml(a.timestamp)}</td>
+        <td><span class="type-badge" style="background:${getActionColor(a.action)};color:white">${escapeHtml(a.action)}</span></td>
+        <td><strong>${escapeHtml(a.site)}</strong></td>
+        <td style="font-size:0.8125rem;color:var(--text-secondary)">${escapeHtml(a.details)}</td>
+      </tr>`).join('');
     } else {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No activity recorded yet</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="center muted">No activity</td></tr>';
     }
   } catch (error) {
-    console.error('Error loading activity:', error);
-    const tbody = document.getElementById('activity-table-body');
-    if (tbody) {
-      tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Failed to load activity log</td></tr>';
-    }
+    const tbody = document.getElementById('activityTableBody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="center" style="color:var(--danger)">Failed to load</td></tr>';
   }
 }
 
-function getActionClass(action) {
-  const classes = {
-    'CREATE': 'bg-success',
-    'START': 'bg-primary',
-    'STOP': 'bg-warning',
-    'EDIT': 'bg-info',
-    'REMOVE': 'bg-danger',
-    'BACKUP': 'bg-secondary',
-    'RESTORE': 'bg-dark'
-  };
-  return classes[action] || 'bg-secondary';
+function getActionColor(action) {
+  const colors = { 'CREATE': 'var(--success)', 'START': 'var(--accent)', 'STOP': 'var(--warning)', 'EDIT': '#0ea5e9', 'REMOVE': 'var(--danger)', 'BACKUP': 'var(--text-secondary)', 'RESTORE': '#0f0f0f' };
+  return colors[action] || 'var(--text-secondary)';
 }
 
-// Update dashboard UI
 function updateDashboard() {
-  const runningSites = currentData.sites.filter(site => site.status && site.status.toLowerCase() === 'running');
-  const runningServices = currentData.services.filter(service => service.status && service.status.toLowerCase() === 'running');
+  const runningSites = currentData.sites.filter(s => s.status && s.status.toLowerCase() === 'running');
   renderSites();
-  
-  // Update counters (only if elements exist)
-  const runningSitesCount = document.getElementById('running-sites-count');
-  const runningServicesCount = document.getElementById('running-services-count');
-  
-  if (runningSitesCount) runningSitesCount.textContent = runningSites.length;
-  if (runningServicesCount) runningServicesCount.textContent = runningServices.length;
+  const el = document.getElementById('runningSitesCount');
+  if (el) el.textContent = runningSites.length;
+  setTimeout(() => {
+    const activePanel = document.querySelector('.tab-panel.active');
+    if (activePanel) {
+      activePanel.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+    }
+    initScrollReveal();
+  }, 50);
 }
 
 function initSiteFilters() {
-  ['site-search', 'site-status-filter', 'site-sort'].forEach(id => {
+  ['siteSearch', 'siteStatusFilter', 'siteSort'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.addEventListener('input', applySiteFilters);
-    if (el) el.addEventListener('change', applySiteFilters);
+    if (el) {
+      el.addEventListener('input', applySiteFilters);
+      el.addEventListener('change', applySiteFilters);
+    }
   });
 }
 
 function resetSiteFilters() {
-  const search = document.getElementById('site-search');
-  const status = document.getElementById('site-status-filter');
-  const sort = document.getElementById('site-sort');
-  if (search) search.value = '';
-  if (status) status.value = 'all';
-  if (sort) sort.value = 'name-asc';
+  const s = (id) => document.getElementById(id);
+  if (s('siteSearch')) s('siteSearch').value = '';
+  if (s('siteStatusFilter')) s('siteStatusFilter').value = 'all';
+  if (s('siteSort')) s('siteSort').value = 'name-asc';
   applySiteFilters();
 }
 
 function sortSites(sites) {
-  const sort = document.getElementById('site-sort')?.value || 'name-asc';
+  const sort = document.getElementById('siteSort')?.value || 'name-asc';
   const sorted = [...sites];
   sorted.sort((a, b) => {
     if (sort === 'name-desc') return String(b.name || '').localeCompare(String(a.name || ''));
@@ -382,7 +317,7 @@ function sortSites(sites) {
 }
 
 function renderSites() {
-  const grid = document.getElementById('sites-grid');
+  const grid = document.getElementById('sitesGrid');
   if (!grid || !Array.isArray(currentData.sites)) return;
   grid.innerHTML = sortSites(currentData.sites).map(renderSiteCard).join('');
   applySiteFilters();
@@ -391,72 +326,84 @@ function renderSites() {
 function renderSiteCard(site) {
   const name = escapeHtml(site.name || '');
   const status = escapeHtml(site.status || 'Stopped');
-  const statusClass = String(site.status || '').toLowerCase() === 'running' ? 'status-running' : 'status-stopped';
+  const statusClass = String(site.status || '').toLowerCase() === 'running' ? 'live' : 'down';
   const localUrl = site.localUrl ? escapeHtml(site.localUrl) : '';
   const phpVersion = escapeHtml(site.phpVersion || '');
+
   const urlMarkup = localUrl ? `
-            <div class="site-info">
-              <i class="bi bi-link me-2"></i>
-              <a href="${localUrl}" target="_blank" rel="noopener" class="site-link">${localUrl}</a>
+            <div class="site-meta">
+              <i class="ph-light ph-link"></i>
+              <a href="${localUrl}" target="_blank" rel="noopener">${localUrl}</a>
             </div>
-            <div class="site-actions-primary">
-              <a href="${localUrl}" target="_blank" rel="noopener" class="btn-modern-sm btn-modern-outline">
-                <i class="bi bi-box-arrow-up-right"></i> Open
+            <div class="site-actions">
+              <a href="${localUrl}" target="_blank" rel="noopener" class="action-chip small">
+                <i class="ph-light ph-arrow-square-out"></i> Open
               </a>
-              <button class="btn-modern-sm btn-modern-outline" onclick="checkSiteHealth('${name}')" aria-label="Check health for ${name}">
-                <i class="bi bi-heart-pulse"></i> Health
+              <button class="action-chip small" onclick="checkSiteHealth('${name}')">
+                <i class="ph-light ph-heartbeat"></i> Health
               </button>
             </div>
-            <div id="health-${name}" class="site-health mt-2" style="display: none;" aria-live="polite">
-              <span class="health-status small"></span>
+            <div id="health-${name}" class="health-result" style="display:none">
+              <span class="health-text"></span>
             </div>` : `
-            <div class="site-info text-muted">
-              <i class="bi bi-info-circle me-2"></i>Not configured
+            <div class="site-meta muted">
+              <i class="ph-light ph-info"></i>
+              <span>Not configured</span>
             </div>`;
 
-  return `
-      <div class="col-md-6 col-lg-4 site-card-wrapper" data-site-name="${name}" data-site-status="${status}" data-site-php="${phpVersion}" data-site-url="${localUrl}">
-        <div class="site-card-modern">
-          <div class="site-card-header">
-            <h5 class="site-title">${name}</h5>
-            <span class="status-badge ${statusClass}">${status}</span>
-          </div>
-          <div class="site-card-body">${urlMarkup}</div>
-          <div class="site-card-footer">
-            <div class="btn-group-modern">
-              <button class="btn-icon btn-success" onclick="siteAction('start', '${name}')" title="Start" aria-label="Start ${name}">
-                <i class="bi bi-play-fill"></i>
-              </button>
-              <button class="btn-icon btn-warning" onclick="siteAction('stop', '${name}')" title="Stop" aria-label="Stop ${name}">
-                <i class="bi bi-stop-fill"></i>
-              </button>
-              <button class="btn-icon btn-info" onclick="siteAction('restart', '${name}')" title="Restart" aria-label="Restart ${name}">
-                <i class="bi bi-arrow-clockwise"></i>
-              </button>
-              <button class="btn-icon btn-secondary" onclick="runChecksForSite('${name}')" title="Check" aria-label="Run checks for ${name}">
-                <i class="bi bi-clipboard-check"></i>
-              </button>
-              <button class="btn-icon btn-secondary" onclick="siteAction('backup', '${name}')" title="Backup" aria-label="Back up ${name}">
-                <i class="bi bi-download"></i>
-              </button>
-              <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="More actions for ${name}">
-                  <i class="bi bi-three-dots-vertical"></i>
+  return `<div class="site-card double-bezel reveal" data-site-name="${name}" data-site-status="${status}" data-site-php="${phpVersion}" data-site-url="${localUrl}">
+        <div class="shell">
+          <div class="inner">
+            <div class="site-card-top">
+              <h3 class="site-name">${name}</h3>
+              <span class="status-tag ${statusClass}">
+                <span class="status-tag-dot"></span>
+                ${status}
+              </span>
+            </div>
+            ${urlMarkup}
+            <div class="site-toolbar">
+              <div class="toolbar-group">
+                <button class="toolbar-btn" onclick="siteAction('start','${name}')" title="Start ${name}">
+                  <i class="ph-light ph-play"></i>
+                  <span>Start</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('info', '${name}')"><i class="bi bi-info-circle me-2"></i>Info</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('url', '${name}')"><i class="bi bi-link-45deg me-2"></i>Show URL</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('logs', '${name}')"><i class="bi bi-terminal me-2"></i>Logs</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('edit', '${name}')"><i class="bi bi-pencil me-2"></i>Edit Config</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('export-db', '${name}')"><i class="bi bi-database-export me-2"></i>Export DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('import-db', '${name}')"><i class="bi bi-database-import me-2"></i>Import DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('restore', '${name}')"><i class="bi bi-arrow-counterclockwise me-2"></i>Restore</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('clone', '${name}')"><i class="bi bi-copy me-2"></i>Clone</a></li>
-                  <li><a class="dropdown-item text-warning" href="#" onclick="siteAction('reset', '${name}')"><i class="bi bi-exclamation-triangle me-2"></i>Reset</a></li>
-                  <li><a class="dropdown-item text-danger" href="#" onclick="siteAction('remove', '${name}')"><i class="bi bi-trash me-2"></i>Delete</a></li>
-                </ul>
+                <button class="toolbar-btn" onclick="siteAction('stop','${name}')" title="Stop ${name}">
+                  <i class="ph-light ph-stop"></i>
+                  <span>Stop</span>
+                </button>
+                <button class="toolbar-btn" onclick="siteAction('restart','${name}')" title="Restart ${name}">
+                  <i class="ph-light ph-arrows-clockwise"></i>
+                  <span>Restart</span>
+                </button>
+                <button class="toolbar-btn" onclick="runChecksForSite('${name}')" title="Run checks on ${name}">
+                  <i class="ph-light ph-clipboard-text"></i>
+                  <span>Check</span>
+                </button>
+                <button class="toolbar-btn" onclick="siteAction('backup','${name}')" title="Backup ${name}">
+                  <i class="ph-light ph-download"></i>
+                  <span>Backup</span>
+                </button>
+              </div>
+              <div class="dropdown-container">
+                <button class="toolbar-btn" onclick="toggleDropdown(event, '${name}')" title="More actions for ${name}">
+                  <i class="ph-light ph-dots-three-vertical"></i>
+                  <span>More</span>
+                </button>
+                <div class="dropdown-menu" id="dropdown-${name}">
+                  <button onclick="siteAction('info','${name}')"><i class="ph-light ph-info"></i>Info</button>
+                  <button onclick="siteAction('url','${name}')"><i class="ph-light ph-link"></i>URL</button>
+                  <button onclick="siteAction('logs','${name}')"><i class="ph-light ph-terminal"></i>Logs</button>
+                  <button onclick="siteAction('edit','${name}')"><i class="ph-light ph-pencil"></i>Edit</button>
+                  <div class="dropdown-divider"></div>
+                  <button onclick="siteAction('export-db','${name}')"><i class="ph-light ph-database-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db','${name}')"><i class="ph-light ph-database-import"></i>Import DB</button>
+                  <button onclick="siteAction('restore','${name}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
+                  <div class="dropdown-divider"></div>
+                  <button onclick="siteAction('clone','${name}')"><i class="ph-light ph-copy"></i>Clone</button>
+                  <button class="warning" onclick="siteAction('reset','${name}')"><i class="ph-light ph-warning"></i>Reset</button>
+                  <button class="danger" onclick="siteAction('remove','${name}')"><i class="ph-light ph-trash"></i>Delete</button>
+                </div>
               </div>
             </div>
           </div>
@@ -465,271 +412,189 @@ function renderSiteCard(site) {
 }
 
 function applySiteFilters() {
-  const searchTerm = (document.getElementById('site-search')?.value || '').trim().toLowerCase();
-  const statusFilter = document.getElementById('site-status-filter')?.value || 'all';
-  const cards = Array.from(document.querySelectorAll('.site-card-wrapper'));
+  const searchTerm = (document.getElementById('siteSearch')?.value || '').trim().toLowerCase();
+  const statusFilter = document.getElementById('siteStatusFilter')?.value || 'all';
+  const cards = Array.from(document.querySelectorAll('.site-card'));
   let visibleCount = 0;
-
   cards.forEach(card => {
-    const haystack = [
-      card.dataset.siteName,
-      card.dataset.siteStatus,
-      card.dataset.sitePhp,
-      card.dataset.siteUrl
-    ].join(' ').toLowerCase();
+    const haystack = [card.dataset.siteName, card.dataset.siteStatus, card.dataset.sitePhp, card.dataset.siteUrl].join(' ').toLowerCase();
     const status = (card.dataset.siteStatus || '').toLowerCase();
     const matchesSearch = !searchTerm || haystack.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || status === statusFilter;
     const visible = matchesSearch && matchesStatus;
-    card.classList.toggle('d-none', !visible);
+    card.style.display = visible ? '' : 'none';
     if (visible) visibleCount += 1;
   });
-
-  const emptyState = document.getElementById('sites-empty-state');
-  if (emptyState) emptyState.classList.toggle('d-none', visibleCount > 0);
+  const empty = document.getElementById('sitesEmptyState');
+  if (empty) empty.style.display = visibleCount > 0 ? 'none' : '';
 }
 
-// Quick actions
 async function quickAction(action) {
   try {
     showLoading();
     const response = await fetch(`/api/environment/${action}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
-    
     const data = await response.json();
-    
     if (data.success) {
-      showNotification(`Command "${action}" executed successfully`, 'success');
+      showNotification(`"${action}" done`, 'success');
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
-      showNotification(`Command "${action}" failed: ${errorMsg}`, 'danger');
+      showNotification(`"${action}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
-    
-    // Always refresh after any action
     await loadDashboard();
     hideLoading();
   } catch (error) {
-    console.error('Error executing quick action:', error);
-    showNotification('Network error while executing command', 'danger');
+    showNotification('Network error', 'danger');
     hideLoading();
   }
 }
 
-// Site actions
 async function siteAction(action, siteName) {
-  if (action === 'remove' || action === 'delete') {
-    if (!confirm(`Are you sure you want to remove site "${siteName}"? This action cannot be undone.`)) {
-      return;
-    }
-  }
-  
-  if (action === 'reset') {
-    if (!confirm(`Are you sure you want to reset site "${siteName}" to a fresh WordPress install? All data will be lost.`)) {
-      return;
-    }
-  }
+  if ((action === 'remove' || action === 'delete') && !confirm(`Delete "${siteName}"? Cannot undo.`)) return;
+  if (action === 'reset' && !confirm(`Reset "${siteName}" to fresh install? All data lost.`)) return;
 
   let endpoint, body;
-
   switch (action) {
-    case 'restart':
-      endpoint = '/api/sites/restart';
-      body = { siteName };
-      break;
-    case 'url':
-      endpoint = '/api/sites/url';
-      body = { siteName };
-      break;
-    case 'logs':
-      endpoint = '/api/sites/logs';
-      body = { siteName };
-      break;
-    case 'backup':
-      endpoint = '/api/sites/backup';
-      body = { siteName };
-      break;
-    case 'restore':
-      openSiteWorkflowModal('restore', siteName);
-      return;
-    case 'export-db':
-      endpoint = '/api/sites/export-db';
-      body = { siteName };
-      break;
-    case 'import-db':
-      openSiteWorkflowModal('import-db', siteName);
-      return;
-    case 'edit':
-      openSiteWorkflowModal('edit', siteName);
-      return;
-    case 'remove':
-    case 'delete':
-      endpoint = `/api/sites/${action}`;
-      body = { siteName, forceYes: '--yes' };
-      break;
-    case 'clone':
-      openSiteWorkflowModal('clone', siteName);
-      return;
-    case 'reset':
-      if (!confirm(`Are you sure you want to reset site "${siteName}" to a fresh WordPress install? All data will be lost.`)) return;
-      endpoint = '/api/sites/reset';
-      body = { siteName, forceYes: '--yes' };
-      break;
-    default:
-      endpoint = `/api/sites/${action}`;
-      body = { siteName };
+    case 'restart': endpoint = '/api/sites/restart'; body = { siteName }; break;
+    case 'url': endpoint = '/api/sites/url'; body = { siteName }; break;
+    case 'logs': endpoint = '/api/sites/logs'; body = { siteName }; break;
+    case 'backup': endpoint = '/api/sites/backup'; body = { siteName }; break;
+    case 'restore': openSiteWorkflowModal('restore', siteName); return;
+    case 'export-db': endpoint = '/api/sites/export-db'; body = { siteName }; break;
+    case 'import-db': openSiteWorkflowModal('import-db', siteName); return;
+    case 'edit': openSiteWorkflowModal('edit', siteName); return;
+    case 'remove': case 'delete': endpoint = `/api/sites/${action}`; body = { siteName }; break;
+    case 'clone': openSiteWorkflowModal('clone', siteName); return;
+    case 'reset': endpoint = '/api/sites/reset'; body = { siteName }; break;
+    default: endpoint = `/api/sites/${action}`; body = { siteName };
   }
-  
+
   try {
     showLoading();
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    
     const data = await response.json();
-    
     if (data.success) {
-      // Show output for info, url, logs actions
       if (['info', 'url', 'logs'].includes(action) && data.output) {
         showActionOutput(action, siteName, data.output);
       } else {
-        showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
+        showNotification(`"${action} ${siteName}" done`, 'success');
       }
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
-      showNotification(`Command "${action} ${siteName}" failed: ${errorMsg}`, 'danger');
+      showNotification(`"${action} ${siteName}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
-    
-    // Always refresh after any action (success or failure)
     await loadDashboard();
     hideLoading();
   } catch (error) {
-    console.error('Error executing site action:', error);
-    showNotification('Network error while executing command', 'danger');
+    showNotification('Network error', 'danger');
     hideLoading();
   }
 }
 
 function getWorkflowConfig(action, siteName) {
-  const configs = {
+  return {
     'restore': {
       title: `Restore ${siteName}`,
-      description: 'Restore this site from a backup archive.',
-      fields: [{ id: 'backupFile', label: 'Backup file', placeholder: 'backups/site-20260501.tar.gz', type: 'text' }],
+      fields: [{ id: 'backupFile', label: 'Backup file', placeholder: 'backups/site.tar.gz', type: 'text' }],
       endpoint: '/api/sites/restore',
-      buildBody: (values) => ({ siteName, backupFile: values.backupFile })
+      buildBody: (v) => ({ siteName, backupFile: v.backupFile })
     },
     'import-db': {
-      title: `Import database for ${siteName}`,
-      description: 'Import a SQL dump into this site database.',
-      fields: [{ id: 'dumpFile', label: 'SQL dump file', placeholder: 'backups/site.sql', type: 'text' }],
+      title: `Import DB — ${siteName}`,
+      fields: [{ id: 'dumpFile', label: 'SQL dump', placeholder: 'backups/site.sql', type: 'text' }],
       endpoint: '/api/sites/import-db',
-      buildBody: (values) => ({ siteName, dumpFile: values.dumpFile })
+      buildBody: (v) => ({ siteName, dumpFile: v.dumpFile })
     },
     'edit': {
       title: `Edit ${siteName}`,
-      description: 'Change this site PHP version.',
       fields: [{ id: 'phpVersion', label: 'PHP version', type: 'select', options: ['8.3', '8.2', '8.1', '8.0', '7.4'] }],
       endpoint: '/api/sites/edit',
-      buildBody: (values) => ({ siteName, phpVersion: values.phpVersion })
+      buildBody: (v) => ({ siteName, phpVersion: v.phpVersion })
     },
     'clone': {
       title: `Clone ${siteName}`,
-      description: 'Create a new site from this site.',
       fields: [{ id: 'destName', label: 'New site name', placeholder: `${siteName}-copy`, type: 'text' }],
       endpoint: '/api/sites/clone',
-      buildBody: (values) => ({ sourceName: siteName, destName: values.destName })
+      buildBody: (v) => ({ sourceName: siteName, destName: v.destName })
     }
-  };
-  return configs[action];
+  }[action];
 }
 
 function openSiteWorkflowModal(action, siteName) {
   const config = getWorkflowConfig(action, siteName);
   if (!config) return;
 
-  const fieldMarkup = config.fields.map(field => {
-    if (field.type === 'select') {
-      const options = field.options.map(option => `<option value="${escapeHtml(option)}">${escapeHtml(option)}</option>`).join('');
-      return `
-        <div class="mb-3">
-          <label class="form-label" for="workflow-${field.id}">${escapeHtml(field.label)}</label>
-          <select class="form-select" id="workflow-${field.id}">${options}</select>
-        </div>`;
-    }
-    return `
-      <div class="mb-3">
-        <label class="form-label" for="workflow-${field.id}">${escapeHtml(field.label)}</label>
-        <input type="${field.type}" class="form-control" id="workflow-${field.id}" placeholder="${escapeHtml(field.placeholder || '')}">
+  const fields = config.fields.map(f => {
+    if (f.type === 'select') {
+      const opts = f.options.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+      return `<div class="field-group">
+        <label for="wf-${f.id}">${escapeHtml(f.label)}</label>
+        <select id="wf-${f.id}" class="glass-select">${opts}</select>
       </div>`;
+    }
+    return `<div class="field-group">
+      <label for="wf-${f.id}">${escapeHtml(f.label)}</label>
+      <input type="${f.type}" id="wf-${f.id}" class="glass-input" placeholder="${escapeHtml(f.placeholder || '')}">
+    </div>`;
   }).join('');
 
-  const modalHtml = `
-    <div class="modal fade" id="siteWorkflowModal" tabindex="-1">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">${escapeHtml(config.title)}</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <p class="text-muted">${escapeHtml(config.description)}</p>
-            <div id="workflow-error" class="alert alert-danger d-none" role="alert"></div>
-            ${fieldMarkup}
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="submitSiteWorkflow('${action}', '${siteName}')">Run</button>
-          </div>
+  const html = `<div class="modal-overlay open" id="workflowModal">
+    <div class="modal-shell">
+      <div class="modal-inner">
+        <div class="modal-header">
+          <h3><i class="ph-light ph-pencil"></i> ${escapeHtml(config.title)}</h3>
+          <button class="modal-close" onclick="closeWorkflowModal()" aria-label="Close"><i class="ph-light ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <div id="wf-error" style="display:none;padding:0.75rem;border-radius:var(--radius-sm);background:rgba(239,68,68,0.1);color:var(--danger);font-size:0.8125rem;margin-bottom:1rem"></div>
+          ${fields}
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn outline" onclick="closeWorkflowModal()"><span class="btn-inner">Cancel</span></button>
+          <button class="action-btn primary" onclick="submitWorkflow('${action}','${siteName}')">
+            <span class="btn-inner"><span>Run</span><span class="btn-icon-wrap"><i class="ph-light ph-arrow-right"></i></span></span>
+          </button>
         </div>
       </div>
-    </div>`;
+    </div>
+  </div>`;
 
-  const existing = document.getElementById('siteWorkflowModal');
+  const existing = document.getElementById('workflowModal');
   if (existing) existing.remove();
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-  new bootstrap.Modal(document.getElementById('siteWorkflowModal')).show();
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeWorkflowModal() {
+  const el = document.getElementById('workflowModal');
+  if (el) el.remove();
 }
 
 function validateWorkflowValues(action, values) {
   if (action === 'clone' && !/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(values.destName || '')) {
-    return 'New site name must start with a letter and contain only alphanumeric characters, hyphens, and underscores.';
+    return 'Name must start with letter, alphanumeric/hyphens/underscores only';
   }
   if (['restore', 'import-db'].includes(action)) {
-    const pathValue = values.backupFile || values.dumpFile || '';
-    if (!pathValue || pathValue.startsWith('/') || pathValue.includes('..')) {
-      return 'File path must be a relative path inside the project.';
-    }
+    const p = values.backupFile || values.dumpFile || '';
+    if (!p || p.startsWith('/') || p.includes('..')) return 'Must be relative path inside project';
   }
   return null;
 }
 
-async function submitSiteWorkflow(action, siteName) {
+async function submitWorkflow(action, siteName) {
   const config = getWorkflowConfig(action, siteName);
   if (!config) return;
-
   const values = {};
-  config.fields.forEach(field => {
-    values[field.id] = document.getElementById(`workflow-${field.id}`)?.value.trim();
-  });
-
+  config.fields.forEach(f => { values[f.id] = document.getElementById(`wf-${f.id}`)?.value.trim(); });
   const error = validateWorkflowValues(action, values);
-  const errorEl = document.getElementById('workflow-error');
+  const errorEl = document.getElementById('wf-error');
   if (error) {
-    if (errorEl) {
-      errorEl.textContent = error;
-      errorEl.classList.remove('d-none');
-    }
+    if (errorEl) { errorEl.textContent = error; errorEl.style.display = ''; }
     return;
   }
-
   try {
     showLoading();
     const response = await fetch(config.endpoint, {
@@ -739,378 +604,237 @@ async function submitSiteWorkflow(action, siteName) {
     });
     const data = await response.json();
     hideLoading();
-
     if (data.success) {
-      bootstrap.Modal.getInstance(document.getElementById('siteWorkflowModal'))?.hide();
-      showNotification(`Command "${action} ${siteName}" executed successfully`, 'success');
+      closeWorkflowModal();
+      showNotification(`"${action} ${siteName}" done`, 'success');
       await loadDashboard();
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
-      if (errorEl) {
-        errorEl.textContent = errorMsg;
-        errorEl.classList.remove('d-none');
-      }
+      if (errorEl) { errorEl.textContent = data.error?.message || data.error || 'Unknown'; errorEl.style.display = ''; }
     }
   } catch (error) {
     hideLoading();
-    if (errorEl) {
-      errorEl.textContent = 'Network error while executing command';
-      errorEl.classList.remove('d-none');
-    }
+    if (errorEl) { errorEl.textContent = 'Network error'; errorEl.style.display = ''; }
   }
 }
 
-// Create site
 async function createSite() {
-  const siteNameInput = document.getElementById('siteName');
-  const siteName = siteNameInput.value.trim();
-  const phpVersionSelect = document.getElementById('phpVersion');
-  const phpVersion = phpVersionSelect ? phpVersionSelect.value : '8.3';
-  
-  if (!siteName) {
-    showNotification('Please enter a site name', 'warning');
-    return;
-  }
-  
+  const siteName = document.getElementById('siteName').value.trim();
+  const phpVersion = document.getElementById('phpVersion')?.value || '8.3';
+  if (!siteName) { showNotification('Enter a site name', 'warning'); return; }
   if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(siteName)) {
-    showNotification('Site name must start with a letter and contain only alphanumeric characters, hyphens, and underscores', 'warning');
+    showNotification('Name: start with letter, alphanumeric/hyphens/underscores', 'warning');
     return;
   }
-  
   try {
     showLoading();
     const response = await fetch('/api/sites/create', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ siteName, phpVersion })
     });
-    
     const data = await response.json();
-    
     if (data.success && (!data.exitCode || data.exitCode === 0)) {
-      showNotification(`Site "${siteName}" created successfully`, 'success');
-      siteNameInput.value = '';
-      
-      // Close modal
-      const modal = bootstrap.Modal.getInstance(document.getElementById('createSiteModal'));
-      modal.hide();
+      showNotification(`"${siteName}" created`, 'success');
+      document.getElementById('siteName').value = '';
+      closeModal('createSiteModal');
     } else {
-      // Extract error message from output (last non-empty line)
-      let errorMsg = 'Unknown error';
+      let msg = 'Unknown error';
       if (data.output) {
         const lines = data.output.split('\n').filter(l => l.trim());
-        if (lines.length > 0) {
-          errorMsg = lines[lines.length - 1].replace(/✅|❌|ℹ️|⚠️| - /g, '').trim();
-        }
-      } else if (data.error) {
-        errorMsg = data.error;
-      }
-      showNotification(`Failed to create site: ${errorMsg}`, 'danger');
+        if (lines.length) msg = lines[lines.length - 1];
+      } else if (data.error) { msg = data.error; }
+      showNotification(`Create failed: ${msg}`, 'danger');
     }
-    
-    // Always refresh after create attempt (success or failure)
     await loadDashboard();
-    
     hideLoading();
   } catch (error) {
-    console.error('Error creating site:', error);
-    showNotification('Network error while creating site', 'danger');
+    showNotification('Network error', 'danger');
     hideLoading();
   }
 }
 
-// Site health check
 async function checkSiteHealth(siteName) {
   const healthEl = document.getElementById(`health-${siteName}`);
-  const statusEl = healthEl?.querySelector('.health-status');
-  
+  const statusEl = healthEl?.querySelector('.health-text');
   if (!healthEl || !statusEl) return;
-  
   healthEl.style.display = 'block';
-  statusEl.innerHTML = '<span class="text-info">Checking...</span>';
-  
+  statusEl.innerHTML = '<span style="color:var(--accent)">Checking...</span>';
   try {
     const response = await fetch(`/api/health/${siteName}`);
     const data = await response.json();
-    
     if (data.success && data.healthy) {
-      statusEl.innerHTML = `<span class="text-success">✓ Healthy (${data.responseTime})</span>`;
+      statusEl.innerHTML = `<span style="color:var(--success)">Healthy (${data.responseTime})</span>`;
     } else if (data.success && !data.healthy) {
-      statusEl.innerHTML = `<span class="text-warning">✗ ${data.reason || data.error || 'Unhealthy'}</span>`;
+      statusEl.innerHTML = `<span style="color:var(--warning)">${data.reason || data.error || 'Unhealthy'}</span>`;
     } else {
-      statusEl.innerHTML = `<span class="text-danger">Error: ${data.error?.message || 'Unknown'}</span>`;
+      statusEl.innerHTML = `<span style="color:var(--danger)">Error</span>`;
     }
   } catch (error) {
-    statusEl.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+    statusEl.innerHTML = `<span style="color:var(--danger)">${error.message}</span>`;
   }
 }
 
-// Frontend management
 async function frontendAction(action) {
   try {
     showLoading();
     const response = await fetch(`/api/frontend/${action}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Content-Type': 'application/json' }
     });
-    
     const data = await response.json();
-    
     if (data.success) {
-      showNotification(`Frontend "${action}" executed successfully`, 'success');
+      showNotification(`Frontend "${action}" done`, 'success');
       updateFrontendStatus(action, data.output);
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
-      showNotification(`Frontend "${action}" failed: ${errorMsg}`, 'danger');
+      showNotification(`Frontend "${action}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
-    
     hideLoading();
   } catch (error) {
-    console.error('Error executing frontend action:', error);
-    showNotification('Network error while executing frontend command', 'danger');
+    showNotification('Network error', 'danger');
     hideLoading();
   }
 }
 
-// Update frontend status display
 function updateFrontendStatus(action, output) {
-  const statusDiv = document.getElementById('frontend-status');
-  if (!statusDiv) return;
-  
-  if (action === 'status') {
-    statusDiv.textContent = output || 'No status output';
-  } else if (action === 'stop') {
-    statusDiv.innerHTML = '<span class="badge bg-danger">Stopped</span>';
-  } else if (action === 'start' || action === 'restart') {
-     statusDiv.innerHTML = '<span class="badge bg-success">Running (http://localhost:8500)</span>';
-   }
+  const el = document.getElementById('frontendStatus');
+  if (!el) return;
+  if (action === 'status') el.textContent = output || 'No output';
+  else if (action === 'stop') el.innerHTML = '<span style="color:var(--danger)">Stopped</span>';
+  else if (action === 'start' || action === 'restart') el.innerHTML = '<span style="color:var(--success)">Running — localhost:8500</span>';
 }
 
-// Terminal commands
 async function executeCommand() {
-  const input = document.getElementById('terminal-input');
-  const output = document.getElementById('terminal-output');
+  const input = document.getElementById('terminalInput');
+  const output = document.getElementById('terminalOutput');
   const command = input.value.trim();
-  
   if (!command) return;
-  
-  const outputLine = document.createElement('div');
-  outputLine.innerHTML = `<span style="color: var(--accent-color);">$</span> ${escapeHtml(command)}`;
-  output.appendChild(outputLine);
+  const line = document.createElement('div');
+  line.className = 'terminal-line';
+  line.innerHTML = `<span style="color:var(--accent);font-weight:700">$</span> ${escapeHtml(command)}`;
+  output.appendChild(line);
   input.value = '';
-  
   try {
     const parts = command.split(' ');
     const action = parts[0];
     const args = parts.slice(1);
-    
+    const siteActions = ['start','stop','restart','remove','delete','rm','info','url','logs','backup','restore','edit','clone','reset','export-db','import-db','create','check'];
+    const envActions = ['start','stop','restart','status','logs','clean','check','health','cache','cache-clear','search-replace','update','update-core','install'];
     let endpoint, body;
-
-    const siteActions = ['start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'create', 'check'];
-    const envActions = ['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install'];
-
     if (args.length > 0 && siteActions.includes(action)) {
       endpoint = '/api/sites/' + action;
-      body = { siteName: args[0], phpVersion: undefined };
+      body = { siteName: args[0] };
     } else if (envActions.includes(action)) {
       endpoint = '/api/environment/' + action;
       body = { args };
     } else {
-      const outputDiv = document.createElement('div');
-      outputDiv.className = 'text-warning';
-      outputDiv.style.whiteSpace = 'pre-wrap';
-      outputDiv.textContent = `Unknown command: ${action}. Type 'help' for available commands.`;
-      output.appendChild(outputDiv);
+      const d = document.createElement('div');
+      d.className = 'terminal-line dim';
+      d.textContent = `Unknown: ${action}. Try 'help'`;
+      output.appendChild(d);
       output.scrollTop = output.scrollHeight;
       return;
     }
-    
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    
     const data = await response.json();
-    
     if (data.success && data.output) {
-      const outputDiv = document.createElement('div');
-      outputDiv.style.whiteSpace = 'pre-wrap';
-      outputDiv.style.fontFamily = 'monospace';
-      outputDiv.style.fontSize = '0.85rem';
-      outputDiv.innerHTML = escapeHtml(data.output);
-      output.appendChild(outputDiv);
+      const d = document.createElement('div');
+      d.className = 'terminal-line';
+      d.style.whiteSpace = 'pre-wrap';
+      d.textContent = data.output;
+      output.appendChild(d);
     } else {
-      const errorMsg = data.error?.message || data.error || 'Unknown error';
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'text-danger';
-      errorDiv.style.whiteSpace = 'pre-wrap';
-      errorDiv.innerHTML = escapeHtml(`Error: ${errorMsg}`);
-      output.appendChild(errorDiv);
+      const d = document.createElement('div');
+      d.className = 'terminal-line';
+      d.style.color = 'var(--danger)';
+      d.textContent = `Error: ${data.error?.message || data.error || 'Unknown'}`;
+      output.appendChild(d);
     }
   } catch (error) {
-    console.error('Error executing command:', error);
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'text-danger';
-    errorDiv.textContent = 'Network error';
-    output.appendChild(errorDiv);
+    const d = document.createElement('div');
+    d.className = 'terminal-line';
+    d.style.color = 'var(--danger)';
+    d.textContent = 'Network error';
+    output.appendChild(d);
   }
-  
   output.scrollTop = output.scrollHeight;
 }
 
-// Utility functions
 function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
 }
 
-// Utility functions
 function showLoading() {
-  const refreshBtn = document.getElementById('refresh-btn');
-  refreshBtn.disabled = true;
-  refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Loading...';
+  const btn = document.getElementById('refreshBtn');
+  if (!btn) return;
+  btn.dataset.originalContent = btn.innerHTML;
+  btn.classList.add('loading');
+  btn.innerHTML = '<i class="ph-light ph-arrows-clockwise"></i>';
 }
 
 function hideLoading() {
-  const refreshBtn = document.getElementById('refresh-btn');
-  refreshBtn.disabled = false;
-  refreshBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> Refresh';
+  const btn = document.getElementById('refreshBtn');
+  if (!btn) return;
+  btn.classList.remove('loading');
+  if (btn.dataset.originalContent) {
+    btn.innerHTML = btn.dataset.originalContent;
+    delete btn.dataset.originalContent;
+  } else {
+    btn.innerHTML = '<i class="ph-light ph-arrows-clockwise"></i> <span>Refresh</span>';
+  }
 }
 
 function showNotification(message, type = 'info') {
-  // Remove existing notifications
   const existing = document.querySelector('.notification-toast');
-  if (existing) {
-    existing.remove();
-  }
-  
-  // Create new notification
-  const notification = document.createElement('div');
-  notification.className = `notification-toast toast align-items-center text-white bg-${type} border-0`;
-  notification.setAttribute('role', 'alert');
-  notification.innerHTML = `
-    <div class="d-flex">
-      <div class="toast-body"></div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = `notification-toast ${type}`;
+  toast.innerHTML = `
+    <span>${escapeHtml(message)}</span>
+    <button class="toast-close" onclick="this.parentElement.remove()"><i class="ph-light ph-x"></i></button>
   `;
-  notification.querySelector('.toast-body').textContent = message;
-  
-  // Add to page
-  document.body.appendChild(notification);
-  
-  // Position notification
-  notification.style.position = 'fixed';
-  notification.style.top = '20px';
-  notification.style.right = '20px';
-  notification.style.zIndex = '9999';
-  
-  // Show notification
-  const toast = new bootstrap.Toast(notification);
-  toast.show();
-  
-  // Remove after auto-hide
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.parentNode.removeChild(notification);
-    }
-  }, 5000);
+  document.body.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) toast.remove(); }, 5000);
 }
 
 function showActionOutput(action, siteName, output) {
-  // Clean up ANSI codes and format output
-  const cleanOutput = output
-    .replace(/\x1b\[[0-9;]*m/g, '')  // Remove ANSI colors
-    .replace(/✅|❌|ℹ️|⚠️| - /g, '')  // Remove icons
-    .trim();
-  
-  // Show in modal
-  const modalHtml = `
-    <div class="modal fade" id="actionOutputModal" tabindex="-1">
-      <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h5 class="modal-title">
-              <i class="bi bi-${getActionIcon(action)} me-2"></i>
-              ${getActionTitle(action)}: ${siteName}
-            </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-          </div>
-          <div class="modal-body">
-            <pre class="bg-dark text-light p-3 rounded" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">${escapeHtml(cleanOutput)}</pre>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
-          </div>
+  const clean = output.replace(/\x1b\[[0-9;]*m/g, '').replace(/[\u2705\u274c\u2139\ufe0f\u26a0\ufe0f]| - /g, '').trim();
+  const html = `<div class="modal-overlay open" id="actionOutputModal">
+    <div class="modal-shell wide">
+      <div class="modal-inner">
+        <div class="modal-header">
+          <h3><i class="ph-light ph-info"></i> ${siteName}</h3>
+          <button class="modal-close" onclick="closeActionOutputModal()"><i class="ph-light ph-x"></i></button>
+        </div>
+        <div class="modal-body">
+          <pre class="code-block">${escapeHtml(clean)}</pre>
+        </div>
+        <div class="modal-footer">
+          <button class="action-btn primary" onclick="closeActionOutputModal()"><span class="btn-inner">Close</span></button>
         </div>
       </div>
     </div>
-  `;
-  
-  // Remove existing modal if any
-  const existingModal = document.getElementById('actionOutputModal');
-  if (existingModal) existingModal.remove();
-  
-  // Add modal to page
-  document.body.insertAdjacentHTML('beforeend', modalHtml);
-  
-  // Show modal
-  const modal = new bootstrap.Modal(document.getElementById('actionOutputModal'));
-  modal.show();
+  </div>`;
+  const existing = document.getElementById('actionOutputModal');
+  if (existing) existing.remove();
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
-function getActionIcon(action) {
-  const icons = {
-    'info': 'info-circle',
-    'url': 'link-45deg',
-    'logs': 'terminal',
-    'edit': 'pencil',
-    'backup': 'download',
-    'clone': 'copy'
-  };
-  return icons[action] || 'gear';
-}
-
-function getActionTitle(action) {
-  const titles = {
-    'info': 'Site Information',
-    'url': 'Site URL',
-    'logs': 'Site Logs',
-    'edit': 'Edit Configuration',
-    'backup': 'Backup',
-    'clone': 'Clone Site'
-  };
-  return titles[action] || 'Action Result';
+function closeActionOutputModal() {
+  const el = document.getElementById('actionOutputModal');
+  if (el) el.remove();
 }
 
 function showError(message) {
-  const errorDiv = document.createElement('div');
-  errorDiv.className = 'alert alert-danger alert-dismissible fade show';
-  errorDiv.setAttribute('role', 'alert');
-  errorDiv.innerHTML = `
-    <strong>Error:</strong> ${message}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  `;
-  
-  // Insert at the top of main content
-  const main = document.querySelector('main');
-  main.insertBefore(errorDiv, main.firstChild);
-  
-  // Auto-remove after 5 seconds
-  setTimeout(() => {
-    if (errorDiv.parentNode) {
-      errorDiv.parentNode.removeChild(errorDiv);
-    }
-  }, 5000);
+  hideLoading();
+  showNotification(message, 'danger');
 }
 
-// Code quality check functions
 async function runChecksForSite(siteName) {
   try {
     showLoading();
@@ -1119,20 +843,16 @@ async function runChecksForSite(siteName) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ siteName })
     });
-    
     const data = await response.json();
     hideLoading();
-    
     if (data.success) {
       displayCheckResults(data.output || data.data, siteName);
     } else {
-      const errorMsg = data.error?.message || data.error || 'Check failed';
-      showNotification(`Check failed: ${errorMsg}`, 'danger');
+      showNotification(`Check failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
   } catch (error) {
-    console.error('Error running checks:', error);
     hideLoading();
-    showNotification('Network error while running checks', 'danger');
+    showNotification('Network error', 'danger');
   }
 }
 
@@ -1143,67 +863,417 @@ async function runAllChecks() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    
     const data = await response.json();
     hideLoading();
-    
     if (data.success) {
       displayCheckResults(data.output || data.data, 'All Sites');
     } else {
-      const errorMsg = data.error?.message || data.error || 'Check failed';
-      showNotification(`Check failed: ${errorMsg}`, 'danger');
+      showNotification(`Check failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
   } catch (error) {
-    console.error('Error running checks:', error);
     hideLoading();
-    showNotification('Network error while running checks', 'danger');
+    showNotification('Network error', 'danger');
   }
 }
 
 function displayCheckResults(results, siteName) {
-  const modal = new bootstrap.Modal(document.getElementById('checkResultsModal'));
-  const body = document.getElementById('check-results-body');
-  const progress = document.getElementById('check-progress');
-  const output = document.getElementById('check-output');
-  
-  progress.classList.add('d-none');
-  output.classList.remove('d-none');
-  
-  const pre = output.querySelector('pre');
-  
+  openModal('checkResultsModal');
+  const progress = document.getElementById('checkProgress');
+  const output = document.getElementById('checkOutput');
+  progress.style.display = 'none';
+  output.style.display = '';
+  const pre = output.querySelector('.code-block');
   if (typeof results === 'string') {
     pre.textContent = results || 'No output';
   } else if (results && results.results) {
     let text = '';
     results.results.forEach(tool => {
-      text += `=== ${tool.tool} ===\n`;
-      text += `Files Scanned: ${tool.filesScanned}\n`;
-      text += `Errors: ${tool.totals.errors}, Warnings: ${tool.totals.warnings}\n`;
-      if (tool.errors.length > 0) {
-        text += '\nErrors:\n';
-        tool.errors.forEach(e => {
-          text += `  ${e.file}:${e.line} - ${e.message}\n`;
-        });
-      }
-      if (tool.warnings.length > 0) {
-        text += '\nWarnings:\n';
-        tool.warnings.forEach(w => {
-          text += `  ${w.file}:${w.line} - ${w.message}\n`;
-        });
-      }
+      text += `=== ${tool.tool} ===\nFiles: ${tool.filesScanned}\nErrors: ${tool.totals.errors}, Warnings: ${tool.totals.warnings}\n`;
+      if (tool.errors.length) { text += '\nErrors:\n'; tool.errors.forEach(e => { text += `  ${e.file}:${e.line} - ${e.message}\n`; }); }
+      if (tool.warnings.length) { text += '\nWarnings:\n'; tool.warnings.forEach(w => { text += `  ${w.file}:${w.line} - ${w.message}\n`; }); }
       text += '\n';
     });
     pre.textContent = text;
   } else {
     pre.textContent = JSON.stringify(results, null, 2);
   }
-  
-  modal.show();
 }
 
-// Activity tab event listener
-document.addEventListener('shown.bs.tab', function (event) {
-  if (event.target.id === 'activity-tab') {
-    loadActivity();
+function initParticles() {
+  const canvas = document.getElementById('particlesCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let particles = [];
+  let mouse = { x: -1000, y: -1000 };
+  let frame;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
   }
-});
+
+  window.addEventListener('resize', resize);
+  document.addEventListener('mousemove', e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  });
+  document.addEventListener('mouseleave', () => {
+    mouse.x = -1000;
+    mouse.y = -1000;
+  });
+
+  resize();
+
+  const count = Math.min(70, Math.floor(canvas.width * 0.035));
+  const maxDist = 160;
+  const speed = 0.25;
+
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * speed,
+      vy: (Math.random() - 0.5) * speed,
+      r: Math.random() * 1.5 + 0.5
+    });
+  }
+
+  function getAccent() {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    return isLight ? '0, 148, 255' : '0, 229, 255';
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const accent = getAccent();
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      const dx = p.x - mouse.x;
+      const dy = p.y - mouse.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 180) {
+        p.vx += (dx / Math.max(dist, 1)) * 0.08;
+        p.vy += (dy / Math.max(dist, 1)) * 0.08;
+      }
+
+      p.vx *= 0.98;
+      p.vy *= 0.98;
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < -20) p.x = canvas.width + 20;
+      if (p.x > canvas.width + 20) p.x = -20;
+      if (p.y < -20) p.y = canvas.height + 20;
+      if (p.y > canvas.height + 20) p.y = -20;
+
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        const dx = p.x - p2.x;
+        const dy = p.y - p2.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < maxDist) {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          const alpha = (1 - dist / maxDist) * 0.12;
+          ctx.strokeStyle = `rgba(${accent}, ${alpha})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${accent}, 0.5)`;
+      ctx.fill();
+    }
+
+    frame = requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
+function initCounters() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        const target = parseInt(el.textContent, 10);
+        if (isNaN(target) || target === 0) {
+          observer.unobserve(el);
+          return;
+        }
+        let current = 0;
+        const duration = Math.min(1200, Math.max(400, target * 30));
+        const start = performance.now();
+        el.textContent = '0';
+
+        function update(now) {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          current = Math.round(eased * target);
+          el.textContent = current;
+          if (progress < 1) {
+            requestAnimationFrame(update);
+          } else {
+            el.textContent = target;
+            observer.unobserve(el);
+          }
+        }
+
+        requestAnimationFrame(update);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.stat-value').forEach(el => observer.observe(el));
+}
+
+/* --- Site Detail Flyout --- */
+function initSiteFlyout() {
+  document.getElementById('sitesGrid').addEventListener('click', (e) => {
+    const card = e.target.closest('.site-card');
+    if (!card) return;
+    if (e.target.closest('button, a, .toolbar-btn, .action-chip, .dropdown-container, .dropdown-menu, .site-meta a')) return;
+    openSiteFlyout(card.dataset.siteName);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeSiteFlyout();
+  });
+}
+
+function openSiteFlyout(siteName) {
+  const site = currentData.sites.find(s => s.name === siteName);
+  if (!site) return;
+  flyoutSite = site;
+
+  const nameEl = document.getElementById('flyoutSiteName');
+  const statusEl = document.getElementById('flyoutSiteStatus');
+  const statusTextEl = document.getElementById('flyoutSiteStatusText');
+  const urlEl = document.getElementById('flyoutSiteUrl');
+  const phpEl = document.getElementById('flyoutSitePhp');
+  const portEl = document.getElementById('flyoutSitePort');
+
+  if (nameEl) nameEl.textContent = site.name;
+  if (statusTextEl) statusTextEl.textContent = site.status || 'Stopped';
+  if (statusEl) {
+    const isRunning = String(site.status || '').toLowerCase() === 'running';
+    statusEl.className = `status-tag ${isRunning ? 'live' : 'down'}`;
+    const dot = statusEl.querySelector('.status-tag-dot');
+    if (dot) dot.style.display = '';
+  }
+  if (urlEl) {
+    const url = site.localUrl || '#';
+    urlEl.href = url;
+    urlEl.textContent = url !== '#' ? url : 'Not configured';
+  }
+  if (phpEl) phpEl.textContent = site.phpVersion || '--';
+  if (portEl) portEl.textContent = site.port || '--';
+
+  flyoutHealthCheck();
+
+  document.getElementById('siteFlyoutOverlay').classList.add('open');
+  document.getElementById('siteFlyout').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSiteFlyout() {
+  document.getElementById('siteFlyoutOverlay').classList.remove('open');
+  document.getElementById('siteFlyout').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function flyoutHealthCheck() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  const dot = document.getElementById('flyoutHealthDot');
+  const text = document.getElementById('flyoutHealthText');
+  if (dot) dot.className = 'pulse-dot';
+  if (text) text.textContent = 'Checking...';
+
+  try {
+    const response = await fetch(`/api/health/${name}`);
+    const data = await response.json();
+    if (dot) {
+      dot.className = 'dot';
+      dot.style.color = data.healthy ? 'var(--success)' : 'var(--warning)';
+      dot.style.background = data.healthy ? 'var(--success)' : 'var(--warning)';
+    }
+    if (text) {
+      text.textContent = data.healthy
+        ? `Healthy (${data.responseTime || 'OK'})`
+        : (data.reason || 'Unhealthy');
+    }
+  } catch (e) {
+    if (dot) { dot.className = 'dot'; dot.style.color = 'var(--danger)'; dot.style.background = 'var(--danger)'; }
+    if (text) text.textContent = 'Error checking health';
+  }
+}
+
+async function flyoutAction(action) {
+  const name = flyoutSite?.name;
+  if (!name) return;
+
+  if (['start', 'stop', 'info', 'url', 'logs', 'check', 'remove', 'delete'].includes(action)) {
+    await siteAction(action, name);
+  } else if (action === 'restart') {
+    await siteAction('restart', name);
+  } else if (action === 'backup') {
+    await siteAction('backup', name);
+  } else if (action === 'export-db') {
+    await siteAction('export-db', name);
+  } else if (action === 'import-db') {
+    await siteAction('import-db', name);
+  } else if (action === 'restore') {
+    await siteAction('restore', name);
+  } else if (action === 'clone') {
+    await siteAction('clone', name);
+  } else if (action === 'reset') {
+    await siteAction('reset', name);
+  } else if (['rest', 'xdebug', 'repair'].includes(action)) {
+    try {
+      showLoading();
+      const response = await fetch(`/api/sites/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteName: name })
+      });
+      const data = await response.json();
+      hideLoading();
+      if (data.success && data.output) {
+        showActionOutput(action, name, data.output);
+      } else if (data.success) {
+        showNotification(`"${action} ${name}" done`, 'success');
+      } else {
+        showNotification(`"${action} ${name}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
+      }
+    } catch (e) {
+      hideLoading();
+      showNotification('Network error', 'danger');
+    }
+  }
+
+  setTimeout(async () => {
+    await loadDashboard();
+    if (flyoutSite) openSiteFlyout(flyoutSite.name);
+  }, 1500);
+}
+
+function flyoutEditPhp() {
+  const name = flyoutSite?.name;
+  if (name) openSiteWorkflowModal('edit', name);
+}
+
+async function flyoutUpdateCore() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/environment/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ args: [name] })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Update "${name}" done`, 'success');
+      setTimeout(() => loadDashboard(), 1000);
+    } else {
+      showNotification(`Update failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutClearCache() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/environment/cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ args: [name] })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Cache cleared for "${name}"`, 'success');
+      setTimeout(() => loadDashboard(), 1000);
+    } else {
+      showNotification(`Cache clear failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+function flyoutSearchReplace() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  const search = prompt('Search for:');
+  if (!search) return;
+  const replace = prompt('Replace with:');
+  if (replace === null) return;
+  (async () => {
+    try {
+      showLoading();
+      const response = await fetch('/api/environment/search-replace', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ args: [name, search, replace || ''] })
+      });
+      const data = await response.json();
+      hideLoading();
+      if (data.success) {
+        showNotification(`Search/replace done for "${name}"`, 'success');
+        setTimeout(() => loadDashboard(), 1000);
+      } else {
+        showNotification(`Search/replace failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
+      }
+    } catch (e) {
+      hideLoading();
+      showNotification('Network error', 'danger');
+    }
+  })();
+}
+
+async function flyoutWpcli() {
+  const name = flyoutSite?.name;
+  const input = document.getElementById('flyoutWpcliInput');
+  const command = input?.value?.trim();
+  if (!name || !command) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/wp-cli', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, command })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success && data.output) {
+      showActionOutput('wp', `${name} — ${command}`, data.output);
+      input.value = '';
+    } else if (data.success) {
+      showNotification(`WP-CLI done`, 'success');
+      input.value = '';
+    } else {
+      showNotification(`WP-CLI failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+

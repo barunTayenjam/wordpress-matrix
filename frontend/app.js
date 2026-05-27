@@ -20,10 +20,40 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const PROJECT_ROOT = path.join(__dirname, '..');
 const MATRIX_PATH = path.join(PROJECT_ROOT, 'matrix');
-const VALID_SITE_NAME = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
-const RESERVED_SITE_NAMES = new Set(['frontend', 'matrix', 'db', 'redis', 'phpmyadmin', 'nginx']);
-const SUPPORTED_PHP_VERSIONS = new Set(['7.4', '8.0', '8.1', '8.2', '8.3']);
-const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check']);
+
+// Load validation config from shared source
+const loadValidationConfig = () => {
+  const { execSync } = require('child_process');
+  const configPath = path.join(PROJECT_ROOT, 'config', 'validation.sh');
+  try {
+    if (fs.existsSync(configPath)) {
+      const output = execSync(`source "${configPath}" && validation_json 2>/dev/null`, {
+        cwd: PROJECT_ROOT,
+        shell: '/bin/bash',
+        encoding: 'utf-8',
+        timeout: 5000,
+      });
+      return JSON.parse(output);
+    }
+  } catch (e) {
+    console.log('[Config] Shared validation not available, using defaults');
+  }
+  return null;
+};
+
+const VALIDATION_CONFIG = loadValidationConfig();
+
+const VALID_SITE_NAME = new RegExp(
+  (VALIDATION_CONFIG && VALIDATION_CONFIG.siteNameRegex) || '^[a-zA-Z][a-zA-Z0-9_-]*$'
+);
+const RESERVED_SITE_NAMES = new Set(
+  (VALIDATION_CONFIG && VALIDATION_CONFIG.reservedNames) || ['frontend', 'matrix', 'db', 'redis', 'phpmyadmin', 'nginx', 'content']
+);
+const SUPPORTED_PHP_VERSIONS = new Set(
+  (VALIDATION_CONFIG && VALIDATION_CONFIG.supportedPhpVersions) || ['7.4', '8.0', '8.1', '8.2', '8.3']
+);
+const DEFAULT_PHP_VERSION = (VALIDATION_CONFIG && VALIDATION_CONFIG.defaultPhpVersion) || '8.3';
+const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair']);
 const ALLOWED_SITE_ACTIONS = new Set([...SITE_ACTIONS_REQUIRING_NAME]);
 const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install']);
 const ALLOWED_FRONTEND_ACTIONS = new Set(['start', 'stop', 'restart', 'status']);
@@ -610,6 +640,69 @@ app.post('/api/sites/logs', async (req, res) => {
   }
 });
 
+app.post('/api/sites/rest', async (req, res) => {
+  const { siteName } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  try {
+    const result = await executeMatrix('rest', [siteName]);
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+app.post('/api/sites/xdebug', async (req, res) => {
+  const { siteName, enabled } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  try {
+    const result = await executeMatrix('xdebug', [siteName]);
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+app.post('/api/sites/repair', async (req, res) => {
+  const { siteName } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  try {
+    const result = await executeMatrix('repair', [siteName]);
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+app.post('/api/sites/wp-cli', async (req, res) => {
+  const { siteName, command } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  if (!command || typeof command !== 'string' || command.length > 500 || /[;&|`$]/.test(command)) {
+    return sendError(res, 'INVALID_INPUT', 'Invalid WP-CLI command');
+  }
+  try {
+    const result = await executeMatrix('wp', [siteName, ...command.trim().split(/\s+/)]);
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
 // Catch-all for remaining site actions (create, start, stop, remove, info, check)
 app.post('/api/sites/:action', async (req, res) => {
   const { action } = req.params;
@@ -624,7 +717,7 @@ app.post('/api/sites/:action', async (req, res) => {
   }
 
   if (action === 'create') {
-    const phpValidation = validatePhpVersion(phpVersion || '8.3');
+      const phpValidation = validatePhpVersion(phpVersion || DEFAULT_PHP_VERSION);
     if (!phpValidation.valid) {
       return sendError(res, phpValidation.code, phpValidation.message);
     }
@@ -632,7 +725,7 @@ app.post('/api/sites/:action', async (req, res) => {
 
   try {
     const args = action === 'create'
-      ? [siteName, `--php-version=${phpVersion || '8.3'}`]
+      ? [siteName, `--php-version=${phpVersion || DEFAULT_PHP_VERSION}`]
       : ['remove', 'delete', 'rm'].includes(action)
         ? [siteName, '--yes']
         : [siteName];
@@ -918,6 +1011,15 @@ app.get('/api/activity', async (req, res) => {
   }
 });
 
+// 404 handler
+app.use((req, res) => {
+  res.status(404).render('error', {
+    title: 'Page Not Found',
+    layout: 'main',
+    error: 'The page you\'re looking for doesn\'t exist.'
+  });
+});
+
 const startServer = (port = PORT) => {
   startStatusPolling();
   return server.listen(port, () => {
@@ -949,5 +1051,7 @@ module.exports = {
     ALLOWED_FRONTEND_ACTIONS,
     SUPPORTED_PHP_VERSIONS,
     RESERVED_SITE_NAMES,
+    DEFAULT_PHP_VERSION,
+    VALIDATION_CONFIG,
   },
 };

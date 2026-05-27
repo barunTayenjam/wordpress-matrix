@@ -1,235 +1,281 @@
-<div class="tab-content">
-  <!-- Dashboard Tab -->
-  <div class="tab-pane fade show active" id="dashboard">
+<div class="tab-panels">
+  <!-- Dashboard Panel -->
+  <div class="tab-panel active" id="panel-dashboard">
     <!-- Live Status Bar -->
-    <div class="live-status-bar mb-4">
-      <div class="status-pill running">
+    <div class="status-bar-live" id="liveStatusBar">
+      <div class="pill running">
         <span class="pulse-dot"></span>
-        <span id="live-running">0</span> Running
+        <span id="liveRunning">0</span> running
       </div>
-      <div class="status-pill stopped">
+      <div class="pill stopped">
         <span class="dot"></span>
-        <span id="live-stopped">0</span> Stopped
+        <span id="liveStopped">0</span> stopped
       </div>
-      <div class="status-pill services">
-        <span class="pulse-dot success"></span>
-        <span id="live-services">0</span> Services
+      <div class="pill active">
+        <span class="pulse-dot"></span>
+        <span id="liveServices">0</span> services
       </div>
-      <div class="status-pill manual-refresh" onclick="loadDashboard()" title="Click to refresh">
-        <i class="bi bi-arrow-clockwise"></i>
-        <span>Refresh</span>
-      </div>
-      <div class="status-pill last-update">
-        <i class="bi bi-clock"></i>
-        Updated: <span id="last-update-display">--</span>
+      <div class="pill muted">
+        <i class="ph-light ph-clock"></i>
+        Last: <span id="lastUpdateDisplay">--</span>
       </div>
     </div>
 
-    <!-- Stats Overview -->
-    <div class="row g-4 mb-4">
-<div class="col-md-3">
-  <div class="stat-card-modern stat-card-primary">
-    <div class="stat-icon">
-      <i class="bi bi-hdd-stack"></i>
+    <!-- Bento Stats Grid -->
+    <div class="bento-grid">
+      <div class="bento-cell cell-total reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <div class="stat-icon-box primary">
+                <i class="ph-light ph-hard-drives"></i>
+              </div>
+              <span class="stat-badge">all time</span>
+            </div>
+            <div class="stat-body">
+              <span class="stat-value" id="totalSitesCount">{{sites.length}}</span>
+              <span class="stat-label">Total Sites</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bento-cell cell-running reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <div class="stat-icon-box success">
+                <i class="ph-light ph-play-circle"></i>
+              </div>
+              <span class="stat-badge">online</span>
+            </div>
+            <div class="stat-body">
+              <span class="stat-value" id="runningSitesCount">{{runningSitesCount}}</span>
+              <span class="stat-label">Running</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bento-cell cell-services reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <div class="stat-icon-box accent">
+                <i class="ph-light ph-server"></i>
+              </div>
+              <span class="stat-badge">active</span>
+            </div>
+            <div class="stat-body">
+              <span class="stat-value" id="servicesCount">{{services.length}}</span>
+              <span class="stat-label">Services</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="bento-cell cell-actions reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <div class="stat-icon-box warning">
+                <i class="ph-light ph-lightning"></i>
+              </div>
+              <span class="stat-badge">quick</span>
+            </div>
+            <div class="bento-actions">
+              <button class="action-chip" onclick="quickAction('start')">
+                <i class="ph-light ph-play"></i> Start All
+              </button>
+              <button class="action-chip" onclick="quickAction('stop')">
+                <i class="ph-light ph-stop"></i> Stop All
+              </button>
+              <button class="action-chip" onclick="quickAction('restart')">
+                <i class="ph-light ph-arrows-clockwise"></i> Restart
+              </button>
+              <button class="action-chip" onclick="quickAction('check')">
+                <i class="ph-light ph-clipboard-text"></i> Quality
+              </button>
+              <button class="action-chip" onclick="quickAction('clean')">
+                <i class="ph-light ph-trash"></i> Clean
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="stat-content">
-      <h3 class="stat-value" id="total-sites-count">{{sites.length}}</h3>
-      <p class="stat-label">Total Sites</p>
-      <div class="stat-trend neutral">
-        <i class="bi bi-dash"></i> All time
+
+    <!-- Full Quick Actions Panel -->
+    <div class="section-panel reveal">
+      <div class="shell">
+        <div class="inner">
+          <div class="panel-header">
+            <div class="panel-title">
+              <i class="ph-light ph-lightning"></i>
+              <span>Quick Actions</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="action-strip">
+              <button class="action-btn primary" onclick="quickAction('start')">
+                <span class="btn-inner">
+                  <span>Start All</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-play"></i></span>
+                </span>
+              </button>
+              <button class="action-btn secondary" onclick="quickAction('stop')">
+                <span class="btn-inner">
+                  <span>Stop All</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-stop"></i></span>
+                </span>
+              </button>
+              <button class="action-btn outline" onclick="quickAction('restart')">
+                <span class="btn-inner">
+                  <span>Restart</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-arrows-clockwise"></i></span>
+                </span>
+              </button>
+              <button class="action-btn outline" onclick="quickAction('check')">
+                <span class="btn-inner">
+                  <span>Code Quality</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-clipboard-text"></i></span>
+                </span>
+              </button>
+              <button class="action-btn outline danger" onclick="quickAction('clean')">
+                <span class="btn-inner">
+                  <span>Clean</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-trash"></i></span>
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-</div>
-      <div class="col-md-3">
-        <div class="stat-card-modern stat-card-success">
-          <div class="stat-icon">
-            <i class="bi bi-play-circle"></i>
-          </div>
-          <div class="stat-content">
-            <h3 class="stat-value" id="running-sites-count">{{runningSitesCount}}</h3>
-            <p class="stat-label">Running</p>
-            <div class="stat-trend" id="running-trend">
-              <i class="bi bi-arrow-up-short"></i> Online
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card-modern stat-card-info">
-          <div class="stat-icon">
-            <i class="bi bi-server"></i>
-          </div>
-          <div class="stat-content">
-            <h3 class="stat-value">{{services.length}}</h3>
-            <p class="stat-label">Services</p>
-            <div class="stat-trend" id="services-status">
-              <i class="bi bi-check-circle"></i> Active
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card-modern stat-card-warning">
-          <div class="stat-icon">
-            <i class="bi bi-lightning-charge"></i>
-          </div>
-          <div class="stat-content">
-            <h3 class="stat-value quick-actions-count">5</h3>
-            <p class="stat-label">Quick Actions</p>
-            <div class="stat-trend hint">
-              <i class="bi bi-keyboard"></i> Keyboard ready
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Quick Actions -->
-    <div class="modern-card mb-4">
-      <div class="card-header-modern">
-        <div class="d-flex justify-content-between align-items-center">
-          <h4 class="mb-0"><i class="bi bi-lightning-charge me-2"></i>Quick Actions</h4>
-          <span class="action-hint">Press <kbd>R</kbd> to refresh</span>
-        </div>
+  <!-- Sites Panel -->
+  <div class="tab-panel" id="panel-sites">
+    <div class="panel-header between">
+      <div class="panel-title">
+        <i class="ph-light ph-hard-drives"></i>
+        <span>Sites</span>
       </div>
-      <div class="card-body-modern">
-        <div class="action-buttons">
-          <button class="action-btn action-btn-success" onclick="quickAction('start')" title="Start all services">
-            <i class="bi bi-play-fill"></i>
-            <span>Start All</span>
-          </button>
-          <button class="action-btn action-btn-secondary" onclick="quickAction('stop')" title="Stop all services">
-            <i class="bi bi-stop-fill"></i>
-            <span>Stop All</span>
-          </button>
-          <button class="action-btn action-btn-info" onclick="quickAction('restart')" title="Restart all services">
-            <i class="bi bi-arrow-clockwise"></i>
-            <span>Restart All</span>
-          </button>
-          <button class="action-btn action-btn-primary" onclick="quickAction('check')" title="Run code quality checks">
-            <i class="bi bi-clipboard-check"></i>
-            <span>Code Quality</span>
-          </button>
-          <button class="action-btn action-btn-warning" onclick="quickAction('clean')" title="Clean unused resources">
-            <i class="bi bi-trash"></i>
-            <span>Clean</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Sites Tab -->
-  <div class="tab-pane fade" id="sites">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h3 class="section-title"><i class="bi bi-grid me-2"></i>Sites Management</h3>
-      <button class="btn btn-modern-primary" data-bs-toggle="modal" data-bs-target="#createSiteModal">
-        <i class="bi bi-plus-circle me-2"></i>Create Site
+      <button class="action-btn primary" onclick="openModal('createSiteModal')">
+        <span class="btn-inner">
+          <span>New Site</span>
+          <span class="btn-icon-wrap"><i class="ph-light ph-plus"></i></span>
+        </span>
       </button>
     </div>
 
-    <div class="modern-card mb-4">
-      <div class="card-body-modern">
-        <div class="row g-3 align-items-end">
-          <div class="col-md-5">
-            <label for="site-search" class="form-label">Search sites</label>
-            <input type="search" class="form-control" id="site-search" placeholder="Search by name, URL, or PHP version">
-          </div>
-          <div class="col-md-3">
-            <label for="site-status-filter" class="form-label">Status</label>
-            <select class="form-select" id="site-status-filter">
-              <option value="all" selected>All statuses</option>
-              <option value="running">Running</option>
-              <option value="stopped">Stopped</option>
-            </select>
-          </div>
-          <div class="col-md-3">
-            <label for="site-sort" class="form-label">Sort by</label>
-            <select class="form-select" id="site-sort">
-              <option value="name-asc" selected>Name A-Z</option>
-              <option value="name-desc">Name Z-A</option>
-              <option value="status">Status</option>
-              <option value="php">PHP version</option>
-            </select>
-          </div>
-          <div class="col-md-1">
-            <button class="btn btn-modern-secondary w-100" type="button" onclick="resetSiteFilters()" aria-label="Reset site filters">
-              <i class="bi bi-x-circle"></i>
+    <div class="section-panel">
+      <div class="shell">
+        <div class="inner">
+          <div class="filter-strip">
+            <div class="filter-field">
+              <i class="ph-light ph-magnifying-glass"></i>
+              <input type="search" id="siteSearch" placeholder="Search sites..." class="filter-input">
+            </div>
+            <div class="filter-select">
+              <select id="siteStatusFilter">
+                <option value="all">All statuses</option>
+                <option value="running">Running</option>
+                <option value="stopped">Stopped</option>
+              </select>
+            </div>
+            <div class="filter-select">
+              <select id="siteSort">
+                <option value="name-asc">Name A-Z</option>
+                <option value="name-desc">Name Z-A</option>
+                <option value="status">Status</option>
+                <option value="php">PHP version</option>
+              </select>
+            </div>
+            <button class="filter-reset" onclick="resetSiteFilters()" aria-label="Reset filters">
+              <i class="ph-light ph-x-circle"></i>
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="row g-4" id="sites-grid">
+    <div class="sites-grid" id="sitesGrid">
       {{#each sites}}
-      <div class="col-md-6 col-lg-4 site-card-wrapper" data-site-name="{{name}}" data-site-status="{{status}}" data-site-php="{{phpVersion}}" data-site-url="{{localUrl}}">
-        <div class="site-card-modern">
-          <div class="site-card-header">
-            <h5 class="site-title">{{name}}</h5>
-            <span class="status-badge {{#if (eq status "Running")}}status-running{{else}}status-stopped{{/if}}">
-              {{status}}
-            </span>
-          </div>
-          <div class="site-card-body">
-            {{#if localUrl}}
-            <div class="site-info">
-              <i class="bi bi-link me-2"></i>
-              <a href="{{localUrl}}" target="_blank" rel="noopener" class="site-link">{{localUrl}}</a>
+      <div class="site-card double-bezel reveal" data-site-name="{{name}}" data-site-status="{{status}}" data-site-php="{{phpVersion}}" data-site-url="{{localUrl}}">
+        <div class="shell">
+          <div class="inner">
+            <div class="site-card-top">
+              <h3 class="site-name">{{name}}</h3>
+              <span class="status-tag {{#if (eq status "Running")}}live{{else}}down{{/if}}">
+                <span class="status-tag-dot"></span>
+                {{status}}
+              </span>
             </div>
-            <div class="site-actions-primary">
-              <a href="{{localUrl}}" target="_blank" rel="noopener" class="btn-modern-sm btn-modern-outline">
-                <i class="bi bi-box-arrow-up-right"></i> Open
+            {{#if localUrl}}
+            <div class="site-meta">
+              <i class="ph-light ph-link"></i>
+              <a href="{{localUrl}}" target="_blank" rel="noopener">{{localUrl}}</a>
+            </div>
+            <div class="site-actions">
+              <a href="{{localUrl}}" target="_blank" rel="noopener" class="action-chip small">
+                <i class="ph-light ph-arrow-square-out"></i> Open
               </a>
-              <button class="btn-modern-sm btn-modern-outline" onclick="checkSiteHealth('{{name}}')" aria-label="Check health for {{name}}">
-                <i class="bi bi-heart-pulse"></i> Health
+              <button class="action-chip small" onclick="checkSiteHealth('{{name}}')">
+                <i class="ph-light ph-heartbeat"></i> Health
               </button>
             </div>
-            <div id="health-{{name}}" class="site-health mt-2" style="display: none;" aria-live="polite">
-              <span class="health-status small"></span>
+            <div id="health-{{name}}" class="health-result" style="display:none">
+              <span class="health-text"></span>
             </div>
             {{else}}
-            <div class="site-info text-muted">
-              <i class="bi bi-info-circle me-2"></i>Not configured
+            <div class="site-meta muted">
+              <i class="ph-light ph-info"></i>
+              <span>Not configured</span>
             </div>
             {{/if}}
-          </div>
-          <div class="site-card-footer">
-            <div class="btn-group-modern">
-              <button class="btn-icon btn-success" onclick="siteAction('start', '{{name}}')" title="Start" aria-label="Start {{name}}">
-                <i class="bi bi-play-fill"></i>
-              </button>
-              <button class="btn-icon btn-warning" onclick="siteAction('stop', '{{name}}')" title="Stop" aria-label="Stop {{name}}">
-                <i class="bi bi-stop-fill"></i>
-              </button>
-              <button class="btn-icon btn-info" onclick="siteAction('restart', '{{name}}')" title="Restart" aria-label="Restart {{name}}">
-                <i class="bi bi-arrow-clockwise"></i>
-              </button>
-              <button class="btn-icon btn-secondary" onclick="runChecksForSite('{{name}}')" title="Check" aria-label="Run checks for {{name}}">
-                <i class="bi bi-clipboard-check"></i>
-              </button>
-              <button class="btn-icon btn-secondary" onclick="siteAction('backup', '{{name}}')" title="Backup" aria-label="Back up {{name}}">
-                <i class="bi bi-download"></i>
-              </button>
-              <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-label="More actions for {{name}}">
-                  <i class="bi bi-three-dots-vertical"></i>
+            <div class="site-toolbar">
+              <div class="toolbar-group">
+                <button class="toolbar-btn" onclick="siteAction('start','{{name}}')" title="Start {{name}}">
+                  <i class="ph-light ph-play"></i>
+                  <span>Start</span>
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end">
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('info', '{{name}}')"><i class="bi bi-info-circle me-2"></i>Info</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('url', '{{name}}')"><i class="bi bi-link-45deg me-2"></i>Show URL</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('logs', '{{name}}')"><i class="bi bi-terminal me-2"></i>Logs</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('edit', '{{name}}')"><i class="bi bi-pencil me-2"></i>Edit Config</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('export-db', '{{name}}')"><i class="bi bi-database-export me-2"></i>Export DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('import-db', '{{name}}')"><i class="bi bi-database-import me-2"></i>Import DB</a></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('restore', '{{name}}')"><i class="bi bi-arrow-counterclockwise me-2"></i>Restore</a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item" href="#" onclick="siteAction('clone', '{{name}}')"><i class="bi bi-copy me-2"></i>Clone</a></li>
-                  <li><a class="dropdown-item text-warning" href="#" onclick="siteAction('reset', '{{name}}')"><i class="bi bi-exclamation-triangle me-2"></i>Reset</a></li>
-                  <li><a class="dropdown-item text-danger" href="#" onclick="siteAction('remove', '{{name}}')"><i class="bi bi-trash me-2"></i>Delete</a></li>
-                </ul>
+                <button class="toolbar-btn" onclick="siteAction('stop','{{name}}')" title="Stop {{name}}">
+                  <i class="ph-light ph-stop"></i>
+                  <span>Stop</span>
+                </button>
+                <button class="toolbar-btn" onclick="siteAction('restart','{{name}}')" title="Restart {{name}}">
+                  <i class="ph-light ph-arrows-clockwise"></i>
+                  <span>Restart</span>
+                </button>
+                <button class="toolbar-btn" onclick="runChecksForSite('{{name}}')" title="Run checks on {{name}}">
+                  <i class="ph-light ph-clipboard-text"></i>
+                  <span>Check</span>
+                </button>
+                <button class="toolbar-btn" onclick="siteAction('backup','{{name}}')" title="Backup {{name}}">
+                  <i class="ph-light ph-download"></i>
+                  <span>Backup</span>
+                </button>
+              </div>
+              <div class="dropdown-container">
+                <button class="toolbar-btn" onclick="toggleDropdown(event, '{{name}}')" title="More actions for {{name}}">
+                  <i class="ph-light ph-dots-three-vertical"></i>
+                  <span>More</span>
+                </button>
+                <div class="dropdown-menu" id="dropdown-{{name}}">
+                  <button onclick="siteAction('info','{{name}}')"><i class="ph-light ph-info"></i>Info</button>
+                  <button onclick="siteAction('url','{{name}}')"><i class="ph-light ph-link"></i>URL</button>
+                  <button onclick="siteAction('logs','{{name}}')"><i class="ph-light ph-terminal"></i>Logs</button>
+                  <button onclick="siteAction('edit','{{name}}')"><i class="ph-light ph-pencil"></i>Edit</button>
+                  <div class="dropdown-divider"></div>
+                  <button onclick="siteAction('export-db','{{name}}')"><i class="ph-light ph-database-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db','{{name}}')"><i class="ph-light ph-database-import"></i>Import DB</button>
+                  <button onclick="siteAction('restore','{{name}}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
+                  <div class="dropdown-divider"></div>
+                  <button onclick="siteAction('clone','{{name}}')"><i class="ph-light ph-copy"></i>Clone</button>
+                  <button class="warning" onclick="siteAction('reset','{{name}}')"><i class="ph-light ph-warning"></i>Reset</button>
+                  <button class="danger" onclick="siteAction('remove','{{name}}')"><i class="ph-light ph-trash"></i>Delete</button>
+                </div>
               </div>
             </div>
           </div>
@@ -237,151 +283,207 @@
       </div>
       {{/each}}
     </div>
-    <div id="sites-empty-state" class="modern-card text-center p-4 text-muted d-none">
-      No sites match the current filters.
+    <div class="empty-state" id="sitesEmptyState" style="display:none">
+      <div class="shell">
+        <div class="inner">
+          <i class="ph-light ph-hard-drives" style="font-size:2rem;opacity:0.3"></i>
+          <p>No sites match current filters</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Services Tab -->
-  <div class="tab-pane fade" id="services">
-    <h3 class="section-title mb-4"><i class="bi bi-server me-2"></i>Services Status</h3>
-    <div class="modern-card">
-      <div class="table-responsive">
-        <table class="table-modern">
-          <thead>
-            <tr>
-              <th>Service</th>
-              <th>Status</th>
-              <th>Local URL</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            {{#each services}}
-            <tr>
-              <td><strong>{{name}}</strong></td>
-              <td>
-                <span class="status-badge {{#if (eq status "Running")}}status-running{{else}}status-stopped{{/if}}">
-                  {{status}}
+  <!-- Services Panel -->
+  <div class="tab-panel" id="panel-services">
+    <div class="panel-header">
+      <div class="panel-title">
+        <i class="ph-light ph-server"></i>
+        <span>Services</span>
+      </div>
+    </div>
+    <div class="section-panel">
+      <div class="shell">
+        <div class="inner inner--flush">
+          <table class="glass-table">
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Status</th>
+                <th>URL</th>
+                <th>Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{#each services}}
+              <tr>
+                <td class="service-name">{{name}}</td>
+                <td>
+                  <span class="status-tag {{#if (eq status "Running")}}live{{else}}down{{/if}}">
+                    <span class="status-tag-dot"></span>
+                    {{status}}
+                  </span>
+                </td>
+                <td>
+                  {{#if (ne localUrl "Internal")}}
+                  <a href="{{localUrl}}" target="_blank" class="table-link">{{localUrl}}</a>
+                  {{else}}
+                  <span class="muted">{{localUrl}}</span>
+                  {{/if}}
+                </td>
+                <td><span class="type-badge">service</span></td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Frontend Panel -->
+  <div class="tab-panel" id="panel-frontend">
+    <div class="panel-header">
+      <div class="panel-title">
+        <i class="ph-light ph-browsers"></i>
+        <span>Frontend</span>
+      </div>
+    </div>
+    <div class="bento-grid cols-2">
+      <div class="bento-cell reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <span class="stat-label">Status</span>
+            </div>
+            <div class="frontend-status" id="frontendStatus">Checking...</div>
+            <div style="margin-top:1rem">
+              <a href="http://localhost:8500" target="_blank" rel="noopener" class="action-btn primary">
+                <span class="btn-inner">
+                  <span>Open Dashboard</span>
+                  <span class="btn-icon-wrap"><i class="ph-light ph-arrow-square-out"></i></span>
                 </span>
-              </td>
-              <td>
-                {{#if (ne localUrl "Internal")}}
-                <a href="{{localUrl}}" target="_blank" rel="noopener" class="link-modern">{{localUrl}}</a>
-                {{else}}
-                <span class="text-muted">{{localUrl}}</span>
-                {{/if}}
-              </td>
-              <td><span class="badge-modern">Services</span></td>
-            </tr>
-            {{/each}}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Frontend Tab -->
-  <div class="tab-pane fade" id="frontend">
-    <h3 class="section-title mb-4"><i class="bi bi-display me-2"></i>Frontend Management</h3>
-    <div class="modern-card">
-      <div class="row">
-        <div class="col-md-6">
-          <h5 class="mb-3">Status</h5>
-          <div id="frontend-status" class="status-display">Checking...</div>
-          <div class="mt-3">
-            <a href="http://localhost:8500" target="_blank" rel="noopener" class="btn btn-modern-primary">
-              <i class="bi bi-box-arrow-up-right me-2"></i>Open Frontend
-            </a>
+              </a>
+            </div>
           </div>
         </div>
-        <div class="col-md-6">
-          <h5 class="mb-3">Controls</h5>
-          <div class="control-buttons">
-            <button class="btn btn-modern-success" onclick="frontendAction('start')">
-              <i class="bi bi-play-fill me-2"></i>Start
-            </button>
-            <button class="btn btn-modern-danger" onclick="frontendAction('stop')">
-              <i class="bi bi-stop-fill me-2"></i>Stop
-            </button>
-            <button class="btn btn-modern-secondary" onclick="frontendAction('restart')">
-              <i class="bi bi-arrow-clockwise me-2"></i>Restart
-            </button>
-            <button class="btn btn-modern-info" onclick="frontendAction('status')">
-              <i class="bi bi-info-circle me-2"></i>Status
-            </button>
+      </div>
+      <div class="bento-cell reveal">
+        <div class="shell">
+          <div class="inner">
+            <div class="stat-header">
+              <span class="stat-label">Controls</span>
+            </div>
+            <div class="action-strip vertical">
+              <button class="action-btn primary" onclick="frontendAction('start')">
+                <span class="btn-inner"><i class="ph-light ph-play"></i> Start</span>
+              </button>
+              <button class="action-btn secondary" onclick="frontendAction('stop')">
+                <span class="btn-inner"><i class="ph-light ph-stop"></i> Stop</span>
+              </button>
+              <button class="action-btn outline" onclick="frontendAction('restart')">
+                <span class="btn-inner"><i class="ph-light ph-arrows-clockwise"></i> Restart</span>
+              </button>
+              <button class="action-btn outline" onclick="frontendAction('status')">
+                <span class="btn-inner"><i class="ph-light ph-info"></i> Status</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Terminal Tab -->
-  <div class="tab-pane fade" id="terminal">
-    <h3 class="section-title mb-4"><i class="bi bi-terminal me-2"></i>Terminal Interface</h3>
-    <div class="modern-card">
-      <div class="terminal-input-group">
-        <span class="terminal-prompt">{{matrixCommand}}</span>
-        <input type="text" id="terminal-input" class="terminal-input" placeholder="Enter matrix command..." onkeypress="if(event.key === 'Enter') { executeCommand(); }">
-        <button class="btn btn-modern-primary" onclick="executeCommand()">Execute</button>
+  <!-- Terminal Panel -->
+  <div class="tab-panel" id="panel-terminal">
+    <div class="panel-header">
+      <div class="panel-title">
+        <i class="ph-light ph-terminal"></i>
+        <span>Terminal</span>
       </div>
-      <div id="terminal-output" class="terminal-output">
-        <div class="terminal-line terminal-info">WordPress Matrix Terminal v2.0</div>
-        <div class="terminal-line terminal-muted">Type 'help' for available commands.</div>
-        <div class="terminal-line terminal-separator">--- --- --- --- --- ---</div>
+    </div>
+    <div class="section-panel">
+      <div class="shell">
+        <div class="inner">
+          <div class="terminal">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-title">matrix CLI</span>
+            </div>
+            <div class="terminal-body" id="terminalOutput">
+              <div class="terminal-line info">WordPress Matrix Terminal</div>
+              <div class="terminal-line dim">Type 'help' for available commands</div>
+              <div class="terminal-line dim sep">- - - - - - - - - - - - - -</div>
+            </div>
+            <div class="terminal-input-row">
+              <span class="terminal-prompt">$</span>
+              <input type="text" id="terminalInput" class="terminal-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeCommand()" autocomplete="off" spellcheck="false">
+              <button class="terminal-exec-btn" onclick="executeCommand()">
+                <i class="ph-light ph-arrow-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Activity Tab -->
-  <div class="tab-pane fade" id="activity">
-    <h3 class="section-title mb-4"><i class="bi bi-activity me-2"></i>Activity Log</h3>
-    <div class="modern-card">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <button class="btn btn-modern-secondary btn-sm" onclick="loadActivity()">
-          <i class="bi bi-arrow-clockwise me-1"></i> Refresh
-        </button>
-        <span class="text-muted small">Showing recent 50 activities</span>
+  <!-- Activity Panel -->
+  <div class="tab-panel" id="panel-activity">
+    <div class="panel-header between">
+      <div class="panel-title">
+        <i class="ph-light ph-activity"></i>
+        <span>Activity</span>
       </div>
-      <div class="table-responsive">
-        <table class="table-modern">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>Action</th>
-              <th>Site</th>
-              <th>Details</th>
-            </tr>
-          </thead>
-          <tbody id="activity-table-body">
-            <tr>
-              <td colspan="4" class="text-center text-muted">Loading activity log...</td>
-            </tr>
-          </tbody>
-        </table>
+      <button class="action-chip small" onclick="loadActivity()">
+        <i class="ph-light ph-arrows-clockwise"></i> Refresh
+      </button>
+    </div>
+    <div class="section-panel">
+      <div class="shell">
+        <div class="inner inner--flush">
+          <table class="glass-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Action</th>
+                <th>Site</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody id="activityTableBody">
+              <tr>
+                <td colspan="4" class="center muted">Loading...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Create Site Modal -->
-<div class="modal fade" id="createSiteModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog">
-    <div class="modal-content">
+<div class="modal-overlay" id="createSiteModal">
+  <div class="modal-shell">
+    <div class="modal-inner">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Create New Site</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h3><i class="ph-light ph-plus-circle"></i> New Site</h3>
+        <button class="modal-close" onclick="closeModal('createSiteModal')" aria-label="Close">
+          <i class="ph-light ph-x"></i>
+        </button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label for="siteName" class="form-label">Site Name</label>
-          <input type="text" class="form-control" id="siteName" placeholder="Enter site name...">
-          <div class="form-text">Use alphanumeric characters, hyphens, and underscores only.</div>
+        <div class="field-group">
+          <label for="siteName">Site Name</label>
+          <input type="text" id="siteName" placeholder="e.g. mysite" class="glass-input">
+          <span class="field-hint">Alphanumeric, hyphens, underscores only</span>
         </div>
-        <div class="mb-3">
-          <label for="phpVersion" class="form-label">PHP Version</label>
-          <select class="form-select" id="phpVersion">
-            <option value="8.3" selected>PHP 8.3 (default)</option>
+        <div class="field-group">
+          <label for="phpVersion">PHP Version</label>
+          <select id="phpVersion" class="glass-select">
+            <option value="8.3">PHP 8.3 (default)</option>
             <option value="8.2">PHP 8.2</option>
             <option value="8.1">PHP 8.1</option>
             <option value="8.0">PHP 8.0</option>
@@ -390,31 +492,162 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" onclick="createSite()">Create Site</button>
+        <button class="action-btn outline" onclick="closeModal('createSiteModal')"><span class="btn-inner">Cancel</span></button>
+        <button class="action-btn primary" onclick="createSite()">
+          <span class="btn-inner">
+            <span>Create</span>
+            <span class="btn-icon-wrap"><i class="ph-light ph-plus"></i></span>
+          </span>
+        </button>
       </div>
     </div>
   </div>
 </div>
 
 <!-- Code Quality Results Modal -->
-<div class="modal fade" id="checkResultsModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+<div class="modal-overlay" id="checkResultsModal">
+  <div class="modal-shell wide">
+    <div class="modal-inner">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="bi bi-clipboard-check me-2"></i>Code Quality Results</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h3><i class="ph-light ph-clipboard-text"></i> Code Quality Results</h3>
+        <button class="modal-close" onclick="closeModal('checkResultsModal')" aria-label="Close">
+          <i class="ph-light ph-x"></i>
+        </button>
       </div>
-      <div class="modal-body" id="check-results-body">
-        <div id="check-progress" class="text-center">
-          <div class="spinner-border" role="status"></div>
-          <p>Running checks...</p>
+      <div class="modal-body">
+        <div id="checkProgress" class="center" style="padding:1.5rem">
+          <div class="spinner"></div>
+          <p style="margin-top:0.75rem">Running checks...</p>
         </div>
-        <div id="check-output" class="d-none">
-          <pre class="p-3 bg-dark text-light rounded"></pre>
+        <div id="checkOutput" style="display:none">
+          <pre class="code-block"></pre>
         </div>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Site Detail Flyout -->
+<div class="flyout-overlay" id="siteFlyoutOverlay" onclick="closeSiteFlyout()"></div>
+<div class="site-flyout" id="siteFlyout">
+  <div class="flyout-header">
+    <div class="flyout-header-info">
+      <span class="flyout-site-name" id="flyoutSiteName">--</span>
+      <span class="status-tag" id="flyoutSiteStatus">
+        <span class="status-tag-dot"></span>
+        <span id="flyoutSiteStatusText">--</span>
+      </span>
+    </div>
+    <button class="flyout-close" onclick="closeSiteFlyout()" aria-label="Close">
+      <i class="ph-light ph-x"></i>
+    </button>
+  </div>
+
+  <div class="flyout-body">
+    <!-- Meta row -->
+    <div class="flyout-meta">
+      <div class="flyout-meta-item">
+        <span class="flyout-meta-label">URL</span>
+        <a class="flyout-meta-value" id="flyoutSiteUrl" href="#" target="_blank">--</a>
+      </div>
+      <div class="flyout-meta-row">
+        <div class="flyout-meta-item">
+          <span class="flyout-meta-label">PHP</span>
+          <span class="flyout-meta-value" id="flyoutSitePhp">--</span>
+        </div>
+        <div class="flyout-meta-item">
+          <span class="flyout-meta-label">Port</span>
+          <span class="flyout-meta-value" id="flyoutSitePort">--</span>
+        </div>
+        <div class="flyout-meta-item">
+          <span class="flyout-meta-label">Type</span>
+          <span class="flyout-meta-value" id="flyoutSiteType">dynamic</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Health -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Health</div>
+      <div class="flyout-health-bar" id="flyoutHealthBar">
+        <span class="pulse-dot" id="flyoutHealthDot"></span>
+        <span id="flyoutHealthText">Checking...</span>
+        <button class="action-chip small" onclick="flyoutHealthCheck()" style="margin-left:auto">
+          <i class="ph-light ph-heartbeat"></i> Check
+        </button>
+      </div>
+    </div>
+
+    <!-- Lifecycle -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Lifecycle</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutAction('start')"><i class="ph-light ph-play"></i> Start</button>
+        <button class="action-chip" onclick="flyoutAction('stop')"><i class="ph-light ph-stop"></i> Stop</button>
+        <button class="action-chip" onclick="flyoutAction('restart')"><i class="ph-light ph-arrows-clockwise"></i> Restart</button>
+      </div>
+    </div>
+
+    <!-- Info -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Information</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutAction('info')"><i class="ph-light ph-info"></i> Info</button>
+        <button class="action-chip" onclick="flyoutAction('url')"><i class="ph-light ph-link"></i> URL</button>
+        <button class="action-chip" onclick="flyoutAction('logs')"><i class="ph-light ph-terminal-window"></i> Logs</button>
+        <button class="action-chip" onclick="flyoutAction('rest')"><i class="ph-light ph-currency-circle-dollar"></i> REST API</button>
+        <button class="action-chip" onclick="flyoutAction('check')"><i class="ph-light ph-clipboard-text"></i> Checks</button>
+        <button class="action-chip" onclick="flyoutHealthCheck()"><i class="ph-light ph-heartbeat"></i> Health</button>
+      </div>
+    </div>
+
+    <!-- Database -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Database</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutAction('export-db')"><i class="ph-light ph-database-export"></i> Export</button>
+        <button class="action-chip" onclick="flyoutAction('import-db')"><i class="ph-light ph-database-import"></i> Import</button>
+        <button class="action-chip" onclick="flyoutSearchReplace()"><i class="ph-light ph-arrows-left-right"></i> Search/Replace</button>
+      </div>
+    </div>
+
+    <!-- Maintenance -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Maintenance</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutAction('backup')"><i class="ph-light ph-download-simple"></i> Backup</button>
+        <button class="action-chip" onclick="flyoutAction('restore')"><i class="ph-light ph-upload-simple"></i> Restore</button>
+        <button class="action-chip" onclick="flyoutAction('clone')"><i class="ph-light ph-copy"></i> Clone</button>
+        <button class="action-chip" onclick="flyoutAction('reset')"><i class="ph-light ph-arrow-counter-clockwise"></i> Reset</button>
+        <button class="action-chip" onclick="flyoutUpdateCore()"><i class="ph-light ph-cloud-arrow-up"></i> Update</button>
+        <button class="action-chip" onclick="flyoutClearCache()"><i class="ph-light ph-broom"></i> Clear Cache</button>
+      </div>
+    </div>
+
+    <!-- Advanced -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Advanced</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutEditPhp()"><i class="ph-light ph-pencil"></i> Edit PHP</button>
+        <button class="action-chip" onclick="flyoutAction('xdebug')"><i class="ph-light ph-bug"></i> Xdebug</button>
+        <button class="action-chip" onclick="flyoutAction('repair')"><i class="ph-light ph-wrench"></i> Repair</button>
+      </div>
+      <div class="flyout-wpcli" style="margin-top:0.5rem">
+        <div class="flyout-wpcli-row">
+          <span class="flyout-wpcli-prompt">$</span>
+          <input type="text" id="flyoutWpcliInput" class="flyout-wpcli-input" placeholder="wp plugin list --status=active" autocomplete="off" spellcheck="false">
+          <button class="action-chip small" onclick="flyoutWpcli()"><i class="ph-light ph-arrow-right"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Danger -->
+    <div class="flyout-section flyout-section-danger">
+      <div class="flyout-action-grid cols-2">
+        <button class="action-chip danger" onclick="flyoutAction('remove')"><i class="ph-light ph-trash"></i> Delete Site</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Dynamically rendered modals: siteWorkflowModal, actionOutputModal -->
