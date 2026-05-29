@@ -63,34 +63,11 @@ Plans:
 
 **Duration estimate**: 3-4 hrs
 
-### Tasks
+**Plans**: 2 plans
 
-1. **Generate random passwords at .env creation** (#4)
-   - In `setup_env()`, replace hardcoded `wp_password`/`root_password` with `openssl rand -base64 16`
-   - Fix the mismatch with `.env.example` too
-   - Files: `matrix` (setup_env), `.env.example`
-
-2. **Standardize error handling with die()** (#5)
-   - Define a `die()` function in `scripts/helpers.sh` that prints a message and exits 1
-   - Audit functions using bare `exit 1` or silent `return 1` and route them through `die()` or a documented return convention
-   - Files: `scripts/helpers.sh`, `matrix`, `scripts/*.sh`
-
-3. **Remove or fix the test/check alias** (#6)
-   - Either delete the `test` case from the dispatch or wire it to a real runner (PHPUnit/Jest)
-   - Document the `check` command's actual purpose
-   - Files: `matrix`
-
-4. **Add --json support to health-check.sh** (#7)
-   - Pass a `--json` flag from `matrix health` into `health-check.sh`
-   - Have it emit a JSON object matching the format of status/info commands
-   - Files: `scripts/health-check.sh`, `matrix`
-
-### Success Criteria
-
-- [ ] Fresh `.env` created with random credentials
-- [ ] `die()` function defined and used consistently
-- [ ] `./matrix test` either removed or runs real test runner
-- [ ] `./matrix health --json` outputs valid JSON
+Plans:
+- [ ] 06-01-PLAN.md — Random passwords, die() function, test alias fix
+- [ ] 06-02-PLAN.md — exit 1 audit, health --json support
 
 ---
 
