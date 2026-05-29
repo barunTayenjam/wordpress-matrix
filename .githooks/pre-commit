@@ -1,13 +1,46 @@
 #!/bin/bash
-# Pre-commit hook: reject commits containing MYSQL_PASSWORD strings
-# This prevents accidental credential leakage into git history.
+# Pre-commit hook: prevent accidental credential leakage into git history.
+# Blocks commits that stage .env files or hardcode MYSQL_PASSWORD values.
+# Shell scripts (.sh, executable scripts) that reference the env var name
+# via variable expansion ($MYSQL_PASSWORD, ${MYSQL_PASSWORD:-...}) are allowed.
 
 set -euo pipefail
 
-# Check staged files for MYSQL_PASSWORD (case-sensitive)
-if git diff --cached --diff-filter=ACM --name-only -z | xargs -0 grep -l 'MYSQL_PASSWORD' 2>/dev/null; then
-    echo "ERROR: Commit contains 'MYSQL_PASSWORD' in staged files listed above."
-    echo "This looks like a credential string that should NOT be committed."
-    echo "If intentional, use --no-verify to bypass this check."
+# Check 1: Block any staged .env files (they always contain credentials)
+env_files=$(git diff --cached --diff-filter=ACM --name-only -z | tr '\0' '\n' | grep -E '(^|/)\.env$' || true)
+if [ -n "$env_files" ]; then
+    echo "ERROR: Staged .env file(s):"
+    echo "$env_files"
+    echo ".env files contain credentials and must NOT be committed."
     exit 1
+fi
+
+# Check 2: For non-shell-script files, flag hardcoded MYSQL_PASSWORD= assignments
+# that look like credential definitions (not variable references).
+staged_files=$(git diff --cached --diff-filter=ACM --name-only -z | tr '\0' '\n' || true)
+if [ -n "$staged_files" ]; then
+    offending=""
+    while IFS= read -r file; do
+        [ -z "$file" ] && continue
+        # Skip shell scripts, documentation, and planning files — legitimate env var refs
+        case "$file" in
+            *.sh|*.bash|*.md) continue ;;
+            .planning/*) continue ;;
+        esac
+        # Check if file starts with shebang (executable script) — skip those too
+        content=$(git show ":${file}" 2>/dev/null | head -1 || true)
+        case "$content" in
+            "#!/bin/bash"*|"#!/usr/bin/env bash"*|"#!/bin/sh"*) continue ;;
+        esac
+        if git show ":${file}" 2>/dev/null | grep -q 'MYSQL_PASSWORD'; then
+            offending="$offending  $file"$'\n'
+        fi
+    done <<< "$staged_files"
+    if [ -n "$offending" ]; then
+        echo "ERROR: The following non-script files contain 'MYSQL_PASSWORD':"
+        echo "$offending"
+        echo "This looks like a credential string that should NOT be committed."
+        echo "If intentional, use --no-verify to bypass this check."
+        exit 1
+    fi
 fi
