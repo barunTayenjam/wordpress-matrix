@@ -40,7 +40,7 @@
 
 ---
 
-### Phase 5: Security (do first)
+### Phase 5: Security (do first) ◆ IN PROGRESS
 
 **Goal**: Eliminate credential exposure in process listings, harden file permissions, and prevent accidental credential commits.
 
@@ -48,28 +48,10 @@
 
 **Duration estimate**: 2-3 hrs
 
-### Tasks
+**Plans**: 1 plan
 
-1. **Fix password exposure in process listings** (#10)
-   - Replace all `-p"$PASSWORD"` CLI args with `-e MYSQL_PWD="$PASSWORD"` across `matrix`, `scripts/common.sh`, `scripts/backup.sh`, `scripts/reset.sh`, `scripts/clone.sh`
-   - Search for `mysqldump\|mysql.\_-p` to find all 11+ call sites
-   - Files: `matrix`, `scripts/common.sh`, `scripts/backup.sh`, `scripts/reset.sh`, `scripts/clone.sh`
-
-2. **Harden .env file permissions** (#11)
-   - After every `cat > .env` write (2 locations in `matrix`), add `chmod 600 "$PROJECT_ROOT/.env"`
-   - Files: `matrix` (setup_env, repair_env functions)
-
-3. **Verify .gitignore covers .env** (#14)
-   - Check that `.env` and `wp_*/.env` are in `.gitignore`
-   - Add a pre-commit hook that greps for `MYSQL_PASSWORD` and rejects the commit if found
-   - Files: `.gitignore`, pre-commit hook (new)
-
-### Success Criteria
-
-- [ ] No MySQL/mysqldump invocation passes password as CLI argument
-- [ ] `.env` created with 600 permissions
-- [ ] `.gitignore` covers `.env` patterns
-- [ ] Commits containing `MYSQL_PASSWORD` are rejected
+Plans:
+- [ ] 05-01-PLAN.md — Fix password exposure (16 call sites), harden .env permissions, add pre-commit hook
 
 ---
 
