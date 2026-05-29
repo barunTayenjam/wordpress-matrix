@@ -51,7 +51,7 @@
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Fix password exposure (16 call sites), harden .env permissions, add pre-commit hook
+- [x] 05-01-PLAN.md — Fix password exposure (16 call sites), harden .env permissions, add pre-commit hook
 
 ---
 
