@@ -329,7 +329,7 @@ EOF
 
     # Create database and grant permissions
     if compose_or_container_running "wp_db"; then
-        $CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
             -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
@@ -852,7 +852,7 @@ remove_site() {
 
     # Remove database
     if compose_or_container_running "wp_db"; then
-        $CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
             -e "DROP DATABASE IF EXISTS \`${site_name}_db\`; REVOKE ALL PRIVILEGES ON \`${site_name}_db\`.* FROM '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
@@ -1229,7 +1229,7 @@ access_shell() {
             log_error "Failed to access WordPress container"
             ;;
         "db"|"database")
-            $CONTAINER_RUNTIME exec "${exec_flags[@]}" wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}"
+            $CONTAINER_RUNTIME exec "${exec_flags[@]}" -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root
             ;;
         "nginx"|"proxy")
             local nginx_containers=($($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
@@ -1303,7 +1303,7 @@ show_info_json() {
 
     local db_size="null"
     if [[ "$status" == "running" ]]; then
-        db_size=$($CONTAINER_RUNTIME exec wp_db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" -sN -e "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) FROM information_schema.tables WHERE table_schema='${site_name}_db'" 2>/dev/null || true)
+        db_size=$($CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -sN -e "SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) FROM information_schema.tables WHERE table_schema='${site_name}_db'" 2>/dev/null || true)
         if [[ -n "$db_size" && "$db_size" != "NULL" ]]; then
             db_size="$db_size"
         else
@@ -2428,11 +2428,11 @@ EOF
 
         if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
             local db_exists
-            db_exists=$($DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+            db_exists=$($DOCKER_COMPOSE exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" db mysql -u root \
                 -sN -e "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='${site}_db'" 2>/dev/null || true)
             if [[ -z "$db_exists" ]]; then
                 log_warning "[$site] Database '${site}_db' missing"
-                $DOCKER_COMPOSE exec -T db mysql -u root -p"${MYSQL_ROOT_PASSWORD:-root}" \
+                $DOCKER_COMPOSE exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" db mysql -u root \
                     -e "CREATE DATABASE IF NOT EXISTS \`${site}_db\`; GRANT ALL PRIVILEGES ON \`${site}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
                 log_success "[$site] Created database '${site}_db'"
                 site_fixed=$((site_fixed + 1))
