@@ -71,7 +71,7 @@ log_info "Backing up to: $BACKUP_DIR"
 
 # Export database
 DB_NAME="${SITE_NAME}_db"
-$CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$DB_NAME" \
+$CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "$DB_NAME" \
     > "$BACKUP_DIR/database.sql"
 
 # Backup wp-content

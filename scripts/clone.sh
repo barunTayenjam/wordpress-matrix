@@ -61,12 +61,12 @@ create_database "$NEW_SITE"
 # Import database
 log_info "Importing database..."
 DB_DUMP=$(mktemp)
-if ! $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${SOURCE_SITE}_db" > "$DB_DUMP"; then
+if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "${SOURCE_SITE}_db" > "$DB_DUMP"; then
     rm -f "$DB_DUMP"
     log_error "Failed to export source database"
     exit 1
 fi
-if ! $CONTAINER_RUNTIME exec -i wp_db mysql -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "${NEW_SITE}_db" < "$DB_DUMP"; then
+if ! $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u"${MYSQL_USER:-wp_user}" "${NEW_SITE}_db" < "$DB_DUMP"; then
     rm -f "$DB_DUMP"
     log_error "Failed to import target database"
     exit 1

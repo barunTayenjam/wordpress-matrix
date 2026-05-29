@@ -75,7 +75,7 @@ backup_site() {
         local db_backup="$site_backup_dir/database.sql"
 
         log_info "  Exporting database..."
-        $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" \
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" \
             --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup"
 
         if [[ $? -eq 0 ]]; then

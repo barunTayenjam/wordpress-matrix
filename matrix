@@ -1589,7 +1589,7 @@ EOF
     local max_attempts=30
     local attempt=1
     while [[ $attempt -le $max_attempts ]]; do
-        if $DOCKER_COMPOSE exec -T db mysqladmin ping -h localhost -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" --silent 2>/dev/null; then
+        if $DOCKER_COMPOSE exec -T -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" db mysqladmin ping -h localhost -u "${MYSQL_USER:-wp_user}" --silent 2>/dev/null; then
             log_success "Database is ready!"
             break
         else
@@ -1649,10 +1649,10 @@ import_db() {
     log_info "Importing database for '$site_name' ($db_name)..."
 
     # Set log_bin_trust_function_creators to allow triggers/procedures without SUPER privilege
-    $CONTAINER_RUNTIME exec wp_db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" -e "SET SESSION sql_log_bin = 0;" 2>/dev/null || true
+    $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u "${MYSQL_USER:-wp_user}" -e "SET SESSION sql_log_bin = 0;" 2>/dev/null || true
 
     # Import the SQL dump
-    $CONTAINER_RUNTIME exec -i wp_db mysql -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" < "$dump_file"
+    $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u "${MYSQL_USER:-wp_user}" "$db_name" < "$dump_file"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database imported successfully for '$site_name'"
@@ -1688,7 +1688,7 @@ export_db() {
     fi
 
     # Export the database
-    $CONTAINER_RUNTIME exec wp_db mysqldump --no-tablespaces -u "${MYSQL_USER:-wp_user}" -p"${MYSQL_PASSWORD:-wp_password}" "$db_name" > "$output_file"
+    $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u "${MYSQL_USER:-wp_user}" "$db_name" > "$output_file"
 
     if [[ $? -eq 0 ]]; then
         log_success "Database exported successfully to '$output_file'"
