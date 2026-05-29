@@ -1,12 +1,12 @@
-# WordPress Matrix — Backend/Frontend Integration Overhaul
+# WordPress Matrix — Development Platform
 
 ## What This Is
 
-A local WordPress development platform that manages multiple isolated WordPress instances via Docker. The platform has a Bash CLI (`matrix`) for all management operations and an Express.js web dashboard for browser-based control. This project enhances the integration layer between the two — replacing fragile text parsing with a proper structured API, adding real-time container state updates via WebSocket, and expanding frontend coverage to the most-used management commands.
+A local WordPress development platform that manages multiple isolated WordPress instances via Docker. The platform has a Bash CLI (`matrix`) for all management operations and an Express.js web dashboard for browser-based control. Two active workstreams: (1) enhancing the frontend/CLI integration layer, and (2) hardening the Bash CLI itself — security, structure, and testability.
 
 ## Core Value
 
-Developers can manage their WordPress sites from the browser with the same reliability and completeness as the CLI — no stale data, no missing commands, no guessing.
+Developers can manage their WordPress sites reliably and securely from both CLI and browser — with no stale data, no exposed credentials, and no fragile text parsing.
 
 ## Requirements
 
@@ -21,36 +21,70 @@ Developers can manage their WordPress sites from the browser with the same relia
 - ✓ Code quality tools (PHPCS, PHPStan) via Docker profiles — existing
 - ✓ Utility scripts for backup, clone, reset, search-replace, cache-clear — existing
 
-### Active
+### Completed (Milestone 1: Backend/Frontend Integration Overhaul)
 
-- [ ] Structured JSON API replacing text output parsing
-- [ ] Real-time container status updates pushed to dashboard via WebSocket
-- [ ] Complete frontend coverage for site lifecycle operations
-- [ ] Complete frontend coverage for code quality checks
-- [ ] Log streaming to the browser
-- [ ] Proper error handling with structured error responses
-- [ ] Testable code with unit tests for API layer
+- ✓ Structured JSON API replacing text output parsing
+- ✓ Real-time container status updates via WebSocket
+- ✓ Complete frontend coverage for site lifecycle operations
+- ✓ Code quality check results display in dashboard
+- ✓ Log streaming to the browser
+- ✓ Structured error responses
+- ✓ Unit test coverage for API layer
+
+### Active (Milestone 2: Bash Hardening & Structural Cleanup)
+
+- [ ] Fix password exposure in process listings (11+ call sites)
+- [ ] Harden .env file permissions (chmod 600)
+- [ ] Verify .gitignore covers .env; add pre-commit credential guard
+- [ ] Generate random passwords at .env creation time
+- [ ] Standardize error handling with die()
+- [ ] Remove or fix the `test`/`check` dispatch alias
+- [ ] Add `--json` support to health-check.sh
+- [ ] Extract shared bootstrap to `lib/bootstrap.sh` (Variant B)
+- [ ] Split monolithic `matrix` (2814 lines) into domain modules
+- [ ] Formalize Docker/Compose abstraction
+- [ ] Replace case dispatch with associative array
+- [ ] Implement per-site credential isolation
+- [ ] Add `matrix rotate-secrets` command
+- [ ] Add shell script test coverage with bats
 
 ### Out of Scope
 
-- Mobile-responsive dashboard redesign — current Bootstrap layout works, visual redesign is separate
-- User authentication on the frontend — local dev tool, no auth needed
-- Containerizing the frontend — intentionally runs on host for direct CLI access
-- New WordPress management features (e.g., SSL provisioning, domain routing) — scope is integration only
-- Replacing the Bash CLI — it remains the source of truth, API wraps it properly
+- Mobile-responsive dashboard redesign — current Bootstrap layout works
+- SSL/TLS provisioning — scope is platform hardening, not network security
+- Containerizing the frontend — intentionally runs on host
+- New WordPress management features (SSL, domain routing, multisite) — tracked as future feature proposals
+- Replacing the Bash CLI — it remains the source of truth
 
 ## Context
 
-The current frontend (`frontend/app.js`) interacts with the backend exclusively by spawning `matrix` CLI commands via `child_process.spawn()` and parsing their stdout text. The `parseSiteList()` function splits CLI output on whitespace patterns to extract site names and statuses — fragile and format-dependent. Socket.io is already a declared dependency but completely unused. Axios is declared but also unused.
+### Architecture Baseline (from DFD.md)
 
-The CLI (`matrix`, 1464 lines) is well-structured with consistent output patterns (colored log functions, table formatting). It handles site CRUD, environment management, code quality checks, database import/export, and frontend process management.
+The shell architecture has 5 layers:
+- **L1**: `matrix` (2814 lines) — single CLI entry point dispatching 28+ commands
+- **L2**: Sourced libraries — `config/validation.sh`, `scripts/compose-lib.sh`, `scripts/helpers.sh`
+- **L3**: `scripts/common.sh` — bootstrapper for all standalone scripts
+- **L4**: Standalone subprocess scripts — backup, clone, reset, update-core, health-check
+- **L5**: External systems — Docker, MySQL, Redis, Nginx, WordPress, Frontend
 
-Key technical debt from codebase map:
-- Duplicated code between `matrix` and `scripts/common.sh` (logging, docker detection, site helpers)
-- Mutable `docker-compose.yml` modified in-place by awk
-- WP-CLI volume mount mismatch
-- No input sanitization for database operations
-- Frontend hardcoded ports scattered across files
+### Known Structural Issues
+
+- **Monolithic matrix script** (2814 lines, #1): Site CRUD, environment lifecycle, database ops, code quality, WP-CLI proxying, and frontend daemon management all in one file
+- **Duplicated bootstrap** (#2): ~40 lines of docker-compose detection, color/logger defs, and .env loading duplicated between `matrix` and `scripts/common.sh`
+- **Two code quality entry points** (#3): `./matrix check` and `./matrix test` both call `run_checks()` — undocumented alias
+- **Inconsistent error handling** (#6): Mix of `return 1` and `exit 1` with no consistent protocol
+- **No shell test coverage** (#7): 2814-line Bash script with zero automated tests
+
+### Security Gaps
+
+- **Passwords in process listings** (#10): Every MySQL/mysqldump invocation passes `-p"$PASSWORD"` as CLI argument — visible via `ps aux`
+- **Default passwords** (#9): `.env` created with hardcoded `wp_password`/`root_password` — no `openssl rand` anywhere
+- **Shared credentials** (#12): Single `MYSQL_USER`/`MYSQL_PASSWORD` pair for all sites — compromise of one site exposes all databases
+- **Unhardened .env permissions** (#11): `.env` written without `chmod 600`
+
+### Frontend Integration (Milestone 1 Complete)
+
+The web dashboard (`frontend/app.js`) interacts with the backend via `matrix` CLI commands. All Milestone 1 integration features (JSON API, WebSocket, code quality UI, test coverage) are complete and deployed.
 
 ## Constraints
 
@@ -59,14 +93,19 @@ Key technical debt from codebase map:
 - **Node.js >= 16**: Must support the current engine requirement
 - **Existing stack**: Express, Handlebars, Bootstrap 5.3 — no new frameworks
 - **Backward compatible**: CLI must continue working independently of the frontend
+- **Per-site isolation**: Database credentials must be unique per site
+- **No credential in process table**: All MySQL invocations must use `MYSQL_PWD` env var or `--defaults-extra-file`
+- **Shared bootstrap via lib/bootstrap.sh**: Both `matrix` and `common.sh` must source the same bootstrap library (Variant B)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | CLI-first architecture (keep) | Proven reliable, frontend is optional layer | ✓ Good |
-| socket.io for real-time updates | Already a dependency, purpose-built for this | — Pending |
-| Wrap CLI rather than replace | Preserves existing functionality, incremental improvement | — Pending |
+| socket.io for real-time updates | Already a dependency, purpose-built for this | ✓ Implemented |
+| Wrap CLI rather than replace | Preserves existing functionality, incremental improvement | ✓ Implemented |
+| Extract lib/bootstrap.sh (Variant B) | Cleaner separation than sourcing common.sh from matrix | — Pending |
+| Per-site credentials in wp_<site>/.env | Isolation prevents cross-site credential leakage | — Pending |
 
 ---
-*Last updated: 2025-04-06 after initialization*
+*Last updated: 2026-05-29 after ingest-docs from FLOW_REVIEW.md, DFD.md, IMPROVEMENT_PLAN.md*

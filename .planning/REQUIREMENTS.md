@@ -1,12 +1,19 @@
-# Requirements - WordPress Matrix Backend/Frontend Integration Overhaul
+# Requirements - WordPress Matrix Development Platform
 
 ## Categories
 
+### Milestone 1 (COMPLETE)
 - **API** - Structured JSON API layer
 - **WS** - Real-time WebSocket updates
 - **TEST** - Testing infrastructure
 - **FIX** - Technical debt and code cleanup
 - **UI** - Frontend dashboard enhancements
+
+### Milestone 2 (ACTIVE)
+- **SEC** - Security hardening
+- **INFRA** - Shell infrastructure and tooling
+- **ARCH** - Architecture and code organization
+- **TEST-SH** - Shell script testing
 
 ---
 
@@ -261,7 +268,229 @@ Dashboard UI for running and viewing code quality check results.
 
 ---
 
+## SEC - Security Hardening
+
+### REQ-password-exposure: Fix password exposure in process listings
+
+**Priority**: Critical | **Phase**: 5
+
+**Source**: FLOW_REVIEW.md (#10)
+
+Replace all `-p"$PASSWORD"` CLI args with `-e MYSQL_PWD="$PASSWORD"` across matrix, common.sh, backup.sh, reset.sh, clone.sh — 11 call sites.
+
+**Acceptance criteria**:
+- No MySQL or mysqldump invocation passes the password as a CLI argument
+- All call sites use `-e MYSQL_PWD="$PASSWORD"` via `$CONTAINER_RUNTIME exec` 
+- Verified by searching for `-p"\$` patterns across all shell files
+- Password not visible in `ps aux` output during database operations
+
+### REQ-env-permissions: Harden .env file permissions
+
+**Priority**: High | **Phase**: 5
+
+**Source**: FLOW_REVIEW.md (#11)
+
+After every `cat > .env` write (2 locations in matrix), add `chmod 600 "$PROJECT_ROOT/.env"`.
+
+**Acceptance criteria**:
+- `.env` created with 600 (owner read/write only) permissions
+- Applied in both `setup_env()` and `repair_env()` functions
+- No world-readable `.env` files after creation
+
+### REQ-gitignore-env: Verify .gitignore covers .env and add pre-commit guard
+
+**Priority**: High | **Phase**: 5
+
+**Source**: FLOW_REVIEW.md (#3)
+
+Check that `.env` and `wp_*/.env` are in `.gitignore`. Add a pre-commit hook that greps for `MYSQL_PASSWORD` and rejects the commit if found.
+
+**Acceptance criteria**:
+- `.gitignore` includes `.env` and `wp_*/.env` patterns
+- Pre-commit hook rejects commits containing `MYSQL_PASSWORD` strings
+- No credential leakage into git history
+
+---
+
+## INFRA - Shell Infrastructure and Tooling
+
+### REQ-random-passwords: Generate random passwords at .env creation
+
+**Priority**: High | **Phase**: 6
+
+**Source**: FLOW_REVIEW.md (#4)
+
+In `setup_env()`, replace hardcoded `wp_password`/`root_password` with `openssl rand -base64 16`. Fix the mismatch with `.env.example` too.
+
+**Acceptance criteria**:
+- Fresh `.env` created with random credentials
+- `.env.example` updated to match (no stale hardcoded values)
+- Each `setup_env` invocation produces different credentials
+- No hardcoded passwords remain in `.env` creation paths
+
+### REQ-die-error-handling: Standardize error handling with die()
+
+**Priority**: High | **Phase**: 6
+
+**Source**: FLOW_REVIEW.md (#5)
+
+Define a `die()` function in helpers.sh that prints a message and exits 1. Audit functions using bare `exit 1` or silent `return 1` and route them through `die()` or a documented return convention.
+
+**Acceptance criteria**:
+- `die()` defined in `scripts/helpers.sh` with message + exit 1
+- Bare `exit 1` calls audited and replaced with `die()` where appropriate
+- `return 1` retained only for validation functions where caller may want to retry
+- Consistent error protocol documented in comment block
+
+### REQ-test-check-alias: Remove or fix the test/check alias
+
+**Priority**: Medium | **Phase**: 6
+
+**Source**: FLOW_REVIEW.md (#6)
+
+Either delete the `test` case from the matrix dispatch or wire it to a real runner (PHPUnit/Jest). Add a comment documenting the check command's actual purpose.
+
+**Acceptance criteria**:
+- `./matrix test` either removed or runs real test runner
+- `./matrix check` documented as running PHPCS/PHPStan
+- No undocumented aliases in the dispatch switch
+
+### REQ-health-json: Add --json support to health-check.sh
+
+**Priority**: Medium | **Phase**: 6
+
+**Source**: FLOW_REVIEW.md (#7)
+
+Pass a `--json` flag from `matrix health` into `health-check.sh` and have it emit a JSON object matching the format of status/info commands.
+
+**Acceptance criteria**:
+- `./matrix health --json` emits valid JSON
+- JSON structure matches existing status/info format
+- Human-readable output remains the default
+- `--json` flag documented in health command help
+
+---
+
+## ARCH - Architecture and Code Organization
+
+### REQ-shared-bootstrap: Extract shared bootstrap to lib/bootstrap.sh
+
+**Priority**: High | **Phase**: 7
+
+**Source**: FLOW_REVIEW.md (#8)
+
+**Implementation approach**: Variant B — extract a new `lib/bootstrap.sh` sourced by both `matrix` and `scripts/common.sh`.
+
+Move the duplicated ~40 lines (DOCKER_COMPOSE detection, color/logger defs, .env loading) into a single `lib/bootstrap.sh`. Have both `matrix` and `common.sh` source it.
+
+**Acceptance criteria**:
+- `lib/bootstrap.sh` created containing shared bootstrap code
+- `matrix` sources `lib/bootstrap.sh` instead of defining its own bootstrap
+- `scripts/common.sh` also sources `lib/bootstrap.sh`
+- No duplicated implementations of docker-compose detection, color/logger functions, or `.env` loading
+- All existing CLI commands work identically after refactor
+- All scripts still work after consolidation
+
+### REQ-domain-modules: Split monolithic matrix into domain modules
+
+**Priority**: High | **Phase**: 7
+
+**Source**: FLOW_REVIEW.md (#9)
+
+Create `lib/site.sh`, `lib/env.sh`, `lib/db.sh`, `lib/devtools.sh`. Move functions domain by domain — start with `db.sh` (cleanest boundary). Source all modules at the top of `matrix`. Keep one domain per PR/commit.
+
+**Acceptance criteria**:
+- `lib/site.sh` — site lifecycle functions (create, remove, edit, restore)
+- `lib/env.sh` — environment functions (start, stop, setup, install, repair)
+- `lib/db.sh` — database functions (import, export)
+- `lib/devtools.sh` — dev tool functions (shell, WP-CLI, checks, xdebug, scaffold)
+- `matrix` sources all modules at startup
+- All 28+ commands work identically after refactor
+
+### REQ-compose-abstraction: Formalize Docker/Compose abstraction
+
+**Priority**: Medium | **Phase**: 7
+
+**Source**: FLOW_REVIEW.md (#10)
+
+Pick one path: always use Compose for up/down and `docker exec` for runtime ops. Remove the fallback to raw `docker start/stop`. Document the contract in a comment block.
+
+**Acceptance criteria**:
+- Compose used for all `up -d`, `down`, `restart` operations
+- `docker exec` used for all runtime operations (shell, WP-CLI, mysql)
+- No raw `docker start/stop` fallback code paths
+- Contract documented in `scripts/compose-lib.sh` or `lib/bootstrap.sh`
+
+### REQ-dispatch-array: Replace case dispatch with associative array
+
+**Priority**: Medium | **Phase**: 7
+
+**Source**: FLOW_REVIEW.md (#11)
+
+Build a `declare -A COMMANDS` map of command → function_name. Derive `--help` output from it. This also enables `matrix help <cmd>`.
+
+**Acceptance criteria**:
+- `declare -A COMMANDS` at the top of dispatch
+- `--help` output derived from COMMANDS map keys
+- `matrix help <command>` works for any registered command
+- Unknown commands give suggestion ("did you mean?") if close match found
+
+---
+
+## TEST-SH - Shell Script Testing
+
+### REQ-per-site-credentials: Implement per-site credential isolation
+
+**Priority**: High | **Phase**: 8
+
+**Source**: FLOW_REVIEW.md (#12)
+
+Generate unique `MYSQL_USER`/`MYSQL_PASSWORD` per site at create time. Store in `wp_<site>/.env` (site-local). Global `.env` holds only infrastructure secrets (root DB password, Redis). Update all DB call sites to read site-local env.
+
+**Acceptance criteria**:
+- Each site created with unique database credentials
+- Credentials stored in `wp_<site>/.env` (site-local)
+- Global `.env` contains only infrastructure secrets
+- All DB operations read site-local credentials from the correct `wp_<site>/.env`
+- Compromise of one site's WordPress instance does not expose other site databases
+
+### REQ-rotate-secrets: Add matrix rotate-secrets command
+
+**Priority**: Medium | **Phase**: 8
+
+**Source**: FLOW_REVIEW.md (#13)
+
+Script that regenerates site passwords, runs `ALTER USER` inside the running container, updates `wp-config.php`, and rewrites `wp_<site>/.env` atomically.
+
+**Acceptance criteria**:
+- `matrix rotate-secrets` command registered in dispatch
+- Regenerates credentials for all sites or specified site
+- Runs `ALTER USER` inside MySQL container to update database user
+- Updates `wp-config.php` with new credentials
+- Writes new credentials to `wp_<site>/.env` atomically
+- Rollback on failure (no partial credential update)
+
+### REQ-shell-tests: Add shell script test coverage with bats
+
+**Priority**: Medium | **Phase**: 8
+
+**Source**: FLOW_REVIEW.md (#14)
+
+Install bats-core. Write tests for: site creation/removal, port allocation, validation functions, DB import/export happy path. Target critical paths first, not full coverage.
+
+**Acceptance criteria**:
+- bats-core installed (dev dependency)
+- Tests for site name validation functions
+- Tests for port allocation (`get_next_port`)
+- Tests for site creation/removal happy path
+- Tests for database import/export happy path
+- `make test` or `npm run test:shell` runs bats tests
+
+---
+
 ## Requirement Traceability
+
+### Milestone 1 (COMPLETE)
 
 | Req ID | Category | Phase | Priority | Depends On |
 |--------|----------|-------|----------|------------|
@@ -285,6 +514,25 @@ Dashboard UI for running and viewing code quality check results.
 | UI-02 | UI | 2 | P1 | WS-02 |
 | UI-03 | UI | 3 | P2 | API-05, UI-02 |
 
+### Milestone 2 (ACTIVE)
+
+| Req ID | Category | Phase | Priority | Depends On |
+|--------|----------|-------|----------|------------|
+| REQ-password-exposure | SEC | 5 | Critical | - |
+| REQ-env-permissions | SEC | 5 | High | - |
+| REQ-gitignore-env | SEC | 5 | High | - |
+| REQ-random-passwords | INFRA | 6 | High | - |
+| REQ-die-error-handling | INFRA | 6 | High | - |
+| REQ-test-check-alias | INFRA | 6 | Medium | - |
+| REQ-health-json | INFRA | 6 | Medium | - |
+| REQ-shared-bootstrap | ARCH | 7 | High | - |
+| REQ-domain-modules | ARCH | 7 | High | REQ-shared-bootstrap |
+| REQ-compose-abstraction | ARCH | 7 | Medium | - |
+| REQ-dispatch-array | ARCH | 7 | Medium | REQ-domain-modules |
+| REQ-per-site-credentials | SEC | 8 | High | REQ-password-exposure |
+| REQ-rotate-secrets | INFRA | 8 | Medium | REQ-per-site-credentials |
+| REQ-shell-tests | TEST-SH | 8 | Medium | - |
+
 ---
 
-*Last updated: 2025-04-06*
+*Last updated: 2026-05-29 after ingest-docs from FLOW_REVIEW.md, DFD.md, IMPROVEMENT_PLAN.md*

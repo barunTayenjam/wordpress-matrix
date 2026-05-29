@@ -1,0 +1,32 @@
+{
+  "source_path": "/Users/barun.tayenjam/Documents/Code/wordpress-matrix/IMPROVEMENT_PLAN.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "WordPress Matrix - Improvement Plan",
+  "summary": "Prioritized improvements for the WordPress Development Platform, organized by effort and impact.",
+  "scope": [
+    "site search and filter",
+    "scheduled backups",
+    "container resource limits",
+    "activity log",
+    "SSL/TLS support",
+    "dashboard authentication",
+    "backup encryption",
+    "git deployment",
+    "hot reload",
+    "WP-CLI enhanced",
+    "multisite support",
+    "container orchestration",
+    "monitoring dashboard"
+  ],
+  "cross_refs": [
+    "matrix",
+    "docker-compose.yml",
+    "frontend/app.js",
+    "frontend/views/dashboard.handlebars"
+  ],
+  "locked": false,
+  "precedence": 2,
+  "notes": ""
+}

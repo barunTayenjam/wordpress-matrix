@@ -1,232 +1,212 @@
-# Roadmap - WordPress Matrix Backend/Frontend Integration Overhaul
+# Roadmap - WordPress Matrix Development Platform
 
-## Overview
+---
+
+## Milestone 1: Backend/Frontend Integration Overhaul ✅ COMPLETE
 
 4 phases, sequential delivery. Each phase produces working, committable software. Phase 1 is the foundation — everything else depends on it.
 
 ---
 
-## Phase 1: Structured API Layer
+### Phase 1: Structured API Layer [✓ COMPLETE]
 
 **Goal**: Replace fragile text parsing with structured JSON communication between CLI and frontend.
 
 **Requirements**: API-01, API-02, API-03, API-04
 
-**Duration estimate**: 2-3 sessions
-
-### Tasks
-
-1. **Add `--json` flag to `matrix` CLI**
-   - Modify `list_sites()` to output JSON when `--json` is passed
-   - Modify `show_status()` to output JSON when `--json` is passed
-   - Modify `show_info()` to output JSON when `--json` is passed
-   - Strip ANSI color codes from JSON output
-   - Files: `matrix` (list_sites, show_status, show_info functions)
-
-2. **Refactor `frontend/app.js` to use JSON parsing**
-   - Replace `parseSiteList()` with `JSON.parse()` of CLI output
-   - Update `executeMatrix()` to pass `--json` flag for list/status/info
-   - Update all API endpoints to consume structured data
-   - Files: `frontend/app.js`
-
-3. **Add structured error responses**
-   - Define error codes and response format
-   - Update API error handlers to use consistent format
-   - Add input validation middleware for site names, actions, PHP versions
-   - Files: `frontend/app.js`
-
-4. **Update client-side JS for new data format**
-   - Update `frontend/public/js/app.js` if data shape changes
-   - Update Handlebars templates if needed
-   - Verify dashboard still renders correctly
-   - Files: `frontend/public/js/app.js`, `frontend/views/dashboard.handlebars`
-
-### Success Criteria
-
-- [ ] `matrix list --json` outputs valid JSON with sites and services
-- [ ] `matrix status --json` outputs valid JSON with service health
-- [ ] `matrix info <site> --json` outputs valid JSON with site details
-- [ ] Dashboard renders correctly using JSON data (no text parsing)
-- [ ] All existing site operations work (create, start, stop, remove)
-- [ ] Error responses follow consistent `{ success, error: { code, message } }` format
-- [ ] Input validation rejects invalid site names and actions
-
-### Key Files Modified
-
-- `matrix` — Add JSON output mode to list, status, info functions
-- `frontend/app.js` — Replace parseSiteList, add validation, structured errors
-- `frontend/public/js/app.js` — Adapt to new data format if needed
-- `frontend/views/dashboard.handlebars` — Adapt to new data format if needed
-
----
-
-## Phase 2: Real-time WebSocket Updates
+### Phase 2: Real-time WebSocket Updates [✓ COMPLETE]
 
 **Goal**: Container status changes and operation progress pushed to dashboard in real-time.
 
 **Requirements**: WS-01, WS-02, UI-01, UI-02, API-05, API-06
 
-**Duration estimate**: 2-3 sessions
-
-### Tasks
-
-1. **Initialize socket.io in `frontend/app.js`**
-   - Import and configure socket.io on the Express HTTP server
-   - Set up connection/disconnection handlers
-   - Files: `frontend/app.js`
-
-2. **Implement container status polling**
-   - Periodic Docker status check (via `matrix status --json` or direct `docker ps`)
-   - Emit `status.changed` events when container states change
-   - Debounce rapid state changes
-   - Files: `frontend/app.js`
-
-3. **Implement operation progress streaming**
-   - Modify `executeMatrix()` to stream progress events during long operations
-   - Emit `site.creating`, `site.starting`, `site.stopping` events with progress steps
-   - Emit `site.operation` on completion with success/failure
-   - Files: `frontend/app.js`
-
-4. **Add socket.io client to dashboard**
-   - Include socket.io client library in `main.handlebars`
-   - Connect on page load, disconnect on page unload
-   - Update status badges on `status.changed` events
-   - Show operation progress feedback (spinners, step indicators)
-   - Files: `frontend/views/layouts/main.handlebars`, `frontend/public/js/app.js`
-
-5. **Add code quality check progress (API-05)**
-   - Check operations emit progress via WebSocket
-   - Results pushed on completion
-   - Files: `frontend/app.js`
-
-6. **Add log streaming endpoint (API-06)**
-   - Subscribe/unsubscribe model for log streaming
-   - `logs.data` events pushed to subscribed clients
-   - Files: `frontend/app.js`
-
-### Success Criteria
-
-- [ ] socket.io connected and events flowing to browser
-- [ ] Container status updates appear in dashboard within 5-10 seconds of change
-- [ ] Starting/stopping a site shows real-time status change (no page reload)
-- [ ] Create operation shows progress steps in dashboard
-- [ ] Check operation shows running state in dashboard
-- [ ] Log streaming works for subscribed sites
-
-### Key Files Modified
-
-- `frontend/app.js` — socket.io server, status polling, progress streaming, log streaming
-- `frontend/public/js/app.js` — socket.io client, status updates, progress UI
-- `frontend/views/layouts/main.handlebars` — socket.io client script
-- `frontend/views/dashboard.handlebars` — status badge updates, progress indicators
-
----
-
-## Phase 3: Testing & Code Quality UI
+### Phase 3: Testing & Code Quality UI [✓ COMPLETE]
 
 **Goal**: Unit test coverage for API layer, integration tests for CLI JSON output, check results UI.
 
 **Requirements**: TEST-01, TEST-02, TEST-03, UI-03
 
-**Duration estimate**: 1-2 sessions
-
-### Tasks
-
-1. **Set up test framework**
-   - Install Jest or Vitest in `frontend/`
-   - Configure test runner in `frontend/package.json`
-   - Add `npm test` script
-   - Files: `frontend/package.json`, `frontend/jest.config.js` or similar
-
-2. **Write unit tests for API layer**
-   - Mock `executeMatrix()` for all endpoint tests
-   - Test `/api/sites` with JSON data
-   - Test `/api/sites/:action` for create, start, stop, remove
-   - Test error handling and validation
-   - Test `/api/environment/:action`
-   - Files: `frontend/tests/` or `frontend/__tests__/`
-
-3. **Write CLI JSON output tests**
-   - Test `matrix list --json` structure
-   - Test `matrix status --json` structure
-   - Test `matrix info <site> --json` structure
-   - Files: `tests/cli/` or similar
-
-4. **Add code quality check UI**
-   - "Run Checks" button per site
-   - Progress display during check execution
-   - Structured results display (errors, warnings, counts)
-   - Files: `frontend/views/dashboard.handlebars`, `frontend/public/js/app.js`
-
-### Success Criteria
-
-- [ ] `npm test` passes with 80%+ coverage on `frontend/app.js`
-- [ ] All API endpoints have unit tests
-- [ ] Error cases covered in tests
-- [ ] CLI JSON output validated by integration tests
-- [ ] Dashboard can trigger and display code quality checks
-
----
-
-## Phase 4: Polish & Technical Debt
+### Phase 4: Polish & Technical Debt [✓ COMPLETE]
 
 **Goal**: Clean up unused code, consolidate duplications, fix known issues.
 
 **Requirements**: FIX-01, FIX-02, FIX-03, FIX-04
 
-**Duration estimate**: 1-2 sessions
+---
+
+## Milestone 2: Bash Hardening & Structural Cleanup
+
+4 phases, sequential delivery by priority. Phase 1 (Security) must be done first. Phases 2-4 can be reordered within the milestone.
+
+---
+
+### Phase 5: Security (do first)
+
+**Goal**: Eliminate credential exposure in process listings, harden file permissions, and prevent accidental credential commits.
+
+**Requirements**: REQ-password-exposure, REQ-env-permissions, REQ-gitignore-env
+
+**Duration estimate**: 2-3 hrs
 
 ### Tasks
 
-1. **Remove unused axios dependency (FIX-01)**
-   - Remove from `frontend/package.json`
-   - Remove `require('axios')` from `frontend/app.js`
-   - Files: `frontend/package.json`, `frontend/app.js`
+1. **Fix password exposure in process listings** (#10)
+   - Replace all `-p"$PASSWORD"` CLI args with `-e MYSQL_PWD="$PASSWORD"` across `matrix`, `scripts/common.sh`, `scripts/backup.sh`, `scripts/reset.sh`, `scripts/clone.sh`
+   - Search for `mysqldump\|mysql.\_-p` to find all 11+ call sites
+   - Files: `matrix`, `scripts/common.sh`, `scripts/backup.sh`, `scripts/reset.sh`, `scripts/clone.sh`
 
-2. **Consolidate duplicated Bash functions (FIX-02)**
-   - Refactor `matrix` to source `scripts/common.sh` for shared functions
-   - Remove duplicated logging, docker-compose detection, site helpers from `matrix`
-   - Verify all CLI commands still work
-   - Files: `matrix`, `scripts/common.sh`
+2. **Harden .env file permissions** (#11)
+   - After every `cat > .env` write (2 locations in `matrix`), add `chmod 600 "$PROJECT_ROOT/.env"`
+   - Files: `matrix` (setup_env, repair_env functions)
 
-3. **Sanitize site names in SQL (FIX-03)**
-   - Add escape/validate function for site names used in SQL
-   - Apply to all SQL queries in `matrix` and `scripts/*.sh`
-   - Files: `matrix`, `scripts/common.sh`, `scripts/backup.sh`, `scripts/clone.sh`, `scripts/reset.sh`
-
-4. **Fix WP-CLI volume mount (FIX-04)**
-   - Correct volume mount in `docker-compose.yml`
-   - Verify WP-CLI scripts work with corrected mount
-   - Files: `docker-compose.yml`
-
-5. **Final review and cleanup**
-   - Verify all tests pass
-   - Verify all operations work end-to-end
-   - Update AGENTS.md with new architecture
-   - Remove any dead code
+3. **Verify .gitignore covers .env** (#14)
+   - Check that `.env` and `wp_*/.env` are in `.gitignore`
+   - Add a pre-commit hook that greps for `MYSQL_PASSWORD` and rejects the commit if found
+   - Files: `.gitignore`, pre-commit hook (new)
 
 ### Success Criteria
 
-- [ ] `npm test` passes
-- [ ] No unused dependencies in `frontend/package.json`
-- [ ] No duplicated functions between `matrix` and `scripts/common.sh`
-- [ ] SQL queries use sanitized site names
-- [ ] WP-CLI volume mount works for all sites
-- [ ] All existing CLI and dashboard operations work correctly
+- [ ] No MySQL/mysqldump invocation passes password as CLI argument
+- [ ] `.env` created with 600 permissions
+- [ ] `.gitignore` covers `.env` patterns
+- [ ] Commits containing `MYSQL_PASSWORD` are rejected
+
+---
+
+### Phase 6: Quick Wins
+
+**Goal**: Generate random passwords, standardize error handling, fix dispatch alias, add --json to health-check.
+
+**Requirements**: REQ-random-passwords, REQ-die-error-handling, REQ-test-check-alias, REQ-health-json
+
+**Duration estimate**: 3-4 hrs
+
+### Tasks
+
+1. **Generate random passwords at .env creation** (#4)
+   - In `setup_env()`, replace hardcoded `wp_password`/`root_password` with `openssl rand -base64 16`
+   - Fix the mismatch with `.env.example` too
+   - Files: `matrix` (setup_env), `.env.example`
+
+2. **Standardize error handling with die()** (#5)
+   - Define a `die()` function in `scripts/helpers.sh` that prints a message and exits 1
+   - Audit functions using bare `exit 1` or silent `return 1` and route them through `die()` or a documented return convention
+   - Files: `scripts/helpers.sh`, `matrix`, `scripts/*.sh`
+
+3. **Remove or fix the test/check alias** (#6)
+   - Either delete the `test` case from the dispatch or wire it to a real runner (PHPUnit/Jest)
+   - Document the `check` command's actual purpose
+   - Files: `matrix`
+
+4. **Add --json support to health-check.sh** (#7)
+   - Pass a `--json` flag from `matrix health` into `health-check.sh`
+   - Have it emit a JSON object matching the format of status/info commands
+   - Files: `scripts/health-check.sh`, `matrix`
+
+### Success Criteria
+
+- [ ] Fresh `.env` created with random credentials
+- [ ] `die()` function defined and used consistently
+- [ ] `./matrix test` either removed or runs real test runner
+- [ ] `./matrix health --json` outputs valid JSON
+
+---
+
+### Phase 7: Structural Cleanup
+
+**Goal**: Extract shared bootstrap, split monolithic matrix into domain modules, formalize Docker/Compose abstraction, replace case dispatch.
+
+**Requirements**: REQ-shared-bootstrap, REQ-domain-modules, REQ-compose-abstraction, REQ-dispatch-array
+
+**Duration estimate**: 1-2 days
+
+### Tasks
+
+1. **Extract shared bootstrap to lib/bootstrap.sh** (#8)
+   - Move duplicated ~40 lines (DOCKER_COMPOSE detection, color/logger defs, .env loading) into a single `lib/bootstrap.sh`
+   - Have both `matrix` and `scripts/common.sh` source it
+   - Files: `lib/bootstrap.sh` (new), `matrix`, `scripts/common.sh`
+
+2. **Split matrix into domain modules** (#9)
+   - Create `lib/site.sh`, `lib/env.sh`, `lib/db.sh`, `lib/devtools.sh`
+   - Move functions domain by domain — start with `db.sh` (cleanest boundary)
+   - Source all modules at the top of `matrix`
+   - Keep one domain per PR
+   - Files: `lib/*.sh` (new), `matrix`
+
+3. **Formalize the Docker/Compose abstraction** (#10)
+   - Pick one path: always use Compose for up/down and `docker exec` for runtime ops
+   - Remove the fallback to raw `docker start/stop`
+   - Document the contract in a comment block
+   - Files: `matrix`, `scripts/compose-lib.sh`
+
+4. **Replace case dispatch with an associative array** (#11)
+   - Build a `declare -A COMMANDS` map of command → function_name
+   - Derive `--help` output from it
+   - Enable `matrix help <cmd>`
+   - Files: `matrix`
+
+### Success Criteria
+
+- [ ] `lib/bootstrap.sh` sourced by both `matrix` and `scripts/common.sh` — no duplicated bootstrap code
+- [ ] Domain modules created and sourced; all 28+ commands work identically
+- [ ] No raw `docker start/stop` fallback paths remain
+- [ ] `declare -A COMMANDS` map drives dispatch; `matrix help` works
+
+---
+
+### Phase 8: Long-term Hardening
+
+**Goal**: Per-site credential isolation, rotate-secrets command, shell test coverage.
+
+**Requirements**: REQ-per-site-credentials, REQ-rotate-secrets, REQ-shell-tests
+
+**Duration estimate**: Schedule separately (~2 days)
+
+### Tasks
+
+1. **Implement per-site credential isolation** (#12)
+   - Generate unique `MYSQL_USER`/`MYSQL_PASSWORD` per site at create time
+   - Store in `wp_<site>/.env` (site-local)
+   - Global `.env` holds only infrastructure secrets (root DB pass, Redis)
+   - Update all DB call sites to read site-local env
+   - Files: `matrix`, `scripts/common.sh`, `scripts/*.sh`
+
+2. **Add matrix rotate-secrets command** (#13)
+   - Script that regenerates site passwords, runs `ALTER USER` inside the running container
+   - Updates `wp-config.php` and rewrites `wp_<site>/.env` atomically
+   - Files: `matrix` (new command)
+
+3. **Add shell script test coverage with bats** (#14)
+   - Install bats-core
+   - Write tests for: site creation/removal, port allocation, validation functions, DB import/export happy path
+   - Target critical paths first, not full coverage
+   - Files: `tests/` (new directory)
+
+### Success Criteria
+
+- [ ] Each site has unique `MYSQL_USER`/`MYSQL_PASSWORD`
+- [ ] Global `.env` holds only infrastructure secrets
+- [ ] `matrix rotate-secrets` re-keys all site credentials atomically
+- [ ] bats tests pass for critical shell paths
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 1 (API Layer)
-  └── Phase 2 (WebSocket)
-        └── Phase 3 (Testing + UI)
-              └── Phase 4 (Polish)
+Milestone 1 (Integration Overhaul) ✅
+  └── Phase 1 → Phase 2 → Phase 3 → Phase 4
+
+Milestone 2 (Bash Hardening) ◆ IN PROGRESS
+  ├── Phase 5 (Security) — must be first
+  ├── Phase 6 (Quick Wins)
+  ├── Phase 7 (Structural Cleanup)
+  └── Phase 8 (Long-term Hardening) — depends on Phase 5
 ```
 
-Phase 4 tasks (FIX-01 through FIX-04) are independent of each other and can be done in any order. They're placed last because they're lower priority and lower risk.
+Phase 6 and Phase 7 are independent of each other and could be parallelized. Phase 8 depends on Phase 5 (per-site credentials build on the password-exposure fix pattern).
 
 ---
 
-*Last updated: 2025-04-06*
+*Last updated: 2026-05-29 after ingest-docs from FLOW_REVIEW.md*
