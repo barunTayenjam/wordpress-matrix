@@ -1423,6 +1423,7 @@ MYSQL_ROOT_PASSWORD=root_password
 WP_DEBUG=true
 EOF
         log_success "Created .env file"
+        chmod 600 "$PROJECT_ROOT/.env"
     fi
     
     # Create simplified $DOCKER_COMPOSE.yml if not exists
@@ -2291,9 +2292,10 @@ MYSQL_ROOT_PASSWORD=root_password
 WP_DEBUG=true
 ENVEOF
         log_success "Created .env file"
+        chmod 600 "$PROJECT_ROOT/.env"
         fixed_count=$((fixed_count + 1))
     fi
-
+    
     mkdir -p "$PROJECT_ROOT/logs"
 
     local sites_tmp

@@ -1,0 +1,13 @@
+#!/bin/bash
+# Pre-commit hook: reject commits containing MYSQL_PASSWORD strings
+# This prevents accidental credential leakage into git history.
+
+set -euo pipefail
+
+# Check staged files for MYSQL_PASSWORD (case-sensitive)
+if git diff --cached --diff-filter=ACM --name-only -z | xargs -0 grep -l 'MYSQL_PASSWORD' 2>/dev/null; then
+    echo "ERROR: Commit contains 'MYSQL_PASSWORD' in staged files listed above."
+    echo "This looks like a credential string that should NOT be committed."
+    echo "If intentional, use --no-verify to bypass this check."
+    exit 1
+fi
