@@ -1,0 +1,14 @@
+.planning/graphs/
+.planning/graphs/**
+graphify-out/
+graphify-out/**
+node_modules/
+node_modules/**
+vendor/
+vendor/**
+wp_*/
+wp_/**
+ssl-certs/
+ssl-certs/**
+logs/
+logs/**

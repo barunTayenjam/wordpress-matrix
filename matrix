@@ -1649,13 +1649,31 @@ import_db() {
     local db_name="${site_name}_db"
     log_info "Importing database for '$site_name' ($db_name)..."
 
+    # Decompress if needed
+    local sql_file="$dump_file"
+    local tmp_file=""
+    if [[ "$dump_file" == *.zip ]]; then
+        tmp_file="$(mktemp /tmp/import_db_XXXXXX)"
+        unzip -p "$dump_file" > "$tmp_file" || { log_error "Failed to unzip: $dump_file"; rm -f "$tmp_file"; return 1; }
+        sql_file="$tmp_file"
+    elif [[ "$dump_file" == *.gz ]]; then
+        tmp_file="$(mktemp /tmp/import_db_XXXXXX)"
+        gunzip -c "$dump_file" > "$tmp_file" || { log_error "Failed to gunzip: $dump_file"; rm -f "$tmp_file"; return 1; }
+        sql_file="$tmp_file"
+    fi
+
     # Set log_bin_trust_function_creators to allow triggers/procedures without SUPER privilege
     $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u "${MYSQL_USER:-wp_user}" -e "SET SESSION sql_log_bin = 0;" 2>/dev/null || true
 
     # Import the SQL dump
-    $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u "${MYSQL_USER:-wp_user}" "$db_name" < "$dump_file"
+    $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u "${MYSQL_USER:-wp_user}" "$db_name" < "$sql_file"
+    local import_rc=$?
 
-    if [[ $? -eq 0 ]]; then
+    if [[ -n "$tmp_file" ]]; then
+        rm -f "$tmp_file"
+    fi
+
+    if [[ $import_rc -eq 0 ]]; then
         log_success "Database imported successfully for '$site_name'"
     else
         log_error "Failed to import database for '$site_name'"
