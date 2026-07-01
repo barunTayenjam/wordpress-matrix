@@ -127,11 +127,11 @@ fi
 # Load shared validation rules
 source "$PROJECT_ROOT/config/validation.sh"
 
+# Load shared helper functions (stack detection, site lifecycle)
+source "$PROJECT_ROOT/scripts/helpers.sh"
+
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
-
-# Load shared helper functions
-source "$PROJECT_ROOT/scripts/helpers.sh"
 
 # Main help
 show_help() {
@@ -141,7 +141,7 @@ show_help() {
 Usage: ./matrix <command> [options]
 
  Site Management:
-   create <name> [--php-version=X.X]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION})
+   create <name> [--php-version=X.X] [--stack=nginx|apache]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION}, stack: nginx)
    edit <name> [--php-version=X.X] [--port=XXXX]  Edit site configuration
    list              List all sites
    start <name>      Start specific site
@@ -209,6 +209,7 @@ create_site() {
     local site_name=""
     local php_version="$DEFAULT_PHP_VERSION"
     local preset="blank"
+    local stack="nginx"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -221,6 +222,14 @@ create_site() {
                 php_version="$2"
                 shift 2
                 ;;
+            --stack=*)
+                stack="${1#*=}"
+                shift
+                ;;
+            --stack)
+                stack="$2"
+                shift 2
+                ;;
             --preset=*)
                 preset="${1#*=}"
                 shift
@@ -231,7 +240,7 @@ create_site() {
                 ;;
             -*)
                 log_error "Unknown option: $1"
-                echo "Usage: ./matrix create <name> [--php-version=X.X] [--preset=preset-name]"
+                echo "Usage: ./matrix create <name> [--php-version=X.X] [--stack=nginx|apache] [--preset=preset-name]"
                 return 1
                 ;;
             *)
@@ -254,6 +263,14 @@ create_site() {
     validate_site_name "$site_name" || return 1
     
     validate_php_version "$php_version" || return 1
+
+    case "$stack" in
+        nginx|apache) ;;
+        *)
+            log_error "Invalid stack: $stack (use nginx or apache)"
+            return 1
+            ;;
+    esac
     
     if site_exists "$site_name"; then
         log_error "Site '$site_name' already exists"
@@ -262,11 +279,16 @@ create_site() {
     
     local site_dir="$PROJECT_ROOT/wp_$site_name"
     
-    log_info "Creating WordPress site: $site_name (PHP $php_version)"
+    log_info "Creating WordPress site: $site_name (PHP $php_version, stack: $stack)"
 
     # Create directory
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
+    if [[ "$stack" == "apache" ]]; then
+        echo "apache" > "$site_dir/.matrix-stack"
+    else
+        echo "nginx" > "$site_dir/.matrix-stack"
+    fi
 
     # Copy WordPress files using Docker/Podman
     log_info "Installing WordPress (PHP $php_version)..."
@@ -283,13 +305,14 @@ create_site() {
         apply_preset "$site_name" "$preset"
     fi
 
-    # Create site-specific nginx configuration
+    # Create site-specific nginx configuration (nginx stack only)
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
-    if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
-        mkdir -p "$PROJECT_ROOT/config/nginx"
-    fi
+    if [[ "$stack" == "nginx" ]]; then
+        if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
+            mkdir -p "$PROJECT_ROOT/config/nginx"
+        fi
 
-    cat > "$nginx_conf_path" << EOF
+        cat > "$nginx_conf_path" << EOF
 server {
     listen 80;
     server_name _;
@@ -318,6 +341,7 @@ server {
     }
 }
 EOF
+    fi
 
     if [[ ! -f "$COMPOSE_FILE" ]]; then
         log_warning "docker-compose.yml missing - recreating base file before adding site"
@@ -325,7 +349,7 @@ EOF
     fi
 
     port=$(get_next_port)
-    compose_add_site "$site_name" "$php_version" "$port" "$nginx_conf_path"
+    compose_add_site "$site_name" "$php_version" "$port" "$nginx_conf_path" "$stack"
 
     # Create database and grant permissions
     if compose_or_container_running "wp_db"; then
@@ -333,14 +357,17 @@ EOF
             -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
-    log_success "Site '$site_name' created successfully with PHP $php_version"
-    log_activity "CREATE" "$site_name" "Created with PHP $php_version, port $port"
+    log_success "Site '$site_name' created successfully with PHP $php_version ($stack)"
+    log_activity "CREATE" "$site_name" "Created with PHP $php_version, stack $stack, port $port"
     echo "Direct: http://localhost:$port"  # Direct access via semantic port
     echo "Database: http://localhost:8200"  # phpMyAdmin access
 
     # Auto-start the site after creation
     log_info "Starting site '$site_name'..."
-    $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
+    if [[ "$stack" == "apache" ]]; then
+        matrix_site_build_if_apache "$site_name" || return 1
+    fi
+    matrix_site_up "$site_name"
     log_success "Site '$site_name' started and ready!"
     log_activity "START" "$site_name" "Auto-started after creation"
 }
@@ -365,7 +392,7 @@ restore_site() {
     log_info "Restoring site '$site_name' from backup..."
     
     # Stop the site if running
-    $DOCKER_COMPOSE stop wp_$site_name nginx_$site_name 2>/dev/null || true
+    matrix_site_stop "$site_name"
     
     # Remove existing site
     rm -rf "$PROJECT_ROOT/wp_$site_name" 2>/dev/null || true
@@ -374,7 +401,7 @@ restore_site() {
     tar -xzf "$backup_file" -C "$PROJECT_ROOT"
     
     # Start the site
-    $DOCKER_COMPOSE up -d wp_$site_name nginx_$site_name 2>/dev/null || true
+    matrix_site_up "$site_name"
     
     log_success "Site '$site_name' restored"
 }
@@ -404,27 +431,15 @@ list_sites_json() {
             status="running"
         fi
 
-        # Get port from docker-compose.yml first
-        if [[ -f "$COMPOSE_FILE" ]]; then
-            if grep -q "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null; then
-                port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || true)
-            fi
-        fi
-
-        # Try nginx container
-        if [[ -z "$port" ]]; then
-            port=$(get_container_port "nginx_$site")
-        fi
-
-        # Try wp container (for apache-based sites)
-        if [[ -z "$port" ]]; then
-            port=$(get_container_port "wp_$site")
-        fi
+        port=$(get_site_port "$site")
 
         local php_version=""
         if [[ -f "$COMPOSE_FILE" ]]; then
-            php_version=$(grep -A 3 "wp_$site:" "$COMPOSE_FILE" 2>/dev/null | grep "image:" | grep -oE 'php[0-9.]+' | sed 's/php//' || true)
+            php_version=$(get_site_php_version_from_compose "$site")
         fi
+
+        local stack
+        stack=$(get_site_stack "$site")
 
         local container_id=""
         if [[ "$status" == "running" ]]; then
@@ -451,7 +466,7 @@ list_sites_json() {
             container_id_json="\"$container_id\""
         fi
 
-        local site_entry="{\"name\":\"$site\",\"status\":\"$status\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"diskUsage\":$disk_usage}"
+        local site_entry="{\"name\":\"$site\",\"status\":\"$status\",\"stack\":\"$stack\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"diskUsage\":$disk_usage}"
 
         if [[ "$first_site" == true ]]; then
             sites_json="$site_entry"
@@ -533,37 +548,27 @@ list_sites() {
 
     # Show WordPress sites
     if [[ -n "$site_list" ]]; then
-        printf "%-15s %-10s %-30s %-30s\n" "WordPress Site" "Status" "Local URL" "Domain URL"
-        echo "────────────────────────────────────────────────────────────────────────"
+        printf "%-15s %-10s %-8s %-30s %-30s\n" "WordPress Site" "Status" "Stack" "Local URL" "Domain URL"
+        echo "────────────────────────────────────────────────────────────────────────────────────"
 
         while IFS= read -r site || [[ -n "$site" ]]; do
             [[ -z "$site" ]] && continue
             local status="Stopped"
             local port=""
+            local stack
+            stack=$(get_site_stack "$site")
 
-            # Check if site is running (either in compose or directly)
             if compose_or_container_running "wp_$site"; then
                 status="Running"
             fi
 
-            # Get port - try compose first, then nginx container, then wp container
-            if [[ -f "$COMPOSE_FILE" ]]; then
-                if grep -q "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null; then
-                    port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || echo "")
-                fi
-            fi
-            if [[ -z "$port" ]]; then
-                port=$(get_container_port "nginx_$site")
-            fi
-            if [[ -z "$port" ]]; then
-                port=$(get_container_port "wp_$site")
-            fi
+            port=$(get_site_port "$site")
 
             local port_str="Not configured"
             if [[ -n "$port" ]]; then
                 port_str="http://localhost:$port"
             fi
-            printf "%-15s %-10s %-30s %-30s\n" "$site" "$status" \
+            printf "%-15s %-10s %-8s %-30s %-30s\n" "$site" "$status" "$stack" \
                 "$port_str" \
                 "Direct port access only"
         done <<< "$site_list"
@@ -785,17 +790,16 @@ show_logs() {
         else
             # Assume it's a site name
             local wp_container="wp_$service"
-            local nginx_container="nginx_$service"
+            local log_services
+            log_services=$(compose_site_service_names "$service")
 
-            # Try docker-compose first
-            if $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null | grep -q .; then
-                $DOCKER_COMPOSE logs --tail=100 "$wp_container" "$nginx_container" 2>/dev/null | eval "$reverse_cmd"
+            if $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | grep -q .; then
+                $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | eval "$reverse_cmd"
             else
-                # Fall back to direct docker logs
-                if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                    $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1 | eval "$reverse_cmd"
-                elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
+                if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
                     $CONTAINER_RUNTIME logs --tail=100 "$wp_container" 2>&1 | eval "$reverse_cmd"
+                elif site_has_nginx "$service" && $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^nginx_${service}$"; then
+                    $CONTAINER_RUNTIME logs --tail=100 "nginx_${service}" 2>&1 | eval "$reverse_cmd"
                 else
                     log_error "No containers found for site: $service"
                 fi
@@ -839,9 +843,8 @@ remove_site() {
     log_info "Removing site '$site_name'..."
 
     # Stop services
-    $DOCKER_COMPOSE stop "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
-    $DOCKER_COMPOSE rm -f "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
-    $CONTAINER_RUNTIME rm -f "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+    matrix_site_stop "$site_name"
+    matrix_site_rm_containers "$site_name"
     $CONTAINER_RUNTIME ps -a --filter name="$site_name" --format '{{.Names}}' 2>/dev/null | while read -r c; do
         $CONTAINER_RUNTIME rm -f "$c" 2>/dev/null || true
     done
@@ -972,13 +975,14 @@ edit_site() {
     # Get current PHP version from docker-compose.yml
     local current_php_version=""
     if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$site_name:" "$COMPOSE_FILE"; then
-        current_php_version=$(grep -A 3 "wp_$site_name:" "$COMPOSE_FILE" | grep "image:" | grep -oE 'php[0-9.]+')
+        current_php_version=$(get_site_php_version_from_compose "$site_name")
+        [[ -n "$current_php_version" ]] && current_php_version="php${current_php_version}"
     fi
 
     # Get current port from docker-compose.yml
     local current_port=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "nginx_$site_name:" "$COMPOSE_FILE"; then
-        current_port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
+    if [[ -f "$COMPOSE_FILE" ]]; then
+        current_port=$(get_site_port_from_compose "$site_name")
     fi
 
     # Get current resources
@@ -1026,28 +1030,36 @@ edit_site() {
         has_changes=true
     fi
     if [[ -n "$new_memory" ]]; then
-        local nginx_mem
-        nginx_mem=$(echo "$new_memory" | sed 's/^\([0-9]*\).*/\1/')
-        local nginx_mem_unit=$(echo "$new_memory" | sed 's/^[0-9]*//I')
-        if [[ "$nginx_mem_unit" == "G" || "$nginx_mem_unit" == "g" ]]; then
-            nginx_mem=$((nginx_mem / 2))
-            [[ $nginx_mem -lt 128 ]] && nginx_mem=128
-            nginx_mem="${nginx_mem}m"
-        elif [[ "$nginx_mem_unit" == "M" || "$nginx_mem_unit" == "m" ]]; then
-            nginx_mem=$((nginx_mem / 2))
-            [[ $nginx_mem -lt 128 ]] && nginx_mem=128
-            nginx_mem="${nginx_mem}m"
+        if site_has_nginx "$site_name"; then
+            local nginx_mem
+            nginx_mem=$(echo "$new_memory" | sed 's/^\([0-9]*\).*/\1/')
+            local nginx_mem_unit=$(echo "$new_memory" | sed 's/^[0-9]*//I')
+            if [[ "$nginx_mem_unit" == "G" || "$nginx_mem_unit" == "g" ]]; then
+                nginx_mem=$((nginx_mem / 2))
+                [[ $nginx_mem -lt 128 ]] && nginx_mem=128
+                nginx_mem="${nginx_mem}m"
+            elif [[ "$nginx_mem_unit" == "M" || "$nginx_mem_unit" == "m" ]]; then
+                nginx_mem=$((nginx_mem / 2))
+                [[ $nginx_mem -lt 128 ]] && nginx_mem=128
+                nginx_mem="${nginx_mem}m"
+            else
+                nginx_mem="128m"
+            fi
+            log_info "Memory: PHP-FPM ${new_memory}, nginx ${nginx_mem}"
         else
-            nginx_mem="128m"
+            log_info "Memory: Apache/PHP-FPM ${new_memory}"
         fi
-        log_info "Memory: PHP-FPM ${new_memory}, nginx ${nginx_mem}"
         has_changes=true
     fi
     if [[ -n "$new_cpu" ]]; then
-        local nginx_cpu
-        nginx_cpu=$(echo "$new_cpu" | awk '{print $1/2}')
-        [[ $(echo "$nginx_cpu < 0.25" | bc -l 2>/dev/null || echo 0) -eq 1 ]] && nginx_cpu=0.25
-        log_info "CPU: PHP-FPM ${new_cpu}, nginx ${nginx_cpu}"
+        if site_has_nginx "$site_name"; then
+            local nginx_cpu
+            nginx_cpu=$(echo "$new_cpu" | awk '{print $1/2}')
+            [[ $(echo "$nginx_cpu < 0.25" | bc -l 2>/dev/null || echo 0) -eq 1 ]] && nginx_cpu=0.25
+            log_info "CPU: PHP-FPM ${new_cpu}, nginx ${nginx_cpu}"
+        else
+            log_info "CPU: Apache/PHP-FPM ${new_cpu}"
+        fi
         has_changes=true
     fi
 
@@ -1063,11 +1075,10 @@ edit_site() {
     # Restart the site if it was running
     if compose_or_container_running "wp_$site_name"; then
         log_info "Restarting site '$site_name' to apply changes..."
-        if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
-            $DOCKER_COMPOSE up -d "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
-        else
-            $CONTAINER_RUNTIME restart "wp_$site_name" "nginx_$site_name" 2>/dev/null || true
+        if [[ -n "$new_php_version" && "$(get_site_stack "$site_name")" == "apache" ]]; then
+            matrix_site_build_if_apache "$site_name" || return 1
         fi
+        matrix_site_restart "$site_name"
         log_success "Site restarted"
     fi
 
@@ -1275,19 +1286,19 @@ show_info_json() {
 
     local port=""
     if [[ -f "$COMPOSE_FILE" ]]; then
-        port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1 || true)
+        port=$(get_site_port_from_compose "$site_name")
     fi
     if [[ -z "$port" ]]; then
-        port=$(get_container_port "nginx_$site_name")
-    fi
-    if [[ -z "$port" ]]; then
-        port=$(get_container_port "wp_$site_name")
+        port=$(get_site_port "$site_name")
     fi
 
     local php_version=""
     if [[ -f "$COMPOSE_FILE" ]]; then
-        php_version=$(grep -A 3 "wp_$site_name:" "$COMPOSE_FILE" 2>/dev/null | grep "image:" | grep -oE 'php[0-9.]+' | sed 's/php//' || true)
+        php_version=$(get_site_php_version_from_compose "$site_name")
     fi
+
+    local stack
+    stack=$(get_site_stack "$site_name")
 
     local container_id=""
     if [[ "$status" == "running" ]]; then
@@ -1316,7 +1327,10 @@ show_info_json() {
         disk_usage="\"$(du -sh "$PROJECT_ROOT/wp_$site_name" 2>/dev/null | cut -f1)\""
     fi
 
-    local nginx_config="\"config/nginx/$site_name.conf\""
+    local nginx_config="null"
+    if [[ "$stack" == "nginx" ]]; then
+        nginx_config="\"config/nginx/$site_name.conf\""
+    fi
 
     local wp_version="null"
     if [[ -f "$PROJECT_ROOT/wp_$site_name/wp-includes/version.php" ]]; then
@@ -1338,7 +1352,7 @@ show_info_json() {
         container_id_json="\"$container_id\""
     fi
 
-    output_json "{\"success\":true,\"site\":{\"name\":\"$site_name\",\"status\":\"$status\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"dbName\":\"$db_name\",\"dbSize\":$db_size,\"diskUsage\":$disk_usage,\"nginxConfigPath\":$nginx_config,\"wordpressVersion\":$wp_version}}"
+    output_json "{\"success\":true,\"site\":{\"name\":\"$site_name\",\"status\":\"$status\",\"stack\":\"$stack\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"dbName\":\"$db_name\",\"dbSize\":$db_size,\"diskUsage\":$disk_usage,\"nginxConfigPath\":$nginx_config,\"wordpressVersion\":$wp_version}}"
 }
 
 # Show URLs
@@ -1348,18 +1362,8 @@ show_urls() {
     if [[ -n "$site_name" ]]; then
         validate_site_name "$site_name" || return 1
         if site_exists "$site_name"; then
-            local port=""
-            if [[ -f "$COMPOSE_FILE" ]]; then
-                if grep -q "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null; then
-                    port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
-                fi
-            fi
-            if [[ -z "$port" ]]; then
-                port=$(get_container_port "nginx_$site_name")
-            fi
-            if [[ -z "$port" ]]; then
-                port=$(get_container_port "wp_$site_name")
-            fi
+            local port
+            port=$(get_site_port "$site_name")
             if [[ -z "$port" ]]; then
                 echo "Site '$site_name' exists but has no exposed port"
                 return 1
@@ -1388,13 +1392,7 @@ rest_site() {
     fi
 
     local port=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "nginx_$site_name:" "$COMPOSE_FILE" 2>/dev/null; then
-        port=$(grep -A 15 "nginx_$site_name:" "$COMPOSE_FILE" | grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1)
-    fi
-    if [[ -z "$port" ]]; then
-        port=$(get_container_port "nginx_$site_name")
-    fi
-
+    port=$(get_site_port "$site_name")
     if [[ -z "$port" ]]; then
         log_error "No URL available for site '$site_name'"
         return 1
@@ -2337,7 +2335,9 @@ ENVEOF
         local site_fixed=0
 
         local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
-        if [[ ! -f "$nginx_conf" ]]; then
+        local site_stack
+        site_stack=$(get_site_stack "$site")
+        if [[ "$site_stack" == "nginx" && ! -f "$nginx_conf" ]]; then
             log_warning "[$site] Missing nginx config"
             cat > "$nginx_conf" << EOF
 server {
@@ -2392,57 +2392,57 @@ EOF
                 fi
             fi
 
+            local repair_stack="nginx"
+            if [[ -f "$PROJECT_ROOT/wp_$site/.matrix-stack" ]]; then
+                repair_stack=$(tr -d '[:space:]' < "$PROJECT_ROOT/wp_$site/.matrix-stack")
+            fi
+            case "$repair_stack" in
+                apache|nginx) ;;
+                *) repair_stack="nginx" ;;
+            esac
+
             local port
             port=$(get_next_port)
 
-            local temp_file
-            temp_file=$(mktemp)
-            awk '/^volumes:/ {exit} {if (!/^volumes:/) print}' "$COMPOSE_FILE" > "$temp_file"
+            if [[ "$repair_stack" == "apache" ]]; then
+                compose_add_site "$site" "$php_version" "$port" "" "apache"
+                matrix_site_build_if_apache "$site" || true
+                log_success "[$site] Added Apache stack to docker-compose.yml (PHP $php_version, port $port)"
+            else
+                if [[ ! -f "$nginx_conf" ]]; then
+                    if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
+                        mkdir -p "$PROJECT_ROOT/config/nginx"
+                    fi
+                    cat > "$nginx_conf" << EOF
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html;
+    index index.php index.html;
 
-            cat >> "$temp_file" << EOF
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
 
-  # WordPress site: $site
-  wp_$site:
-    image: wordpress:php${php_version}-fpm
-    container_name: wp_$site
-    restart: unless-stopped
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
-      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: ${site}_db
-      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
-    volumes:
-      - ./wp_$site:/var/www/html
-    networks:
-      - wp-net
-    depends_on:
-      db:
-        condition: service_healthy
-    mem_limit: 512m
-    cpus: 0.5
+    location ~ \.php\$ {
+        fastcgi_pass wp_$site:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
+    }
 
-  nginx_$site:
-    image: nginx:alpine
-    container_name: nginx_$site
-    restart: unless-stopped
-    ports:
-      - "$port:80"
-    depends_on:
-      - wp_$site
-    volumes:
-      - ./wp_$site:/var/www/html:ro
-      - $nginx_conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - wp-net
-    mem_limit: 128m
-    cpus: 0.25
-
+    location ~ /\. {
+        deny all;
+    }
+}
 EOF
-
-            awk '/^volumes:/ {print; while(getline) print}' "$COMPOSE_FILE" >> "$temp_file"
-            mv "$temp_file" "$COMPOSE_FILE"
-            log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port)"
+                fi
+                compose_add_site "$site" "$php_version" "$port" "$nginx_conf" "nginx"
+                log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port)"
+            fi
             site_fixed=$((site_fixed + 1))
         fi
 
@@ -2631,17 +2631,17 @@ main() {
 
                 # Check if site is in docker-compose.yml
                 if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
-                    $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
+                    matrix_site_up "$site_name"
                 else
-                    # Site exists as directory but not in compose - start containers directly
                     local wp_container="wp_${site_name}"
-                    local nginx_container="nginx_${site_name}"
-
                     if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
                         $CONTAINER_RUNTIME start "$wp_container" 2>/dev/null || true
                     fi
-                    if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                        $CONTAINER_RUNTIME start "$nginx_container" 2>/dev/null || true
+                    if site_has_nginx "$site_name"; then
+                        local nginx_container="nginx_${site_name}"
+                        if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
+                            $CONTAINER_RUNTIME start "$nginx_container" 2>/dev/null || true
+                        fi
                     fi
                 fi
 
@@ -2664,11 +2664,7 @@ main() {
                 fi
 
                 log_info "Stopping site '$site_name'..."
-                if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
-                    $DOCKER_COMPOSE stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
-                else
-                    $CONTAINER_RUNTIME stop "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
-                fi
+                matrix_site_stop "$site_name"
                 log_success "Site '$site_name' stopped"
                 log_activity "STOP" "$site_name" "Stopped manually"
             else
@@ -2685,12 +2681,7 @@ main() {
                     exit 1
                 fi
                 log_info "Restarting site '$site_name'..."
-                if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
-                    $DOCKER_COMPOSE restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || \
-                    $DOCKER_COMPOSE up -d "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
-                else
-                    $CONTAINER_RUNTIME restart "wp_${site_name}" "nginx_${site_name}" 2>/dev/null || true
-                fi
+                matrix_site_restart "$site_name"
                 log_success "Site '$site_name' restarted"
                 show_urls "$site_name"
             else

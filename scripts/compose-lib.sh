@@ -41,11 +41,13 @@ compose_atomic_write() {
 }
 
 # Add a site's service definitions to docker-compose.yml
+# stack: nginx (default) or apache
 compose_add_site() {
     local site_name="$1"
     local php_version="$2"
     local port="$3"
     local nginx_conf_path="$4"
+    local stack="${5:-nginx}"
 
     if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
         log_warning "Site '$site_name' already in docker-compose.yml"
@@ -55,10 +57,41 @@ compose_add_site() {
     local tmp
     tmp=$(mktemp)
 
-    # Copy everything before volumes section
     awk '/^volumes:/ {exit} {print}' "$COMPOSE_FILE" > "$tmp"
 
-    cat >> "$tmp" << EOF
+    if [[ "$stack" == "apache" ]]; then
+        cat >> "$tmp" << EOF
+
+  # WordPress site: $site_name (Apache — .htaccess parity with production)
+  wp_$site_name:
+    build:
+      context: ./config/docker/wp-apache
+      args:
+        PHP_VERSION: ${php_version}
+    image: wp-matrix-apache:${php_version}
+    container_name: wp_$site_name
+    restart: unless-stopped
+    ports:
+      - "$port:80"
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${site_name}_db
+      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
+    volumes:
+      - ./wp_$site_name:/var/www/html
+    networks:
+      - wp-net
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 3g
+    cpus: 1.0
+
+EOF
+    else
+        cat >> "$tmp" << EOF
 
   # WordPress site: $site_name
   wp_$site_name:
@@ -98,6 +131,7 @@ compose_add_site() {
     cpus: 0.25
 
 EOF
+    fi
 
     awk '/^volumes:/ {print; while(getline) print}' "$COMPOSE_FILE" >> "$tmp"
 
@@ -125,7 +159,6 @@ compose_remove_site() {
     awk -v site="$site_name" '
     BEGIN { skip = 0 }
     skip {
-        # Stop skipping at the next site or top-level key
         if (/^  # WordPress site: /) {
             skip = 0
             print
@@ -139,7 +172,6 @@ compose_remove_site() {
         next
     }
     {
-        # Start skipping at the comment line for this site
         if (/^  # WordPress site: / && index($0, site) > 0) {
             skip = 1
             next
@@ -157,8 +189,8 @@ compose_remove_site() {
 # Edit a value in docker-compose.yml for a specific site
 compose_edit_value() {
     local site_name="$1"
-    local service="$2"    # wp or nginx
-    local key="$3"        # e.g. image, mem_limit, cpus
+    local service="$2"
+    local key="$3"
     local value="$4"
 
     local block_prefix
@@ -192,6 +224,28 @@ compose_edit_value() {
 compose_edit_php_version() {
     local site_name="$1"
     local php_version="$2"
+
+    if [[ "$(get_site_stack "$site_name")" == "apache" ]]; then
+        local tmp
+        tmp=$(mktemp)
+        awk -v site="wp_${site_name}:" -v ver="$php_version" '
+        BEGIN { in_block = 0 }
+        /^[^ ]/ { in_block = 0 }
+        index($0, site) > 0 { in_block = 1 }
+        in_block && /^\s+image:/ {
+            sub(/image:.*/, "image: wp-matrix-apache:" ver)
+        }
+        in_block && /^\s+PHP_VERSION:/ {
+            sub(/PHP_VERSION:.*/, "PHP_VERSION: " ver)
+        }
+        { print }
+        ' "$COMPOSE_FILE" > "$tmp"
+        compose_atomic_write "$tmp" "$COMPOSE_FILE"
+        local rc=$?
+        rm -f "$tmp"
+        return $rc
+    fi
+
     compose_edit_value "$site_name" "wp" "image" "wordpress:php${php_version}-fpm"
 }
 
@@ -200,10 +254,17 @@ compose_edit_port() {
     local site_name="$1"
     local port="$2"
 
+    local block
+    if site_has_nginx "$site_name"; then
+        block="nginx_${site_name}:"
+    else
+        block="wp_${site_name}:"
+    fi
+
     local tmp
     tmp=$(mktemp)
 
-    awk -v site="nginx_${site_name}:" -v newport="\"${port}:80\"" '
+    awk -v site="$block" -v newport="\"${port}:80\"" '
     /^[^ ]/ { in_block = 0 }
     index($0, site) > 0 { in_block = 1 }
     in_block && /"[0-9]+:80"/ {
@@ -218,7 +279,7 @@ compose_edit_port() {
     return $rc
 }
 
-# Edit a site's memory limit for both wp and nginx
+# Edit a site's memory limit for wp (and nginx when present)
 compose_edit_memory() {
     local site_name="$1"
     local wp_mem="$2"
@@ -242,10 +303,12 @@ compose_edit_memory() {
     fi
 
     compose_edit_value "$site_name" "wp" "mem_limit" "$wp_mem" || return 1
-    compose_edit_value "$site_name" "nginx" "mem_limit" "$nginx_mem"
+    if site_has_nginx "$site_name"; then
+        compose_edit_value "$site_name" "nginx" "mem_limit" "$nginx_mem"
+    fi
 }
 
-# Edit a site's CPU limit for both wp and nginx
+# Edit a site's CPU limit for wp (and nginx when present)
 compose_edit_cpu() {
     local site_name="$1"
     local wp_cpu="$2"
@@ -257,5 +320,7 @@ compose_edit_cpu() {
     [[ "$min_cpu" == "1" ]] && nginx_cpu=0.25
 
     compose_edit_value "$site_name" "wp" "cpus" "$wp_cpu" || return 1
-    compose_edit_value "$site_name" "nginx" "cpus" "$nginx_cpu"
+    if site_has_nginx "$site_name"; then
+        compose_edit_value "$site_name" "nginx" "cpus" "$nginx_cpu"
+    fi
 }

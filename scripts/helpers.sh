@@ -86,3 +86,132 @@ run_wp_cli() {
         -e WORDPRESS_DB_NAME="${site}_db" \
         wordpress:cli --path="/var/www/html/wp_$site" "$@"
 }
+
+# --- Site stack helpers (nginx + PHP-FPM vs Apache + PHP-FPM) ---
+
+site_has_nginx() {
+    local site="${1:-}"
+    [[ -n "$site" && -f "$COMPOSE_FILE" ]] && grep -q "^  nginx_${site}:" "$COMPOSE_FILE" 2>/dev/null
+}
+
+get_site_stack() {
+    local site="${1:-}"
+    if [[ -z "$site" || ! -f "$COMPOSE_FILE" ]]; then
+        echo "nginx"
+        return
+    fi
+    if site_has_nginx "$site"; then
+        echo "nginx"
+        return
+    fi
+    if grep -q "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null; then
+        if grep -A 40 "^  wp_${site}:" "$COMPOSE_FILE" | grep -qE 'wp-matrix-apache|docker/wp-apache'; then
+            echo "apache"
+            return
+        fi
+        if grep -A 40 "^  wp_${site}:" "$COMPOSE_FILE" | grep -qE '^\s+ports:'; then
+            echo "apache"
+            return
+        fi
+    fi
+    echo "nginx"
+}
+
+compose_site_service_names() {
+    local site="${1:-}"
+    if site_has_nginx "$site"; then
+        echo "wp_${site} nginx_${site}"
+    else
+        echo "wp_${site}"
+    fi
+}
+
+get_site_port_from_compose() {
+    local site="${1:-}"
+    local block=""
+    if [[ -z "$site" || ! -f "$COMPOSE_FILE" ]]; then
+        return
+    fi
+    if site_has_nginx "$site"; then
+        block="nginx_${site}"
+    else
+        block="wp_${site}"
+    fi
+    grep -A 25 "^  ${block}:" "$COMPOSE_FILE" 2>/dev/null | \
+        grep -E '^\s*-\s*"[0-9]+:80"' | grep -oE '[0-9]+' | head -1
+}
+
+get_site_php_version_from_compose() {
+    local site="${1:-}"
+    local image_line=""
+    if [[ -z "$site" || ! -f "$COMPOSE_FILE" ]]; then
+        return
+    fi
+    image_line=$(grep -A 20 "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s+image:' | head -1 || true)
+    if [[ -z "$image_line" ]]; then
+        return
+    fi
+    if [[ "$image_line" == *wp-matrix-apache* ]]; then
+        echo "$image_line" | grep -oE '[0-9]+\.[0-9]+' | head -1
+    else
+        echo "$image_line" | grep -oE 'php[0-9.]+' | sed 's/php//'
+    fi
+}
+
+get_site_port() {
+    local site="${1:-}"
+    local port=""
+    port=$(get_site_port_from_compose "$site")
+    if [[ -z "$port" ]]; then
+        if site_has_nginx "$site"; then
+            port=$($CONTAINER_RUNTIME port "nginx_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)
+        fi
+    fi
+    if [[ -z "$port" ]]; then
+        port=$($CONTAINER_RUNTIME port "wp_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)
+    fi
+    echo "$port"
+}
+
+matrix_site_build_if_apache() {
+    local site="${1:-}"
+    if [[ "$(get_site_stack "$site")" == "apache" ]]; then
+        log_info "Building Apache image for '$site'..."
+        $DOCKER_COMPOSE build "wp_${site}"
+    fi
+}
+
+matrix_site_up() {
+    local site="${1:-}"
+    local services
+    services=$(compose_site_service_names "$site")
+    # shellcheck disable=SC2086
+    $DOCKER_COMPOSE up -d $services 2>/dev/null || true
+}
+
+matrix_site_stop() {
+    local site="${1:-}"
+    local services
+    services=$(compose_site_service_names "$site")
+    # shellcheck disable=SC2086
+    $DOCKER_COMPOSE stop $services 2>/dev/null || true
+}
+
+matrix_site_restart() {
+    local site="${1:-}"
+    local services
+    services=$(compose_site_service_names "$site")
+    # shellcheck disable=SC2086
+    $DOCKER_COMPOSE up -d $services 2>/dev/null || \
+    $CONTAINER_RUNTIME restart $services 2>/dev/null || true
+}
+
+matrix_site_rm_containers() {
+    local site="${1:-}"
+    local services
+    services=$(compose_site_service_names "$site")
+    # shellcheck disable=SC2086
+    $DOCKER_COMPOSE rm -f $services 2>/dev/null || true
+    # shellcheck disable=SC2086
+    $CONTAINER_RUNTIME rm -f $services 2>/dev/null || true
+}

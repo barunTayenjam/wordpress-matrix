@@ -46,6 +46,18 @@ NEW_DIR="$PROJECT_ROOT/wp_$NEW_SITE"
 log_info "Copying files..."
 cp -R "$SOURCE_DIR" "$NEW_DIR"
 
+# Preserve or set stack marker
+local_stack="nginx"
+if [[ -f "$NEW_DIR/.matrix-stack" ]]; then
+    local_stack=$(tr -d '[:space:]' < "$NEW_DIR/.matrix-stack")
+elif [[ -f "$SOURCE_DIR/.matrix-stack" ]]; then
+    local_stack=$(tr -d '[:space:]' < "$SOURCE_DIR/.matrix-stack")
+fi
+case "$local_stack" in
+    apache|nginx) echo "$local_stack" > "$NEW_DIR/.matrix-stack" ;;
+    *) echo "nginx" > "$NEW_DIR/.matrix-stack"; local_stack="nginx" ;;
+esac
+
 # Update wp-config.php
 if [[ -f "$NEW_DIR/wp-config.php" ]]; then
     log_info "Updating configuration..."
@@ -81,15 +93,21 @@ NEW_URL="http://localhost:$NEW_PORT"
 log_info "Updating URLs in database..."
 run_wp_cli "$NEW_SITE" search-replace "$OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet
 
-# Create nginx config
-create_nginx_config "$NEW_SITE"
-
-# Update docker-compose.yml
+# Update docker-compose.yml (inherit stack from source)
 log_info "Updating docker-compose configuration..."
-update_compose_file "$NEW_SITE" "$NEW_PORT"
+if [[ "$local_stack" == "apache" ]]; then
+    local php_version
+    php_version=$(get_site_php_version_from_compose "$SOURCE_SITE")
+    [[ -z "$php_version" ]] && php_version="${DEFAULT_PHP_VERSION:-8.3}"
+    compose_add_site "$NEW_SITE" "$php_version" "$NEW_PORT" "" "apache"
+    matrix_site_build_if_apache "$NEW_SITE"
+else
+    create_nginx_config "$NEW_SITE"
+    update_compose_file "$NEW_SITE" "$NEW_PORT"
+fi
 
 log_info "Starting cloned site..."
-$DOCKER_COMPOSE up -d "wp_$NEW_SITE" "nginx_$NEW_SITE" 2>/dev/null || true
+matrix_site_up "$NEW_SITE"
 
 log_success "Site cloned successfully!"
 log_info "Access: $NEW_URL"

@@ -50,18 +50,8 @@ source "$PROJECT_ROOT/config/validation.sh"
 # Load shared helper functions
 source "$PROJECT_ROOT/scripts/helpers.sh"
 
-# Get site port from compose file
-get_site_port() {
-    local site="$1"
-    local port=""
-    port=$(grep -A 15 "nginx_$site:" "$COMPOSE_FILE" 2>/dev/null | \
-        grep -E '^\s*-\s*"[0-9]+:80"' | \
-        grep -oE '[0-9]+' | head -1 || true)
-    if [[ -z "$port" ]]; then
-        port=$($CONTAINER_RUNTIME port "nginx_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)
-    fi
-    echo "$port"
-}
+# Load compose manipulation (uses helpers for stack detection)
+source "$PROJECT_ROOT/scripts/compose-lib.sh"
 
 # Create database
 create_database() {
@@ -73,7 +63,7 @@ create_database() {
         "CREATE DATABASE IF NOT EXISTS \`$db_name\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$db_name\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null
 }
 
-# Update docker-compose.yml (simplified)
+# Update docker-compose.yml (simplified — nginx stack only; use compose_add_site for apache)
 update_compose_file() {
     local site="$1"
     local port="${2:-}"
@@ -92,53 +82,7 @@ update_compose_file() {
     fi
 
     local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
-    local temp_file
-    temp_file=$(mktemp)
-    awk '/^volumes:/ {exit} {if (!/^volumes:/) print}' "$COMPOSE_FILE" > "$temp_file"
-
-    cat >> "$temp_file" << EOF
-
-  # WordPress site: $site
-  wp_$site:
-    image: wordpress:php8.3-fpm
-    container_name: wp_$site
-    restart: unless-stopped
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
-      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: ${site}_db
-      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
-    volumes:
-      - ./wp_$site:/var/www/html
-    networks:
-      - wp-net
-    depends_on:
-      db:
-        condition: service_healthy
-    mem_limit: 512m
-    cpus: 0.5
-
-  nginx_$site:
-    image: nginx:alpine
-    container_name: nginx_$site
-    restart: unless-stopped
-    ports:
-      - "$port:80"
-    depends_on:
-      - wp_$site
-    volumes:
-      - ./wp_$site:/var/www/html:ro
-      - $nginx_conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - wp-net
-    mem_limit: 128m
-    cpus: 0.25
-
-EOF
-
-    awk '/^volumes:/ {print; while(getline) print}' "$COMPOSE_FILE" >> "$temp_file"
-    mv "$temp_file" "$COMPOSE_FILE"
+    compose_add_site "$site" "${DEFAULT_PHP_VERSION:-8.3}" "$port" "$nginx_conf" "nginx"
     log_success "Added $site to docker-compose.yml on port $port"
 }
 
