@@ -385,6 +385,21 @@ EOF
     log_activity "START" "$site_name" "Auto-started after creation"
 }
 
+# Reload the PHP-FPM master process so a newly enabled extension (e.g. phpredis)
+# is picked up by running workers. No-op if FPM isn't running. Finds the master
+# via its args so it works whether FPM is PID 1 (official *-fpm images) or not
+# (the apache stack, where apache is PID 1).
+reload_fpm() {
+    local container="${1:-}"
+    [[ -z "$container" ]] && return 0
+    $CONTAINER_RUNTIME exec "$container" bash -c '
+        pid=$(ps -eo pid,args 2>/dev/null | grep "php-fpm: master" | grep -v grep | awk "{print \$1}" | head -1)
+        if [ -n "$pid" ]; then
+            kill -USR2 "$pid" 2>/dev/null && echo "reloaded FPM (pid $pid)"
+        fi
+    ' 2>/dev/null || true
+}
+
 # Apply runtime performance tweaks to a running site's container.
 # Installs phpredis (if missing) and appends performance constants to
 # wp-config.php.  Safe to re-run on existing sites.
@@ -403,9 +418,14 @@ apply_performance_tweaks() {
     has_redis=$($CONTAINER_RUNTIME exec "$container" php -m 2>/dev/null | grep -c "^redis$" || true)
     if [[ "$has_redis" -eq 0 ]]; then
         log_info "Installing phpredis in $container..."
+        # phpredis >=6 needs PHP 8.x; pin the last 5.x release for PHP 7.x.
+        local redis_pkg="redis"
+        [[ "$php_version" == 7.* ]] && redis_pkg="redis-5.3.7"
         $CONTAINER_RUNTIME exec "$container" bash -c "
-            pecl install redis 2>/dev/null && docker-php-ext-enable redis 2>/dev/null
+            pecl install $redis_pkg 2>/dev/null && docker-php-ext-enable redis 2>/dev/null
         " || log_warning "phpredis install failed (non-fatal)"
+        # Reload FPM so the newly enabled extension is loaded by running workers.
+        reload_fpm "$container"
     fi
 
     # Append performance constants to wp-config.php (idempotent)
