@@ -156,15 +156,13 @@ compose_remove_site() {
     local tmp
     tmp=$(mktemp)
 
+    # Anchor on the exact site comment so removing "su2" never matches "su21".
+    # Two leading spaces + "# WordPress site: " + site name + optional suffix.
     awk -v site="$site_name" '
-    BEGIN { skip = 0 }
+    BEGIN { skip = 0; pattern = "^  # WordPress site: " site "([[:space:]]|$)" }
     skip {
-        if (/^  # WordPress site: /) {
-            skip = 0
-            print
-            next
-        }
-        if (/^[a-zA-Z]/ && !/^  /) {
+        # A new site block starts at the next site comment or a top-level key.
+        if ($0 ~ /^  # WordPress site: / || ($0 ~ /^[a-zA-Z]/ && $0 !~ /^  /)) {
             skip = 0
             print
             next
@@ -172,7 +170,7 @@ compose_remove_site() {
         next
     }
     {
-        if (/^  # WordPress site: / && index($0, site) > 0) {
+        if ($0 ~ pattern) {
             skip = 1
             next
         }
@@ -290,17 +288,16 @@ compose_edit_memory() {
     local unit
     unit=$(echo "$wp_mem" | sed 's/^[0-9]*//I')
 
+    local mb
     if [[ "$unit" == "G" || "$unit" == "g" ]]; then
-        nginx_mem=$((num / 2))
-        [[ $nginx_mem -lt 128 ]] && nginx_mem=128
-        nginx_mem="${nginx_mem}m"
+        mb=$(( num * 1024 / 2 ))
     elif [[ "$unit" == "M" || "$unit" == "m" ]]; then
-        nginx_mem=$((num / 2))
-        [[ $nginx_mem -lt 128 ]] && nginx_mem=128
-        nginx_mem="${nginx_mem}m"
+        mb=$(( num / 2 ))
     else
-        nginx_mem="128m"
+        mb=128
     fi
+    [[ $mb -lt 128 ]] && mb=128
+    nginx_mem="${mb}m"
 
     compose_edit_value "$site_name" "wp" "mem_limit" "$wp_mem" || return 1
     if site_has_nginx "$site_name"; then
@@ -313,11 +310,9 @@ compose_edit_cpu() {
     local site_name="$1"
     local wp_cpu="$2"
 
+    # nginx gets half the wp CPU, clamped to a 0.25 floor. Pure awk, no bc.
     local nginx_cpu
-    nginx_cpu=$(echo "$wp_cpu" | awk '{print $1/2}')
-    local min_cpu
-    min_cpu=$(echo "$nginx_cpu < 0.25" | bc -l 2>/dev/null || echo 0)
-    [[ "$min_cpu" == "1" ]] && nginx_cpu=0.25
+    nginx_cpu=$(awk -v c="$wp_cpu" 'BEGIN { v = c/2; if (v < 0.25) v = 0.25; printf "%g", v }')
 
     compose_edit_value "$site_name" "wp" "cpus" "$wp_cpu" || return 1
     if site_has_nginx "$site_name"; then

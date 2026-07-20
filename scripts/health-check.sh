@@ -44,8 +44,11 @@ echo ""
 
 # Check containers status
 log_info "Checking container status..."
-containers_running=$($CONTAINER_RUNTIME ps --format "{{.Names}}" | wc -l | tr -d ' ')
-log_success "Containers running: $containers_running"
+if containers_running=$($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | wc -l | tr -d ' '); then
+    log_success "Containers running: $containers_running"
+else
+    log_error "Container runtime is not responding (is the daemon running?)"
+fi
 
 # Check database
 log_info "Checking database..."
@@ -56,7 +59,7 @@ else
 fi
 
 # Test database connection
-if $CONTAINER_RUNTIME exec wp_db mysqladmin ping -h localhost --silent 2>/dev/null; then
+if $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqladmin ping -h localhost -u "${MYSQL_USER:-wp_user}" --silent 2>/dev/null; then
     log_success "Database connection: OK"
 else
     log_error "Database connection: FAILED"
@@ -142,7 +145,7 @@ error_count=0
 for site in $(get_sites); do
     if $CONTAINER_RUNTIME logs --tail=50 "wp_$site" 2>&1 | grep -i "error\|fatal" | grep -q .; then
         log_warning "  Errors found in: $site"
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 done
 

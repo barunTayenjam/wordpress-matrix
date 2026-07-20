@@ -1,0 +1,12 @@
+{
+  "name": "litespeed-verify",
+  "version": "1.0.0",
+  "description": "Verifies LiteSpeed Cache plugin compatibility on searchunify.com",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:report": "npx playwright test && npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

@@ -75,10 +75,8 @@ backup_site() {
         local db_backup="$site_backup_dir/database.sql"
 
         log_info "  Exporting database..."
-        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" \
-            --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup"
-
-        if [[ $? -eq 0 ]]; then
+        if $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" \
+            --single-transaction --quick --lock-tables=false "$DB_NAME" > "$db_backup"; then
             local size=$(du -h "$db_backup" | cut -f1)
             log_success "  Database backed up ($size)"
         else
@@ -93,9 +91,7 @@ backup_site() {
         local files_backup="$site_backup_dir/files"
 
         log_info "  Backing up files..."
-        cp -R "$site_dir/wp-content" "$files_backup"
-
-        if [[ $? -eq 0 ]]; then
+        if cp -R "$site_dir/wp-content" "$files_backup"; then
             local size=$(du -sh "$files_backup" | cut -f1)
             log_success "  Files backed up ($size)"
         else
@@ -112,7 +108,7 @@ if [[ "$BACKUP_ALL" == true ]]; then
     site_count=0
     for site in $(get_sites); do
         backup_site "$site"
-        ((site_count++))
+        site_count=$((site_count + 1))
         echo ""
     done
 

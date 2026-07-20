@@ -3,6 +3,21 @@
 # Sourced by both matrix and common.sh.
 # All functions depend on $PROJECT_ROOT, $COMPOSE_FILE, $CONTAINER_RUNTIME being set.
 
+# Detect host LAN IP for user-facing URLs so other devices on the network can
+# connect. Sourced by both `matrix` and the scripts/*.sh subprocess scripts via
+# common.sh, so HOST_IP is available everywhere.
+get_lan_ip() {
+    local ip=""
+    if [[ "$(uname)" == "Darwin" ]]; then
+        ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
+    else
+        ip=$(ip route get 1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if ($i=="src") {print $(i+1); exit}}' 2>/dev/null || \
+             hostname -I 2>/dev/null | awk '{print $1}' || true)
+    fi
+    echo "${ip:-localhost}"
+}
+HOST_IP=$(get_lan_ip)
+
 get_sites() {
     local sites=()
     for dir in "$PROJECT_ROOT"/wp_*; do
@@ -14,7 +29,9 @@ get_sites() {
             fi
         fi
     done
-    printf '%s\n' "${sites[@]}" | sort -u
+    if ((${#sites[@]})); then
+        printf '%s\n' "${sites[@]}" | sort -u
+    fi
 }
 
 site_exists() {
@@ -23,7 +40,7 @@ site_exists() {
 }
 
 get_next_port() {
-    local max_port=8100
+    local max_port=8200
     if [[ -f "$COMPOSE_FILE" ]]; then
         local ports
         ports=$(grep -oE '^\s*-\s*"[0-9]+:80"' "$COMPOSE_FILE" 2>/dev/null | \
@@ -32,9 +49,9 @@ get_next_port() {
             max_port=$(echo "$ports" | head -n 1)
         fi
     fi
-    ((max_port++))
+    max_port=$((max_port + 1))
     while port_in_use "$max_port"; do
-        ((max_port++))
+        max_port=$((max_port + 1))
     done
     echo "$max_port"
 }

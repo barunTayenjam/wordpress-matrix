@@ -235,9 +235,29 @@ const startStatusPolling = () => {
 };
 
 // Middleware
+// CORS: allow same-origin (no Origin header, e.g. server-side fetches), loopback,
+// and the host's LAN IP / private network so the dashboard works when other
+// devices on the network open it via http://<lan-ip>:<port>.
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  let host;
+  try { host = new URL(origin).hostname; } catch { return false; }
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return true;
+  // Private IPv4 ranges (10.x, 172.16-31.x, 192.168.x) and link-local 169.254.x
+  if (
+    /^(10\.|192\.168\.|169\.254\.)/.test(host) ||
+    /^172\.(1[6-9]|2[0-9]|3[01])\./.test(host)
+  ) return true;
+  // *.local hostnames (mDNS/Bonjour LAN hostnames)
+  if (/\.local$/.test(host)) return true;
+  // Allow the host's own detected LAN IP when explicitly configured
+  if (process.env.MATRIX_LAN_IP && host === process.env.MATRIX_LAN_IP) return true;
+  return false;
+};
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    if (isAllowedOrigin(origin)) {
       return callback(null, true);
     }
     return callback(new Error('CORS origin not allowed'));
@@ -951,20 +971,22 @@ app.get('/api/health/:siteName', async (req, res) => {
       return res.json({ success: true, site: siteName, healthy: false, reason: 'Site not running or no port' });
     }
     
-    const url = `http://localhost:${site.port}`;
+    const lanIp = process.env.MATRIX_LAN_IP || 'localhost';
+    const probeUrl = `http://127.0.0.1:${site.port}`;
+    const displayUrl = `http://${lanIp}:${site.port}`;
     const startTime = Date.now();
-    
+
     try {
-      const response = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
+      const response = await fetch(probeUrl, { method: 'HEAD', signal: AbortSignal.timeout(5000) });
       const responseTime = Date.now() - startTime;
-      
+
       res.json({
         success: true,
         site: siteName,
         healthy: response.ok,
         status: response.status,
         responseTime: `${responseTime}ms`,
-        url
+        url: displayUrl
       });
     } catch (fetchError) {
       res.json({
@@ -972,7 +994,7 @@ app.get('/api/health/:siteName', async (req, res) => {
         site: siteName,
         healthy: false,
         error: fetchError.message,
-        url
+        url: displayUrl
       });
     }
   } catch (error) {
@@ -1022,9 +1044,11 @@ app.use((req, res) => {
 
 const startServer = (port = PORT) => {
   startStatusPolling();
+  const lanIp = process.env.MATRIX_LAN_IP || '';
   return server.listen(port, () => {
-    console.log(`WordPress Matrix Frontend running on http://localhost:${port}`);
-    console.log(`Dashboard: http://localhost:${port}`);
+    console.log(`WordPress Matrix Frontend listening on 0.0.0.0:${port}`);
+    console.log(`Dashboard:   http://localhost:${port}`);
+    if (lanIp) console.log(`Dashboard:   http://${lanIp}:${port}  (LAN)`);
     console.log(`API Endpoint: http://localhost:${port}/api`);
     console.log('WebSocket: Enabled');
   });

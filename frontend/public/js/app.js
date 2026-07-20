@@ -1,6 +1,8 @@
 let currentData = { sites: [], services: [] };
 let socket = null;
 let flyoutSite = null;
+let scrollRevealObserver = null;
+let autoRefreshTimer = null;
 
 function toggleTheme() {
   const html = document.documentElement;
@@ -124,15 +126,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initScrollReveal() {
-  const observer = new IntersectionObserver((entries) => {
+  if (scrollRevealObserver) scrollRevealObserver.disconnect();
+  scrollRevealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('visible');
-        observer.unobserve(entry.target);
+        scrollRevealObserver.unobserve(entry.target);
       }
     });
   }, { threshold: 0.05, rootMargin: '0px 0px -40px 0px' });
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  document.querySelectorAll('.reveal').forEach(el => scrollRevealObserver.observe(el));
 }
 
 function initTabs() {
@@ -145,7 +148,7 @@ function initTabs() {
       const panel = document.getElementById(`panel-${tab}`);
       if (panel) panel.classList.add('active');
       if (tab === 'activity') loadActivity();
-      panel.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+      panel?.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
     });
   });
 }
@@ -199,7 +202,12 @@ async function loadDashboard() {
   }
 }
 
-function initAutoRefresh() {}
+function initAutoRefresh() {
+  if (autoRefreshTimer) clearInterval(autoRefreshTimer);
+  autoRefreshTimer = setInterval(() => {
+    if (!document.hidden) loadDashboard();
+  }, 30000);
+}
 
 function updateLastUpdateTime() {
   const now = new Date().toLocaleTimeString();
@@ -268,8 +276,8 @@ async function loadActivity() {
 }
 
 function getActionColor(action) {
-  const colors = { 'CREATE': 'var(--success)', 'START': 'var(--accent)', 'STOP': 'var(--warning)', 'EDIT': '#0ea5e9', 'REMOVE': 'var(--danger)', 'BACKUP': 'var(--text-secondary)', 'RESTORE': '#0f0f0f' };
-  return colors[action] || 'var(--text-secondary)';
+  const colors = { 'CREATE': 'var(--success)', 'START': 'var(--accent)', 'STOP': 'var(--warning)', 'EDIT': '#0ea5e9', 'REMOVE': 'var(--danger)', 'BACKUP': 'var(--text-dim)', 'RESTORE': 'var(--text-dim)' };
+  return colors[action] || 'var(--text-dim)';
 }
 
 function updateDashboard() {

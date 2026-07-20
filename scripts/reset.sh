@@ -55,7 +55,11 @@ if ! site_exists "$SITE_NAME"; then
 fi
 
 log_warning "This will RESET site '$SITE_NAME' to fresh WordPress install"
-read -p "Continue? [y/N]: " confirm
+if ! read -r -p "Continue? [y/N]: " confirm; then
+    log_info "Cancelled"
+    exit 0
+fi
+confirm="${confirm:-}"
 
 if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
     log_info "Cancelled"
@@ -71,8 +75,11 @@ log_info "Backing up to: $BACKUP_DIR"
 
 # Export database
 DB_NAME="${SITE_NAME}_db"
-$CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "$DB_NAME" \
-    > "$BACKUP_DIR/database.sql"
+if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "$DB_NAME" \
+        > "$BACKUP_DIR/database.sql"; then
+    log_error "Failed to export database for '$SITE_NAME'"
+    exit 1
+fi
 
 # Backup wp-content
 if [[ "$KEEP_PLUGINS" == true ]] || [[ "$KEEP_THEMES" == true ]] || [[ "$KEEP_UPLOADS" == true ]]; then
@@ -95,9 +102,26 @@ if [[ "$KEEP_PLUGINS" == true ]] || [[ "$KEEP_THEMES" == true ]] || [[ "$KEEP_UP
     log_info "Restoring wp-content..."
     SITE_DIR="$PROJECT_ROOT/wp_$SITE_NAME"
 
-    [[ "$KEEP_PLUGINS" == true ]] && rm -rf "$SITE_DIR/wp-content/plugins" && cp -R "$BACKUP_CONTENT_DIR/plugins" "$SITE_DIR/wp-content/"
-    [[ "$KEEP_THEMES" == true ]] && rm -rf "$SITE_DIR/wp-content/themes" && cp -R "$BACKUP_CONTENT_DIR/themes" "$SITE_DIR/wp-content/"
-    [[ "$KEEP_UPLOADS" == true ]] && rm -rf "$SITE_DIR/wp-content/uploads" && cp -R "$BACKUP_CONTENT_DIR/uploads" "$SITE_DIR/wp-content/"
+    # Copy to a temp sibling then move into place so a failure never leaves the
+    # target directory missing its plugins/themes/uploads.
+    restore_dir() {
+        local src="$1"
+        local dest_parent="$2"
+        local name
+        name=$(basename "$src")
+        local staging="$dest_parent/.${name}.restoring.$$"
+        if ! cp -R "$src" "$staging"; then
+            log_error "Failed to restore $name"
+            rm -rf "$staging"
+            return 1
+        fi
+        rm -rf "$dest_parent/$name"
+        mv "$staging" "$dest_parent/$name"
+    }
+
+    [[ "$KEEP_PLUGINS" == true ]] && { restore_dir "$BACKUP_CONTENT_DIR/plugins" "$SITE_DIR/wp-content" || exit 1; }
+    [[ "$KEEP_THEMES" == true ]]  && { restore_dir "$BACKUP_CONTENT_DIR/themes"  "$SITE_DIR/wp-content" || exit 1; }
+    [[ "$KEEP_UPLOADS" == true ]] && { restore_dir "$BACKUP_CONTENT_DIR/uploads" "$SITE_DIR/wp-content" || exit 1; }
 fi
 
 # WordPress will be reinstalled on first visit or via wp-cli

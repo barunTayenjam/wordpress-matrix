@@ -1,0 +1,842 @@
+- generic [active] [ref=f19e1]:
+  - generic [ref=f19e2]:
+    - text:  
+    - banner [ref=f19e3]:
+      - list [ref=f19e5]:
+        - listitem
+        - listitem [ref=f19e6]:
+          - generic [ref=f19e7]:
+            - generic [ref=f19e8]:
+              - button "Previous" [ref=f19e9] [cursor=pointer]: ←Previous
+              - generic [ref=f19e11]:
+                - generic [ref=f19e12]:
+                  - generic [ref=f19e13]:
+                    - text: Recognized in Everest Group’s Enterprise Search PEAK Matrix
+                    - superscript [ref=f19e14]: ®
+                    - text: "2026"
+                  - link [ref=f19e15] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-a-major-contender-in-everest-groups-enterprise-search-products-peak-matrix-assessment-2026/
+                    - text: Know More >
+                - generic [ref=f19e16]:
+                  - text: "Beyond QA: Building a Continuous Case Quality Engine"
+                  - link [ref=f19e17] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/ebook/beyond-qa-building-a-continuous-case-quality-engine/
+                    - text: Download the eBook >
+                - generic [ref=f19e18]:
+                  - text: Is Your Knowledge Base Ready for AI Agents?
+                  - link "Download the Whitepaper >" [ref=f19e19] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/whitepaper/is-your-knowledge-base-ready-for-ai-agents/
+                - generic [ref=f19e20]:
+                  - text: Choosing between Building or Buying? Before you commit, get the facts
+                  - link [ref=f19e21] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/whitepaper/build-vs-buy-support-ai-agents-strategic-decision-framework/
+                    - text: Download Whitepaper >
+                - generic [ref=f19e22]:
+                  - generic [ref=f19e23]:
+                    - text: Recognized in Everest Group’s Enterprise Search PEAK Matrix
+                    - superscript [ref=f19e24]: ®
+                    - text: "2026"
+                  - link [ref=f19e25] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-a-major-contender-in-everest-groups-enterprise-search-products-peak-matrix-assessment-2026/
+                    - text: Know More >
+                - generic [ref=f19e26]:
+                  - text: "Beyond QA: Building a Continuous Case Quality Engine"
+                  - link [ref=f19e27] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/ebook/beyond-qa-building-a-continuous-case-quality-engine/
+                    - text: Download the eBook >
+                - generic [ref=f19e28]:
+                  - text: Is Your Knowledge Base Ready for AI Agents?
+                  - link [ref=f19e29] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/whitepaper/is-your-knowledge-base-ready-for-ai-agents/
+                    - text: Download the Whitepaper >
+                - generic [ref=f19e30]:
+                  - text: Choosing between Building or Buying? Before you commit, get the facts
+                  - link [ref=f19e31] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/resource-center/whitepaper/build-vs-buy-support-ai-agents-strategic-decision-framework/
+                    - text: Download Whitepaper >
+                - generic [ref=f19e32]:
+                  - generic [ref=f19e33]:
+                    - text: Recognized in Everest Group’s Enterprise Search PEAK Matrix
+                    - superscript [ref=f19e34]: ®
+                    - text: "2026"
+                  - link [ref=f19e35] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-a-major-contender-in-everest-groups-enterprise-search-products-peak-matrix-assessment-2026/
+                    - text: Know More >
+              - button "Next" [ref=f19e36] [cursor=pointer]: →Next
+            - button "x" [ref=f19e37] [cursor=pointer]
+      - generic [ref=f19e41]:
+        - list [ref=f19e42]:
+          - listitem [ref=f19e43]:
+            - link [ref=f19e45] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202/
+              - img "SearchUnify | Enterprise Agentic Platform for Customer Support" [ref=f19e46]
+        - list [ref=f19e47]:
+          - listitem [ref=f19e48]:
+            - navigation "Horizontal" [ref=f19e49]:
+              - list [ref=f19e50]:
+                - listitem [ref=f19e51]:
+                  - link "Platform " [ref=f19e52] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=f19e53]:
+                  - link "Products " [ref=f19e54] [cursor=pointer]:
+                    - /url: "#"
+                - listitem [ref=f19e55]:
+                  - link "Industries " [ref=f19e56] [cursor=pointer]:
+                    - /url: http://192.168.31.207:8202/industries/
+                - listitem [ref=f19e57]:
+                  - link "Resources " [ref=f19e58] [cursor=pointer]:
+                    - /url: /resource-center/
+                - listitem [ref=f19e59]:
+                  - link "Company " [ref=f19e60] [cursor=pointer]:
+                    - /url: "#"
+        - list [ref=f19e61]:
+          - listitem [ref=f19e62]:
+            - link [ref=f19e63] [cursor=pointer]:
+              - /url: /request-demo/
+              - button "Book a Demo " [ref=f19e64]:
+                - text: Book a Demo
+                - generic [ref=f19e65]: 
+          - listitem [ref=f19e66]:
+            - button "" [ref=f19e67] [cursor=pointer]
+    - generic [ref=f19e73]:
+      - generic [ref=f19e75]: Slider with alias analytics-platform-for-saurav-11 not found.
+      - generic [ref=f19e76]: There is nothing to show here!
+      - generic [ref=f19e77]: 
+    - main [ref=f19e79]:
+      - article [ref=f19e83]:
+        - generic [ref=f19e86]:
+          - generic [ref=f19e89]:
+            - img "arrow img1" [ref=f19e92]
+            - heading "Our Esteemed Clients" [level=4] [ref=f19e97]
+          - heading "Embed Agentic AI across your Enterprise" [level=2] [ref=f19e108]
+          - generic [ref=f19e110]:
+            - generic [ref=f19e111]:
+              - img "bg-line-top" [ref=f19e113]
+              - generic [ref=f19e116]:
+                - figure [ref=f19e117]:
+                  - img "leverage unified data" [ref=f19e118]
+                - heading "Leverage Unified Data" [level=4] [ref=f19e119]
+                - generic [ref=f19e120]:
+                  - text: With SearchUnifyFRAG
+                  - superscript [ref=f19e121]: TM
+                  - text: make your data the foundation of success.
+            - generic [ref=f19e122]:
+              - generic [ref=f19e125]:
+                - figure [ref=f19e126]:
+                  - img "select optimal models" [ref=f19e127]
+                - heading "Select Optimal Models" [level=4] [ref=f19e128]
+                - generic [ref=f19e129]: Choose the best mix of LLMs (BYOLLM) to get results tailored to your goals.
+              - img "bg-line-bottom" [ref=f19e131]
+            - generic [ref=f19e132]:
+              - img "bg-line-top" [ref=f19e134]
+              - generic [ref=f19e137]:
+                - figure [ref=f19e138]:
+                  - img "enterprise grade security" [ref=f19e139]
+                - heading "Forge Operational Resilience" [level=4] [ref=f19e140]
+                - generic [ref=f19e141]: Secure every stage of the AI lifecycle with robust Multi-layered framework.
+            - generic [ref=f19e142]:
+              - generic [ref=f19e145]:
+                - figure [ref=f19e146]:
+                  - img "ensure icon" [ref=f19e147]
+                - heading "Ensure Ethical Autonomy" [level=4] [ref=f19e148]
+                - generic [ref=f19e149]: Foster user confidence with built-in governance and guardrails that steer AI ethically.
+              - img "bg-line-bottom" [ref=f19e151]
+            - generic [ref=f19e152]:
+              - img "bg-line-top" [ref=f19e154]
+              - generic [ref=f19e157]:
+                - figure [ref=f19e158]:
+                  - img "ensure" [ref=f19e159]
+                - heading "Deploy with Confidence" [level=4] [ref=f19e160]
+                - generic [ref=f19e161]: "Accelerate outcomes with prebuilt AI agents: tailored for enterprise needs."
+          - generic [ref=f19e162]:
+            - heading "AI Agents Engineered for Your Business Functions" [level=2] [ref=f19e172]
+            - generic [ref=f19e173]:
+              - generic [ref=f19e177]:
+                - figure [ref=f19e178]:
+                  - img "it icon" [ref=f19e179]
+                - heading "IT" [level=4] [ref=f19e180]
+                - generic [ref=f19e181]: AI-powered agents for proactive IT support and infrastructure monitoring-resolving incidents faster, enhancing security, and ensuring uptime.
+              - generic [ref=f19e185]:
+                - figure [ref=f19e186]:
+                  - img "marketing icon" [ref=f19e187]
+                - heading "Marketing" [level=4] [ref=f19e188]
+                - generic [ref=f19e189]: Drive higher ROI with AI agents that power hyper-personalized campaigns and real-time performance optimization.
+              - generic [ref=f19e193]:
+                - figure [ref=f19e194]:
+                  - img "cs icon" [ref=f19e195]
+                - heading "Customer Support" [level=4] [ref=f19e196]
+                - generic [ref=f19e197]: Deliver exceptional support with scalable Agentic AI-faster resolutions, higher CSAT, and lower operational costs from first contact to close.
+              - generic [ref=f19e201]:
+                - figure [ref=f19e202]:
+                  - img "sales icon" [ref=f19e203]
+                - heading "Sales" [level=4] [ref=f19e204]
+                - generic [ref=f19e205]: Accelerate your sales funnel with AI-driven lead qualification, deal acceleration, and actionable insights for smarter selling.
+              - generic [ref=f19e209]:
+                - figure [ref=f19e210]:
+                  - img "hr icon" [ref=f19e211]
+                - heading "Human Resource" [level=4] [ref=f19e212]
+                - generic [ref=f19e213]: Transform HR with intelligent agents that optimize talent acquisition, boost retention, and enable data-driven workforce management.
+          - img "robot-bw" [ref=f19e217]
+          - generic [ref=f19e219]:
+            - generic [ref=f19e224]:
+              - heading "AI Agents for Customer Support" [level=2] [ref=f19e226]
+              - paragraph [ref=f19e228]:
+                - text: A versatile, secure, cloud-hosted ecosystem of prebuilt AI Agents that leverage SearchUnifyFRAG
+                - superscript [ref=f19e229]: ™
+                - text: and 100 out-of-the-box tools to unify data and integrate CRUD capabilities to the system. Automates self-service, augments support workflows, and deepens customer engagement, all while holistically elevating enterprise support operations and boosting efficiency.
+            - generic [ref=f19e249]:
+              - link "AI Support Agent Delivers intuitive, personalized self-service with instant access to relevant knowledge, reducing case volumes and improving customer satisfaction." [ref=f19e253] [cursor=pointer]:
+                - /url: /products/ai-agents/ai-support-agent
+                - generic [ref=f19e254]:
+                  - figure [ref=f19e256]:
+                    - img "AI Support Agent" [ref=f19e257]
+                  - generic [ref=f19e258]:
+                    - heading "AI Support Agent" [level=4] [ref=f19e259]
+                    - generic [ref=f19e260]: Delivers intuitive, personalized self-service with instant access to relevant knowledge, reducing case volumes and improving customer satisfaction.
+              - link ". AI Agent Partner Empowers support teams with real-time case summarization, contextual recommendations, and automated actions, boosting productivity and equipping them for faster, smarter case handling." [ref=f19e264] [cursor=pointer]:
+                - /url: https://www.searchunify.com/products/ai-agents/ai-agent-partner
+                - generic [ref=f19e265]:
+                  - figure [ref=f19e267]:
+                    - img "ai agent partner" [ref=f19e268]
+                  - generic [ref=f19e269]:
+                    - generic [ref=f19e270]: .
+                    - heading "AI Agent Partner" [level=4] [ref=f19e271]
+                    - generic [ref=f19e272]: Empowers support teams with real-time case summarization, contextual recommendations, and automated actions, boosting productivity and equipping them for faster, smarter case handling.
+              - link ". AI Classification Agent Intelligently classifies incoming and historical tickets into meaningful categories. Leveraging AI clustering and intent detection it routes these between self service, automated resolution, knowledge generation, or audit." [ref=f19e276] [cursor=pointer]:
+                - /url: https://www.searchunify.com/products/ai-agents/ai-classification-agent
+                - generic [ref=f19e277]:
+                  - figure [ref=f19e279]:
+                    - img "ai classification agent v2" [ref=f19e280]
+                  - generic [ref=f19e281]:
+                    - generic [ref=f19e282]: .
+                    - heading "AI Classification Agent" [level=4] [ref=f19e283]
+                    - generic [ref=f19e284]: Intelligently classifies incoming and historical tickets into meaningful categories. Leveraging AI clustering and intent detection it routes these between self service, automated resolution, knowledge generation, or audit.
+              - link ". AI Knowledge Agent Facilitates AI-powered article creation and knowledge base management for support teams and customers, fueling self-service efficiency." [ref=f19e288] [cursor=pointer]:
+                - /url: /products/ai-agents/ai-knowledge-agent
+                - generic [ref=f19e289]:
+                  - figure [ref=f19e291]:
+                    - img "AI Knowledge Management Agent" [ref=f19e292]
+                  - generic [ref=f19e293]:
+                    - generic [ref=f19e294]: .
+                    - heading "AI Knowledge Agent" [level=4] [ref=f19e295]
+                    - generic [ref=f19e296]: Facilitates AI-powered article creation and knowledge base management for support teams and customers, fueling self-service efficiency.
+              - 'link ". AI Competency Agent Automates complex case resolution with AI-driven troubleshooting, intelligent case routing, expert swarming, and real-time sentiment analysis: delivering accelerated resolution time and elevated customer experiences." [ref=f19e300] [cursor=pointer]':
+                - /url: https://www.searchunify.com/products/ai-agents/ai-competency-agent
+                - generic [ref=f19e301]:
+                  - figure [ref=f19e303]:
+                    - img "AI Competency Agent" [ref=f19e304]
+                  - generic [ref=f19e305]:
+                    - generic [ref=f19e306]: .
+                    - heading "AI Competency Agent" [level=4] [ref=f19e307]
+                    - generic [ref=f19e308]: "Automates complex case resolution with AI-driven troubleshooting, intelligent case routing, expert swarming, and real-time sentiment analysis: delivering accelerated resolution time and elevated customer experiences."
+              - link ". AI Escalation Manager Predicts and prevents escalations with early detection and proactive resolution strategies, ensuring consistent support quality and performance." [ref=f19e312] [cursor=pointer]:
+                - /url: https://www.searchunify.com/products/ai-agents/ai-escalation-manager
+                - generic [ref=f19e313]:
+                  - figure [ref=f19e315]:
+                    - img "ai escalation agent" [ref=f19e316]
+                  - generic [ref=f19e317]:
+                    - generic [ref=f19e318]: .
+                    - heading "AI Escalation Manager" [level=4] [ref=f19e319]
+                    - generic [ref=f19e320]: Predicts and prevents escalations with early detection and proactive resolution strategies, ensuring consistent support quality and performance.
+              - link ". AI Case Quality Auditor Maintains Peak Support Performance & Compliance with data-driven audits in real time to continuously improve service delivery." [ref=f19e324] [cursor=pointer]:
+                - /url: https://www.searchunify.com/products/ai-agents/ai-case-quality-auditor
+                - generic [ref=f19e325]:
+                  - figure [ref=f19e327]:
+                    - img "AI Case Quality Auditor" [ref=f19e328]
+                  - generic [ref=f19e329]:
+                    - generic [ref=f19e330]: .
+                    - heading "AI Case Quality Auditor" [level=4] [ref=f19e331]
+                    - generic [ref=f19e332]: Maintains Peak Support Performance & Compliance with data-driven audits in real time to continuously improve service delivery.
+              - generic [ref=f19e336]:
+                - figure [ref=f19e338]:
+                  - img "AI Workflow Automation Agent" [ref=f19e339]
+                - generic [ref=f19e340]:
+                  - generic [ref=f19e341]: .
+                  - heading "AI Workflow Automation Agent" [level=4] [ref=f19e342]
+                  - generic [ref=f19e343]: Enables intelligent handoffs and context-rich routing to streamline collaboration between AI agents and human teams for a unified support experience.
+              - link ". AI Feedback Analyst Aggregates feedback and turns into actionable insights by analyzing trends, fueling product decisions, and closing the loop on customer voice." [ref=f19e347] [cursor=pointer]:
+                - /url: https://www.searchunify.com/
+                - generic [ref=f19e348]:
+                  - figure [ref=f19e350]:
+                    - img "AI feedback Analyst" [ref=f19e351]
+                  - generic [ref=f19e352]:
+                    - generic [ref=f19e353]: .
+                    - heading "AI Feedback Analyst" [level=4] [ref=f19e354]
+                    - generic [ref=f19e355]: Aggregates feedback and turns into actionable insights by analyzing trends, fueling product decisions, and closing the loop on customer voice.
+              - generic [ref=f19e359]:
+                - figure [ref=f19e361]:
+                  - img "AI Proactive Support Agent" [ref=f19e362]
+                - generic [ref=f19e363]:
+                  - generic [ref=f19e364]: .
+                  - heading "AI Proactive Support Agent" [level=4] [ref=f19e365]
+                  - generic [ref=f19e366]: Anticipates customer needs with early alerts, proactive trend analysis, and targeted interventions that boost retention and loyalty.
+          - heading "SearchUnify Agentic AI Suite Architecture" [level=2] [ref=f19e370]
+          - figure [ref=f19e376]:
+            - img "ai-suite-v2"
+          - heading "Transform Customer Support Outcomes to Drive Higher CSAT" [level=2] [ref=f19e384]
+          - generic [ref=f19e386]:
+            - generic [ref=f19e390]:
+              - figure [ref=f19e391]:
+                - img "enhance self service experience" [ref=f19e392]
+              - heading "Enhance Self-Service Experience" [level=3] [ref=f19e393]
+              - generic [ref=f19e394]: Unify data sources to provide intuitive self-service and swift query resolution through personalized AI guidance and instant access to relevant knowledge.
+            - generic [ref=f19e398]:
+              - figure [ref=f19e399]:
+                - img "deliver empathetic ai support" [ref=f19e400]
+              - heading "Deliver Empathetic AI Support" [level=3] [ref=f19e401]
+              - generic [ref=f19e402]: Delight customers with AI-driven personalized support. Ensure swift and empathetic case resolution, boosting customer satisfaction at every step.
+            - generic [ref=f19e406]:
+              - figure [ref=f19e407]:
+                - img "augment support efficiency" [ref=f19e408]
+              - heading "Augment Support Efficiency" [level=3] [ref=f19e409]
+              - generic [ref=f19e410]: Automatically triage and route tickets to the right expert. Leverage intelligent sentiment analysis for faster, and more accurate resolutions.
+            - generic [ref=f19e414]:
+              - figure [ref=f19e415]:
+                - img "sustain service excellence at scale" [ref=f19e416]
+              - heading "Sustain Service Excellence at Scale" [level=3] [ref=f19e417]
+              - generic [ref=f19e418]: Navigate rising ticket volumes seamlessly. SearchUnify AI Agents automate routine queries and assist reps, ensuring consistent and fast support across channels and time zones.
+            - generic [ref=f19e422]:
+              - figure [ref=f19e423]:
+                - img "fuel knowledge centered support" [ref=f19e424]
+              - heading "Fuel Knowledge-Centered Support" [level=3] [ref=f19e425]
+              - generic [ref=f19e426]: Implement proactive support programs like Knowledge-Centered Support (KCS) effectively by embedding automated knowledge capture in every user interaction.
+            - generic [ref=f19e430]:
+              - figure [ref=f19e431]:
+                - img "maximize customer service roi" [ref=f19e432]
+              - heading "Maximize Customer Service ROI" [level=3] [ref=f19e433]
+              - generic [ref=f19e434]: Measure, quantify, maximize, and showcase ROI in your entire support ecosystem. Save ~$1 Million in support cost in three months of deployment with quick time to value.
+          - heading "Real World Customer Success Stories" [level=2] [ref=f19e441]
+          - generic [ref=f19e442]: Accelerated ROI Proven performance Trusted by industry pioneers.
+          - generic [ref=f19e453]:
+            - button "Previous" [ref=f19e454] [cursor=pointer]: ←Previous
+            - generic [ref=f19e456]:
+              - generic [ref=f19e458]:
+                - link [ref=f19e463] [cursor=pointer]:
+                  - /url: /resource-center/success-story/how-cornerstone-ondemand-achieved-a-98-self-service-resolution-rate-with-searchunify
+                  - generic [ref=f19e464]:
+                    - generic [ref=f19e465]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e467]: Cornerstone OnDemand, a global leader in talent management software, sought to elevate its support experiences and enhance agent productivity. They aimed to achieve this by centralizing fragmented content and gaining deeper insights into customer needs. By implementing SearchUnify's Cognitive Search and Knowbler, Cornerstone OnDemand transformed their knowledge ecosystem, unifying search across all sources, unlocking profound content insights, and streamlining case management through intelligent, AI-driven workflows.
+                - paragraph [ref=f19e468]: "Key Outcomes:"
+                - paragraph [ref=f19e469]: A surge in self-service resolution and boost in CSAT, with improved agent efficiency & faster case closures, and same-day resolutions.
+                - generic [ref=f19e470]:
+                  - generic [ref=f19e471]:
+                    - text: 98%
+                    - paragraph [ref=f19e472]: Self-Service Resolution Rate
+                  - generic [ref=f19e473]:
+                    - text: 5%
+                    - paragraph [ref=f19e474]: Higher CSAT
+                  - generic [ref=f19e475]:
+                    - text: 9%
+                    - paragraph [ref=f19e476]: Higher Same Day Resolution
+              - generic [ref=f19e478]:
+                - link [ref=f19e483] [cursor=pointer]:
+                  - /url: /resource-center/success-story/ebsco-academy-boosts-learner-engagement-by-125-8-with-searchunify
+                  - generic [ref=f19e484]:
+                    - generic [ref=f19e485]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e487]: EBSCO, a prominent provider of online research content to institutions in the eLearning space and beyond, aimed to enhance content discoverability and user engagement. By adopting SearchUnify Cognitive Platform, EBSCO streamlined search experiences with enhanced search functionalities and content weighing, making their research content more accessible. Furthermore, in-depth insights helped in refining content, leading to an increased user engagement.
+                - paragraph [ref=f19e488]: "Key Outcomes:"
+                - paragraph [ref=f19e489]: An increase in Academy content views, stronger learner engagement, and a streamlined user experience across the platform.
+                - generic [ref=f19e490]:
+                  - generic [ref=f19e491]:
+                    - text: 125.8%
+                    - paragraph [ref=f19e492]: Growth in Academy Views
+                  - generic [ref=f19e493]:
+                    - text: ↑
+                    - paragraph [ref=f19e494]: Improved Content Visibility
+                  - paragraph [ref=f19e498]: Actionable Insights
+              - generic [ref=f19e499]:
+                - generic:
+                  - img "Automation Anywhere"
+                - generic [ref=f19e500]:
+                  - generic [ref=f19e501]:
+                    - img "Automation Anywhere"
+                    - link [ref=f19e505] [cursor=pointer]:
+                      - /url: /resource-center/success-story/how-automation-anywhere-is-winning-at-user-experience-with-searchunify
+                      - generic [ref=f19e506]:
+                        - generic [ref=f19e507]: 
+                        - text: View Case Study
+                  - paragraph [ref=f19e509]: Automation Anywhere, a global leader in Robotic Process Automation, sought to enhance support efficiency and improve customer experience by strengthening knowledge capture, VoC integration, and data usability. By deploying SearchUnify Knowbler, they intelligently transformed their content creation, leveraging pre-built templates, AI-generated titles, and customizable prompts to meet real-time support needs more effectively.
+                  - paragraph [ref=f19e510]: "Key Outcomes:"
+                  - paragraph [ref=f19e511]: Accelerated knowledge delivery, reduced content creation effort, and enhanced support team productivity.
+                  - generic [ref=f19e512]:
+                    - generic [ref=f19e513]:
+                      - text: 57%
+                      - paragraph [ref=f19e514]: Boost in knowledge creation
+                    - generic [ref=f19e515]:
+                      - text: 37%
+                      - paragraph [ref=f19e516]: More contributing agents
+                    - generic [ref=f19e517]:
+                      - text: 46%
+                      - paragraph [ref=f19e518]: Cut in publishing time
+              - generic [ref=f19e520]:
+                - link [ref=f19e525] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/resource-center/success-story/accela-scales-support-efficiency-and-decrease-first-response-time-by-92
+                  - generic [ref=f19e526]:
+                    - generic [ref=f19e527]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e529]: Accela, a leading provider of cloud-based civic solutions, faced increasing support case volumes and agent burnout. By deploying SearchUnify Agent Helper, the team unified case context, automated response creation, and gained real-time insights into customer sentiment, and achieved faster resolutions and empowered support workforce.
+                - paragraph [ref=f19e530]: "Key Outcomes:"
+                - paragraph [ref=f19e531]: Since the deployment of Agent Helper, Accela has experienced substantial improvements across multiple KPIs.
+                - generic [ref=f19e532]:
+                  - generic [ref=f19e533]:
+                    - text: 77.5%
+                    - paragraph [ref=f19e534]: Increase in Total Closed Case Volume
+                  - generic [ref=f19e535]:
+                    - text: 92.7%
+                    - paragraph [ref=f19e536]: Decrease in First Response Time
+                  - generic [ref=f19e537]:
+                    - text: 16%
+                    - paragraph [ref=f19e538]: Increase in Agent Productivity
+              - generic [ref=f19e540]:
+                - link [ref=f19e545] [cursor=pointer]:
+                  - /url: /resource-center/success-story/how-cornerstone-ondemand-achieved-a-98-self-service-resolution-rate-with-searchunify
+                  - generic [ref=f19e546]:
+                    - generic [ref=f19e547]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e549]: Cornerstone OnDemand, a global leader in talent management software, sought to elevate its support experiences and enhance agent productivity. They aimed to achieve this by centralizing fragmented content and gaining deeper insights into customer needs. By implementing SearchUnify's Cognitive Search and Knowbler, Cornerstone OnDemand transformed their knowledge ecosystem, unifying search across all sources, unlocking profound content insights, and streamlining case management through intelligent, AI-driven workflows.
+                - paragraph [ref=f19e550]: "Key Outcomes:"
+                - paragraph [ref=f19e551]: A surge in self-service resolution and boost in CSAT, with improved agent efficiency & faster case closures, and same-day resolutions.
+                - generic [ref=f19e552]:
+                  - generic [ref=f19e553]:
+                    - text: 98%
+                    - paragraph [ref=f19e554]: Self-Service Resolution Rate
+                  - generic [ref=f19e555]:
+                    - text: 5%
+                    - paragraph [ref=f19e556]: Higher CSAT
+                  - generic [ref=f19e557]:
+                    - text: 9%
+                    - paragraph [ref=f19e558]: Higher Same Day Resolution
+              - generic [ref=f19e560]:
+                - link [ref=f19e565] [cursor=pointer]:
+                  - /url: /resource-center/success-story/ebsco-academy-boosts-learner-engagement-by-125-8-with-searchunify
+                  - generic [ref=f19e566]:
+                    - generic [ref=f19e567]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e569]: EBSCO, a prominent provider of online research content to institutions in the eLearning space and beyond, aimed to enhance content discoverability and user engagement. By adopting SearchUnify Cognitive Platform, EBSCO streamlined search experiences with enhanced search functionalities and content weighing, making their research content more accessible. Furthermore, in-depth insights helped in refining content, leading to an increased user engagement.
+                - paragraph [ref=f19e570]: "Key Outcomes:"
+                - paragraph [ref=f19e571]: An increase in Academy content views, stronger learner engagement, and a streamlined user experience across the platform.
+                - generic [ref=f19e572]:
+                  - generic [ref=f19e573]:
+                    - text: 125.8%
+                    - paragraph [ref=f19e574]: Growth in Academy Views
+                  - generic [ref=f19e575]:
+                    - text: ↑
+                    - paragraph [ref=f19e576]: Improved Content Visibility
+                  - paragraph [ref=f19e580]: Actionable Insights
+              - generic [ref=f19e582]:
+                - link [ref=f19e587] [cursor=pointer]:
+                  - /url: /resource-center/success-story/how-automation-anywhere-is-winning-at-user-experience-with-searchunify
+                  - generic [ref=f19e588]:
+                    - generic [ref=f19e589]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e591]: Automation Anywhere, a global leader in Robotic Process Automation, sought to enhance support efficiency and improve customer experience by strengthening knowledge capture, VoC integration, and data usability. By deploying SearchUnify Knowbler, they intelligently transformed their content creation, leveraging pre-built templates, AI-generated titles, and customizable prompts to meet real-time support needs more effectively.
+                - paragraph [ref=f19e592]: "Key Outcomes:"
+                - paragraph [ref=f19e593]: Accelerated knowledge delivery, reduced content creation effort, and enhanced support team productivity.
+                - generic [ref=f19e594]:
+                  - generic [ref=f19e595]:
+                    - text: 57%
+                    - paragraph [ref=f19e596]: Boost in knowledge creation
+                  - generic [ref=f19e597]:
+                    - text: 37%
+                    - paragraph [ref=f19e598]: More contributing agents
+                  - generic [ref=f19e599]:
+                    - text: 46%
+                    - paragraph [ref=f19e600]: Cut in publishing time
+              - generic [ref=f19e602]:
+                - link [ref=f19e607] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/resource-center/success-story/accela-scales-support-efficiency-and-decrease-first-response-time-by-92
+                  - generic [ref=f19e608]:
+                    - generic [ref=f19e609]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e611]: Accela, a leading provider of cloud-based civic solutions, faced increasing support case volumes and agent burnout. By deploying SearchUnify Agent Helper, the team unified case context, automated response creation, and gained real-time insights into customer sentiment, and achieved faster resolutions and empowered support workforce.
+                - paragraph [ref=f19e612]: "Key Outcomes:"
+                - paragraph [ref=f19e613]: Since the deployment of Agent Helper, Accela has experienced substantial improvements across multiple KPIs.
+                - generic [ref=f19e614]:
+                  - generic [ref=f19e615]:
+                    - text: 77.5%
+                    - paragraph [ref=f19e616]: Increase in Total Closed Case Volume
+                  - generic [ref=f19e617]:
+                    - text: 92.7%
+                    - paragraph [ref=f19e618]: Decrease in First Response Time
+                  - generic [ref=f19e619]:
+                    - text: 16%
+                    - paragraph [ref=f19e620]: Increase in Agent Productivity
+              - generic [ref=f19e622]:
+                - link [ref=f19e627] [cursor=pointer]:
+                  - /url: /resource-center/success-story/how-cornerstone-ondemand-achieved-a-98-self-service-resolution-rate-with-searchunify
+                  - generic [ref=f19e628]:
+                    - generic [ref=f19e629]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e631]: Cornerstone OnDemand, a global leader in talent management software, sought to elevate its support experiences and enhance agent productivity. They aimed to achieve this by centralizing fragmented content and gaining deeper insights into customer needs. By implementing SearchUnify's Cognitive Search and Knowbler, Cornerstone OnDemand transformed their knowledge ecosystem, unifying search across all sources, unlocking profound content insights, and streamlining case management through intelligent, AI-driven workflows.
+                - paragraph [ref=f19e632]: "Key Outcomes:"
+                - paragraph [ref=f19e633]: A surge in self-service resolution and boost in CSAT, with improved agent efficiency & faster case closures, and same-day resolutions.
+                - generic [ref=f19e634]:
+                  - generic [ref=f19e635]:
+                    - text: 98%
+                    - paragraph [ref=f19e636]: Self-Service Resolution Rate
+                  - generic [ref=f19e637]:
+                    - text: 5%
+                    - paragraph [ref=f19e638]: Higher CSAT
+                  - generic [ref=f19e639]:
+                    - text: 9%
+                    - paragraph [ref=f19e640]: Higher Same Day Resolution
+              - generic [ref=f19e642]:
+                - link [ref=f19e647] [cursor=pointer]:
+                  - /url: /resource-center/success-story/ebsco-academy-boosts-learner-engagement-by-125-8-with-searchunify
+                  - generic [ref=f19e648]:
+                    - generic [ref=f19e649]: 
+                    - text: View Case Study
+                - paragraph [ref=f19e651]: EBSCO, a prominent provider of online research content to institutions in the eLearning space and beyond, aimed to enhance content discoverability and user engagement. By adopting SearchUnify Cognitive Platform, EBSCO streamlined search experiences with enhanced search functionalities and content weighing, making their research content more accessible. Furthermore, in-depth insights helped in refining content, leading to an increased user engagement.
+                - paragraph [ref=f19e652]: "Key Outcomes:"
+                - paragraph [ref=f19e653]: An increase in Academy content views, stronger learner engagement, and a streamlined user experience across the platform.
+                - generic [ref=f19e654]:
+                  - generic [ref=f19e655]:
+                    - text: 125.8%
+                    - paragraph [ref=f19e656]: Growth in Academy Views
+                  - generic [ref=f19e657]:
+                    - text: ↑
+                    - paragraph [ref=f19e658]: Improved Content Visibility
+                  - paragraph [ref=f19e662]: Actionable Insights
+            - button "Next" [ref=f19e663] [cursor=pointer]: →Next
+          - generic [ref=f19e668]:
+            - heading "Industry Recognitions" [level=3] [ref=f19e669]
+            - generic [ref=f19e670]:
+              - generic [ref=f19e672]:
+                - tabpanel [ref=f19e673]:
+                  - heading [level=5] [ref=f19e674]: MAJOR CONTENDER
+                  - paragraph [ref=f19e675]: in Everest Group’s Enterprise Search Products PEAK Matrix® Assessment 2026
+                  - link [ref=f19e676] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-a-major-contender-in-everest-groups-enterprise-search-products-peak-matrix-assessment-2026/
+                    - text: Explore More
+                - tabpanel [ref=f19e677]:
+                  - heading "MAJOR PLAYER" [level=5] [ref=f19e678]
+                  - paragraph [ref=f19e679]: in IDC MarketScape for General-Purpose Knowledge Discovery Software, 2025
+                  - link "Explore More arrow-cta" [ref=f19e680] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-a-major-player-in-idc-marketscape-2025-for-general-purpose-knowledge-discovery-software
+                    - text: Explore More
+                    - generic:
+                      - img "arrow-cta"
+                  - img "forrester-logo"
+                - tabpanel [ref=f19e681]:
+                  - heading "STRONG PERFORMER" [level=5] [ref=f19e682]
+                  - paragraph [ref=f19e683]:
+                    - text: in The Forrester Wave
+                    - superscript [ref=f19e684]: ™
+                    - text: ": Knowledge Management Solutions, Q4 2024"
+                  - link "Explore More arrow-cta" [ref=f19e685] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/grazitti-interactives-searchunify-cited-as-a-strong-performer-among-knowledge-management-solutions-in-latest-evaluation-by-independent-research-firm/
+                    - text: Explore More
+                    - generic:
+                      - img "arrow-cta"
+                  - img "forrester-logo"
+                - tabpanel [ref=f19e686]:
+                  - heading "CHAMPION" [level=5] [ref=f19e687]
+                  - paragraph [ref=f19e688]: "in Enterprise Search Data Quadrant Report: 2024, 2025, 2026"
+                  - link "Explore More arrow-cta" [ref=f19e689] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-named-champion-in-softwarereviews-enterprise-search-data-quadrant-for-the-third-consecutive-year
+                    - text: Explore More
+                    - generic:
+                      - img "arrow-cta"
+                  - img "software-logo"
+                - tabpanel [ref=f19e690]:
+                  - heading "LEADER" [level=5] [ref=f19e691]
+                  - paragraph [ref=f19e692]:
+                    - text: in G2 Grid
+                    - superscript [ref=f19e693]: ®
+                    - text: Report for Enterprise Search for 6 years
+                  - link "Explore More arrow-cta" [ref=f19e694] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/press-release/searchunify-achieves-25-consecutive-quarters-of-leadership-in-g2-grid-report-for-enterprise-search-in-summer-2026/
+                    - text: Explore More
+                    - generic:
+                      - img "arrow-cta"
+                  - img "g2-logo"
+                - tabpanel [ref=f19e695]:
+                  - heading [level=5] [ref=f19e696]: GOLD MEDALIST
+                  - paragraph [ref=f19e697]: "in Enterprise Search Data Quadrant Report: 2024, 2025"
+                  - link [ref=f19e698] [cursor=pointer]:
+                    - /url: http://192.168.31.207:8202/press-release/searchunify-named-a-gold-medalist-in-2025-enterprise-search-data-quadrant-report-by-info-tech-research-groups-softwarereviews/
+                    - text: Explore More
+              - tablist [ref=f19e699]:
+                - tab "1 of 2" [ref=f19e700] [cursor=pointer]: • 1
+                - tab "2 of 2" [selected] [ref=f19e701] [cursor=pointer]: • 2
+                - tab "3 of 2" [ref=f19e702] [cursor=pointer]: • 3
+          - generic [ref=f19e707]:
+            - heading "Begin your AI Transformation" [level=2] [ref=f19e708]
+            - generic [ref=f19e709]:
+              - generic [ref=f19e710]:
+                - generic [ref=f19e711]:
+                  - img "ai-discover" [ref=f19e712]
+                  - heading "Experience AI in Action to discover how our AI agents streamline complex workflows effortlessly." [level=3] [ref=f19e713]
+                - link "Book a Demo" [ref=f19e714] [cursor=pointer]:
+                  - /url: http://192.168.31.207:8202/request-demo/
+                  - text: Book a Demo
+                  - generic [ref=f19e715]: 
+              - generic [ref=f19e716]:
+                - generic [ref=f19e717]:
+                  - img "ai-connect" [ref=f19e718]
+                  - heading "Every business requirement is unique-let’s discuss yours. Consult for tailored use cases and deep technical insights." [level=3] [ref=f19e719]
+                - button "Talk to an Expert" [ref=f19e720] [cursor=pointer]:
+                  - text: Talk to an Expert
+                  - generic [ref=f19e721]: 
+          - heading "Featured Resources" [level=2] [ref=f19e728]
+          - generic [ref=f19e732]:
+            - generic [ref=f19e733]:
+              - link [ref=f19e734] [cursor=pointer]:
+                - /url: "#cea-tab-2-1"
+                - heading "All Resources" [level=6] [ref=f19e737]
+              - link [ref=f19e738] [cursor=pointer]:
+                - /url: "#cea-tab-2-2"
+                - heading "Blogs" [level=6] [ref=f19e741]
+              - link [ref=f19e742] [cursor=pointer]:
+                - /url: "#cea-tab-2-3"
+                - heading "Webinars" [level=6] [ref=f19e745]
+              - link [ref=f19e746] [cursor=pointer]:
+                - /url: "#cea-tab-2-4"
+                - heading "Analyst Reports" [level=6] [ref=f19e749]
+              - link [ref=f19e750] [cursor=pointer]:
+                - /url: "#cea-tab-2-5"
+                - heading "Datasheets" [level=6] [ref=f19e753]
+              - link [ref=f19e754] [cursor=pointer]:
+                - /url: "#cea-tab-2-6"
+                - heading "E-Books" [level=6] [ref=f19e757]
+              - link [ref=f19e758] [cursor=pointer]:
+                - /url: "#cea-tab-2-7"
+                - heading "Videos" [level=6] [ref=f19e761]
+            - generic [ref=f19e762]:
+              - generic [ref=f19e763]:
+                - generic [ref=f19e764]:
+                  - generic [ref=f19e765]:
+                    - link "The AI Agent Adoption Playbook":
+                      - /url: https://www.searchunify.com/pages-pdf/the-ai-agent-adoption-playbook.pdf
+                      - img "The AI Agent Adoption Playbook"
+                    - generic [ref=f19e766]:
+                      - link [ref=f19e767] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/pages-pdf/the-ai-agent-adoption-playbook.pdf
+                        - heading "The AI Agent Adoption Playbook" [level=3] [ref=f19e768]
+                      - paragraph [ref=f19e769]: Struggling to future-proof your support strategy with the right solution?
+                      - link "Know More " [ref=f19e770] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/pages-pdf/the-ai-agent-adoption-playbook.pdf
+                        - generic [ref=f19e771]:
+                          - text: Know More
+                          - generic [ref=f19e772]: 
+                  - generic [ref=f19e773]:
+                    - link "Top AI Agents for Customer Service to Elevate Support":
+                      - /url: https://www.searchunify.com/resource-center/blog/top-ai-agents-for-customer-service-5-proven-to-elevate-support-self-service
+                      - img "Top AI Agents for Customer Service to Elevate Support"
+                    - generic [ref=f19e774]:
+                      - link [ref=f19e775] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/resource-center/blog/top-ai-agents-for-customer-service-5-proven-to-elevate-support-self-service
+                        - heading "Top 5 AI agent use cases for customer support" [level=3] [ref=f19e776]
+                      - paragraph [ref=f19e777]: From routine queries to complex escalations—support teams are...
+                      - link "Know More " [ref=f19e778] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/resource-center/blog/top-ai-agents-for-customer-service-5-proven-to-elevate-support-self-service
+                        - generic [ref=f19e779]:
+                          - text: Know More
+                          - generic [ref=f19e780]: 
+                  - generic [ref=f19e781]:
+                    - link "SearchUnify's Governance Layer":
+                      - /url: https://www.searchunify.com/pages-pdf/searchunifys-governance-layer.pdf
+                      - img "SearchUnify's Governance Layer"
+                    - generic [ref=f19e782]:
+                      - link [ref=f19e783] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/pages-pdf/searchunifys-governance-layer.pdf
+                        - heading "SearchUnify's Governance Layer" [level=3] [ref=f19e784]
+                      - paragraph [ref=f19e785]: Struggling to future-proof your support strategy with the right solution?
+                      - link "Know More " [ref=f19e786] [cursor=pointer]:
+                        - /url: https://www.searchunify.com/pages-pdf/searchunifys-governance-layer.pdf
+                        - generic [ref=f19e787]:
+                          - text: Know More
+                          - generic [ref=f19e788]: 
+                - link "Explore More " [ref=f19e791] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/resource-center?searchString=&activeType=all&from=0&sortby=post_time&orderBy=desc&pageNo=1&aggregations=%5B%5D&uid=138a0c28-5680-11f0-9274-0242ac120012&resultsPerPage=10&exactPhrase=&withOneOrMore=&withoutTheWords=&pageSize=10&language=en&suCaseCreate=false
+                  - generic [ref=f19e792]:
+                    - text: Explore More
+                    - generic [ref=f19e793]: 
+                - paragraph
+              - text:                        
+          - generic [ref=f19e796]:
+            - img "arrow-img" [ref=f19e799]
+            - heading "Our Partners" [level=4] [ref=f19e804]
+          - generic [ref=f19e808]:
+            - heading "Frequently Asked Questions" [level=3] [ref=f19e814]
+            - generic [ref=f19e815]:
+              - heading "Still Need Assistance?" [level=4] [ref=f19e817]
+              - link [ref=f19e820] [cursor=pointer]:
+                - /url: https://docs.searchunify.com/
+                - generic [ref=f19e821]:
+                  - generic [ref=f19e822]: 
+                  - heading "Help center" [level=5] [ref=f19e826]
+              - link [ref=f19e829] [cursor=pointer]:
+                - /url: https://community.searchunify.com/hc/en-us
+                - generic [ref=f19e830]:
+                  - generic [ref=f19e831]: 
+                  - heading "Community" [level=5] [ref=f19e835]
+          - generic [ref=f19e842]:
+            - heading "Security & Privacy" [level=4] [ref=f19e843]
+            - img "security-logos" [ref=f19e844]
+    - contentinfo [ref=f19e845]:
+      - complementary [ref=f19e850]:
+        - generic [ref=f19e853]:
+          - generic [ref=f19e854]:
+            - generic [ref=f19e855]:
+              - heading "Reach Us At" [level=4] [ref=f19e856]
+              - paragraph [ref=f19e857]:
+                - img "address icon" [ref=f19e858]
+                - text: 340 E Middlefield Rd,Mountain View, CA - 94043, USA
+              - paragraph [ref=f19e859]:
+                - img "email icon" [ref=f19e860]
+                - link "info@searchunify.com" [ref=f19e861] [cursor=pointer]:
+                  - /url: mailto:info@searchunify.com
+                - link "sales@searchunify.com" [ref=f19e862] [cursor=pointer]:
+                  - /url: mailto:sales@searchunify.com
+              - paragraph [ref=f19e863]:
+                - img "mobile icon" [ref=f19e864]
+                - link "+1 650 844 3031" [ref=f19e865] [cursor=pointer]:
+                  - /url: tel:+16508443031
+                - link "+91 172 501 0183" [ref=f19e866] [cursor=pointer]:
+                  - /url: tel:+911725010183
+              - heading "Follow Us On:" [level=4] [ref=f19e867]
+              - generic [ref=f19e868]:
+                - link "Connect with us on LinkedIn" [ref=f19e869] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/showcase/25048226/
+                - link "Follow us on Twitter" [ref=f19e875] [cursor=pointer]:
+                  - /url: https://twitter.com/SearchUnify
+                - link "Subscribe to our YouTube channel" [ref=f19e880] [cursor=pointer]:
+                  - /url: https://www.youtube.com/channel/UCHQdHTFzWRKj5xg1nFoZPTg
+            - generic [ref=f19e885]:
+              - heading "Products" [level=4] [ref=f19e886]
+              - list [ref=f19e887]:
+                - listitem [ref=f19e888]:
+                  - link "Agent Helper" [ref=f19e889] [cursor=pointer]:
+                    - /url: /products/agent-helper/
+                - listitem [ref=f19e890]:
+                  - link "Agentic AI Suite" [ref=f19e891] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/platform/agentic-ai-suite/
+                - listitem [ref=f19e892]:
+                  - link "Cognitive Search" [ref=f19e893] [cursor=pointer]:
+                    - /url: /products/cognitive-search/
+                - listitem [ref=f19e894]:
+                  - link "Knowbler" [ref=f19e895] [cursor=pointer]:
+                    - /url: /products/knowbler/
+                - listitem [ref=f19e896]:
+                  - link [ref=f19e897] [cursor=pointer]:
+                    - /url: /su/searchunify-gpt/
+                    - text: SearchUnifyGPT
+                    - superscript [ref=f19e898]: ™
+                - listitem [ref=f19e899]:
+                  - link "Virtual Assistant" [ref=f19e900] [cursor=pointer]:
+                    - /url: /products/searchunify-virtual-assistant/
+            - generic [ref=f19e901]:
+              - heading "Integrations" [level=4] [ref=f19e902]
+              - list [ref=f19e903]:
+                - listitem [ref=f19e904]:
+                  - link "Agentforce" [ref=f19e905] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-agentforce/
+                - listitem [ref=f19e906]:
+                  - link "Salesforce" [ref=f19e907] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-salesforce/
+                - listitem [ref=f19e908]:
+                  - link "Zendesk" [ref=f19e909] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-zendesk/
+                - listitem [ref=f19e910]:
+                  - link "Khoros" [ref=f19e911] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-khoros/
+                - listitem [ref=f19e912]:
+                  - link "SharePoint" [ref=f19e913] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-sharepoint/
+                - listitem [ref=f19e914]:
+                  - link "Slack" [ref=f19e915] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/searchunify-for-slack/
+                - listitem [ref=f19e916]:
+                  - link "Madcap Flare" [ref=f19e917] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/su/solutions/madcap-flare-search/
+            - generic [ref=f19e918]:
+              - heading "Company" [level=4] [ref=f19e919]
+              - list [ref=f19e920]:
+                - listitem [ref=f19e921]:
+                  - link "About Us" [ref=f19e922] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/about-us/
+                - listitem [ref=f19e923]:
+                  - link "Awards & Recognitions" [ref=f19e924] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/recognitions/
+                - listitem [ref=f19e925]:
+                  - link "Leadership" [ref=f19e926] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/leadership/
+                - listitem [ref=f19e927]:
+                  - link "Newsroom" [ref=f19e928] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/press-releases/
+                - listitem [ref=f19e929]:
+                  - link "Partners" [ref=f19e930] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/partner-network/
+            - generic [ref=f19e931]:
+              - heading "Get Started" [level=4] [ref=f19e932]
+              - list [ref=f19e933]:
+                - listitem [ref=f19e934]:
+                  - link "Book a Demo" [ref=f19e935] [cursor=pointer]:
+                    - /url: /request-demo/
+                - listitem [ref=f19e936]:
+                  - button "Talk to an Expert" [ref=f19e937] [cursor=pointer]
+                - listitem [ref=f19e938]:
+                  - link "Contact Us" [ref=f19e939] [cursor=pointer]:
+                    - /url: https://www.searchunify.com/company/contact-us/
+          - generic [ref=f19e941]:
+            - paragraph [ref=f19e942]: © 2017 - 2026 SearchUnify. All rights reserved.
+            - list [ref=f19e944]:
+              - listitem [ref=f19e945]:
+                - link "Sitemap" [ref=f19e946] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/su/sitemap/
+              - listitem [ref=f19e947]:
+                - link "Privacy Policy" [ref=f19e948] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/privacy-policy/
+              - listitem [ref=f19e949]:
+                - link "EUSA" [ref=f19e950] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/GRZ_EUSA_SUF_vJan.01.2022.pdf
+              - listitem [ref=f19e951]:
+                - link "Terms & Conditions" [ref=f19e952] [cursor=pointer]:
+                  - /url: https://www.searchunify.com/terms-and-conditions/
+    - generic [ref=f19e955]:
+      - button "Close mobile menu" [ref=f19e956] [cursor=pointer]:
+        - generic [ref=f19e957]: 
+      - link [ref=f19e959] [cursor=pointer]:
+        - /url: http://192.168.31.207:8202/
+        - img "SearchUnify | Enterprise Agentic Platform for Customer Support" [ref=f19e960]
+      - navigation [ref=f19e961]:
+        - list [ref=f19e962]:
+          - listitem [ref=f19e963]:
+            - link "Platform" [ref=f19e964] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f19e966]:
+            - link "Products" [ref=f19e967] [cursor=pointer]:
+              - /url: "#"
+          - listitem [ref=f19e969]:
+            - link "Industries" [ref=f19e970] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202/industries/
+          - listitem [ref=f19e972]:
+            - link "Resources" [ref=f19e973] [cursor=pointer]:
+              - /url: /resource-center/
+          - listitem [ref=f19e975]:
+            - link "Company" [ref=f19e976] [cursor=pointer]:
+              - /url: "#"
+      - link [ref=f19e979] [cursor=pointer]:
+        - /url: /request-demo/
+        - button "Book a Demo " [ref=f19e980]:
+          - text: Book a Demo
+          - generic [ref=f19e981]: 
+    - text: 
+  - generic [ref=f19e982]: desktop
+  - link [ref=f19e983] [cursor=pointer]:
+    - /url: "#"
+  - generic [ref=f19e986]:
+    - paragraph [ref=f19e987]:
+      - text: By continuing to use our website, you consent to the use of cookies. Please refer our
+      - link "Cookie Policy" [ref=f19e988] [cursor=pointer]:
+        - /url: https://www.searchunify.com/su/cookie-policy/
+      - text: for more details.
+    - button "Got it!" [ref=f19e990] [cursor=pointer]
+  - generic [ref=f19e991]: BESbswy
+  - generic [ref=f19e992]: BESbswy
+  - generic:
+    - text: BESbswyBESbswy
+    - generic: 

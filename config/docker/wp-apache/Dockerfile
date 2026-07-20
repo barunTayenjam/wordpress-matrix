@@ -16,6 +16,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
 COPY apache-wordpress.conf /etc/apache2/sites-available/wordpress.conf
 COPY php-prod-parity.ini /etc/php/${PHP_VERSION}/fpm/conf.d/zz-prod-parity.ini
 COPY docker-entrypoint-apache-fpm.sh /usr/local/bin/docker-entrypoint-apache-fpm.sh
+COPY su26.crt /etc/apache2/ssl/su26.crt
+COPY su26.key /etc/apache2/ssl/su26.key
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -36,8 +38,13 @@ RUN apt-get update \
         php${PHP_VERSION}-opcache \
         php${PHP_VERSION}-readline \
         php${PHP_VERSION}-redis \
+        less \
     && rm -rf /var/lib/apt/lists/* \
-    && a2enmod proxy proxy_fcgi headers expires rewrite deflate filter setenvif mime brotli \
+    && curl -fsSL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar -o /usr/local/bin/wp \
+    && chmod +x /usr/local/bin/wp \
+    && wp --allow-root cli info >/dev/null 2>&1 \
+    && mkdir -p /etc/apache2/ssl \
+    && a2enmod proxy proxy_fcgi headers expires rewrite deflate filter setenvif mime brotli http2 ssl \
     && a2dissite 000-default.conf \
     && a2ensite wordpress.conf \
     && sed -i '/<Directory \/var\/www\/>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf \

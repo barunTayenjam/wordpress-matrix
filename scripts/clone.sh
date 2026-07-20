@@ -68,7 +68,10 @@ fi
 
 # Create database
 log_info "Creating database..."
-create_database "$NEW_SITE"
+if ! create_database "$NEW_SITE"; then
+    log_error "Failed to create database for '$NEW_SITE'"
+    exit 1
+fi
 
 # Import database
 log_info "Importing database..."
@@ -85,13 +88,22 @@ if ! $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp
 fi
 rm -f "$DB_DUMP"
 
-# Search and replace URLs in database
-OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"
+# Search and replace URLs in database (use HOST_IP so LAN devices resolve correctly)
+OLD_URL="http://${HOST_IP}:$(get_site_port "$SOURCE_SITE")"
 NEW_PORT="$(get_next_port)"
-NEW_URL="http://localhost:$NEW_PORT"
+NEW_URL="http://${HOST_IP}:$NEW_PORT"
+# Also cover legacy localhost-based source URLs in the cloned DB.
+LEGACY_OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"
 
 log_info "Updating URLs in database..."
-run_wp_cli "$NEW_SITE" search-replace "$OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet
+if ! run_wp_cli "$NEW_SITE" search-replace "$OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet; then
+    log_error "Failed to search-replace '$OLD_URL' -> '$NEW_URL'"
+    exit 1
+fi
+# Best-effort cleanup of any legacy localhost URLs carried over from the source.
+if [[ "$LEGACY_OLD_URL" != "$OLD_URL" ]]; then
+    run_wp_cli "$NEW_SITE" search-replace "$LEGACY_OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet 2>/dev/null || true
+fi
 
 # Update docker-compose.yml (inherit stack from source)
 log_info "Updating docker-compose configuration..."

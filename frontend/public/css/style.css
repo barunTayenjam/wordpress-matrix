@@ -533,7 +533,6 @@ body::before {
 }
 
 .cell-total { grid-column: span 2; }
-.cell-actions { grid-column: span 2; }
 
 .bento-cell .stat-header {
   display: flex;

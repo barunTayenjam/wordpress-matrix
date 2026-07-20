@@ -12,12 +12,14 @@ usage() {
     log_info "Options:"
     log_info "  --all              Clear cache for all sites"
     log_info "  --redis-only       Clear only Redis cache"
-    log_info "  --wp-only          Clear only WordPress object cache"
+    log_info "  --wp-only          Clear only WordPress object cache + Super Cache disk cache"
+    log_info "  --supercache-only  Clear only WP Super Cache disk cache"
     exit 1
 }
 
 REDIS_ONLY=false
 WP_ONLY=false
+SUPERCACHE_ONLY=false
 CLEAR_ALL=false
 
 if [[ $# -eq 0 ]]; then
@@ -37,6 +39,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --wp-only)
             WP_ONLY=true
+            shift
+            ;;
+        --supercache-only)
+            SUPERCACHE_ONLY=true
             shift
             ;;
         -*)
@@ -64,12 +70,25 @@ clear_redis() {
 clear_wp_cache() {
     local site="$1"
     validate_site_name "$site" || return 1
-    log_info "Clearing WordPress cache for: $site"
+    log_info "Clearing WordPress object cache for: $site"
 
     if run_wp_cli "$site" cache flush --quiet; then
-        log_success "WordPress cache cleared for: $site"
+        log_success "WordPress object cache cleared for: $site"
     else
-        log_warning "Failed to clear WordPress cache for: $site (may not have object cache)"
+        log_warning "Failed to clear WordPress object cache for: $site (may not have object cache)"
+    fi
+}
+
+# Clear WP Super Cache disk cache
+clear_supercache() {
+    local site="$1"
+    validate_site_name "$site" || return 1
+    log_info "Clearing WP Super Cache disk cache for: $site"
+
+    if run_wp_cli "$site" super-cache flush --quiet 2>/dev/null; then
+        log_success "WP Super Cache disk cache cleared for: $site"
+    else
+        log_warning "WP Super Cache not active for: $site — skipping disk cache flush"
     fi
 }
 
@@ -78,7 +97,10 @@ if [[ "$REDIS_ONLY" == false ]]; then
     if [[ "$CLEAR_ALL" == true ]]; then
         log_info "Clearing caches for all sites..."
         for site in $(get_sites); do
-            clear_wp_cache "$site"
+            if [[ "$SUPERCACHE_ONLY" == false ]]; then
+                clear_wp_cache "$site"
+            fi
+            clear_supercache "$site"
         done
     else
         validate_site_name "$SITE_NAME" || exit 1
@@ -86,11 +108,14 @@ if [[ "$REDIS_ONLY" == false ]]; then
             log_error "Site '$SITE_NAME' not found"
             exit 1
         fi
-        clear_wp_cache "$SITE_NAME"
+        if [[ "$SUPERCACHE_ONLY" == false ]]; then
+            clear_wp_cache "$SITE_NAME"
+        fi
+        clear_supercache "$SITE_NAME"
     fi
 fi
 
-if [[ "$WP_ONLY" == false ]]; then
+if [[ "$WP_ONLY" == false && "$SUPERCACHE_ONLY" == false ]]; then
     clear_redis
 fi
 
