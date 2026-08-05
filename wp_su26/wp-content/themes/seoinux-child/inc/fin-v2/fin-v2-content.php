@@ -160,7 +160,7 @@ function su_finv2_salesforce_context_paragraphs() {
  * @return string
  */
 function su_finv2_migration_intro() {
-	return 'A Structured Path from Fin to SearchUnify.';
+	return 'Move to SearchUnify without disrupting conversational intelligence or your support operations.';
 }
 
 /**
@@ -181,8 +181,8 @@ function su_finv2_migration_steps() {
 			'image'       => 'ckc-migration.svg',
 		),
 		array(
-			'title'       => 'Optimize',
-			'description' => 'Configure AI search, relevance, permissions, and experiences to match your support operations and business goals.',
+			'title'       => 'Transfer Learning',
+			'description' => 'Preserve your existing conversational intelligence, knowledge bases, and training data. We migrate your Fin expertise, dialogue flows, and AI models to ensure seamless continuity while SearchUnify learns from your accumulated experience.',
 			'image'       => 'ckc-roi.svg',
 		),
 		array(
