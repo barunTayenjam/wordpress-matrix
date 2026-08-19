@@ -181,7 +181,7 @@ Usage: ./matrix <command> [options]
     wp <site> <args>  Run WP-CLI for a site
     url <name>        Show site URLs
     import-db <n> <f> Import SQL dump (site name, file path)
-    export-db <n> [f> Export database (site name, optional file)
+    export-db <n> [f] Export database (site name, optional file)
     frontend <action> Manage frontend (start|stop|restart|status)
     mail             Open Mailpit email testing UI
     xdebug <site>    Enable Xdebug (always on) for site
@@ -523,16 +523,38 @@ restore_site() {
         return 1
     fi
     
+    # Verify backup integrity before making any changes
+    if ! tar -tzf "$backup_file" >/dev/null 2>&1; then
+        log_error "Backup file is corrupt or invalid: $backup_file"
+        return 1
+    fi
+    
     log_info "Restoring site '$site_name' from backup..."
     
     # Stop the site if running
     matrix_site_stop "$site_name"
     
-    # Remove existing site
+    # Remove existing site files
     rm -rf "$PROJECT_ROOT/wp_$site_name" 2>/dev/null || true
     
     # Extract backup
-    tar -xzf "$backup_file" -C "$PROJECT_ROOT"
+    if ! tar -xzf "$backup_file" -C "$PROJECT_ROOT"; then
+        log_error "Failed to extract backup file"
+        return 1
+    fi
+    
+    # Restore database if SQL dump exists in backup
+    local db_dump="$PROJECT_ROOT/wp_$site_name/database.sql"
+    if [[ -f "$db_dump" ]] && compose_or_container_running "wp_db"; then
+        log_info "Restoring database..."
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db \
+            mysql -u root "${site_name}_db" < "$db_dump" 2>/dev/null
+        if [[ $? -eq 0 ]]; then
+            log_success "Database restored"
+        else
+            log_warning "Database restore failed — you may need to import manually"
+        fi
+    fi
     
     # Start the site
     matrix_site_up "$site_name"
@@ -577,7 +599,8 @@ list_sites_json() {
 
         local container_id=""
         if [[ "$status" == "running" ]]; then
-            container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site" 2>/dev/null || true)
+            container_id=$($CONTAINER_RUNTIME ps -q -f "name=^/wp_${site}\$" 2>/dev/null | head -1)
+            [[ -z "$container_id" ]] && container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site" 2>/dev/null | head -1)
         fi
 
         local local_url="null"
@@ -987,10 +1010,10 @@ remove_site() {
     rm -rf "$PROJECT_ROOT/wp_$site_name"
     rm -rf "$PROJECT_ROOT/logs/wp_$site_name"
 
-    # Remove database
+    # Remove database and user
     if compose_or_container_running "wp_db"; then
         $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
-            -e "DROP DATABASE IF EXISTS \`${site_name}_db\`; REVOKE ALL PRIVILEGES ON \`${site_name}_db\`.* FROM '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+            -e "DROP DATABASE IF EXISTS \`${site_name}_db\`; REVOKE ALL PRIVILEGES ON \`${site_name}_db\`.* FROM '${MYSQL_USER:-wp_user}'@'%'; DROP USER IF EXISTS '${MYSQL_USER:-wp_user}'@'%'; CREATE USER IF NOT EXISTS '${MYSQL_USER:-wp_user}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD:-wp_password}'; GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
     compose_remove_site "$site_name"
@@ -1334,7 +1357,7 @@ run_checks() {
         log_info "Running PHPStan..."
         run_tool_container phpstan analyse \
             --memory-limit=512M \
-            $target_paths --level=5 2>/dev/null || \
+            $target_paths --level=9 2>/dev/null || \
         log_warning "PHPStan check completed with issues"
     else
         log_info "Skipping PHPStan (use specific path to run PHPStan: ./matrix check <site> <path>)"
@@ -1440,7 +1463,8 @@ show_info_json() {
 
     local container_id=""
     if [[ "$status" == "running" ]]; then
-        container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site_name" 2>/dev/null || true)
+        container_id=$($CONTAINER_RUNTIME ps -q -f "name=^/wp_${site_name}\$" 2>/dev/null | head -1)
+        [[ -z "$container_id" ]] && container_id=$($CONTAINER_RUNTIME ps -q -f name="wp_$site_name" 2>/dev/null | head -1)
     fi
 
     local local_url="null"
@@ -1550,23 +1574,28 @@ setup_env() {
     
     # Create .env if not exists
     if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
+        local gen_pass
+        gen_pass=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
+        local gen_root_pass
+        gen_root_pass=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
+        local gen_redis_pass
+        gen_redis_pass=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
         cat > "$PROJECT_ROOT/.env" << EOF
 # Simplified WordPress Environment
 DOMAIN_SUFFIX=${HOST_IP}.nip.io
 MYSQL_USER=wp_user
-MYSQL_PASSWORD=wp_password
-MYSQL_ROOT_PASSWORD=root_password
+MYSQL_PASSWORD=${gen_pass}
+MYSQL_ROOT_PASSWORD=${gen_root_pass}
+REDIS_PASSWORD=${gen_redis_pass}
 WP_DEBUG=true
 EOF
-        log_success "Created .env file"
+        log_success "Created .env file with generated credentials"
         chmod 600 "$PROJECT_ROOT/.env"
     fi
     
     # Create simplified $DOCKER_COMPOSE.yml if not exists
     if [[ ! -f "$PROJECT_ROOT/$DOCKER_COMPOSE.yml" ]]; then
         cat > "$PROJECT_ROOT/$DOCKER_COMPOSE.yml" << EOF
-version: '3.8'
-
 networks:
   wp-net:
     driver: bridge
@@ -1653,8 +1682,6 @@ install_env() {
 
     # Always create or overwrite the compose file with Traefik-free version
     cat > "$PROJECT_ROOT/docker-compose.yml" << 'EOF'
-version: '3.8'
-
 networks:
   wp-net:
     driver: bridge
@@ -2890,7 +2917,7 @@ main() {
             fi
             ;;
         "fix")
-            log_info "Auto-fix not implemented yet"
+            log_warning "Auto-fix is not yet implemented. Use './matrix check <site>' to identify issues."
             ;;
         "shell")
             access_shell "$@"

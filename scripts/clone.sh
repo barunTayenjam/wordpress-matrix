@@ -89,29 +89,26 @@ fi
 rm -f "$DB_DUMP"
 
 # Search and replace URLs in database (use HOST_IP so LAN devices resolve correctly)
-OLD_URL="http://${HOST_IP}:$(get_site_port "$SOURCE_SITE")"
+SOURCE_PORT="$(get_site_port "$SOURCE_SITE")"
 NEW_PORT="$(get_next_port)"
 NEW_URL="http://${HOST_IP}:$NEW_PORT"
-# Also cover legacy localhost-based source URLs in the cloned DB.
-LEGACY_OLD_URL="http://localhost:$(get_site_port "$SOURCE_SITE")"
 
 log_info "Updating URLs in database..."
-if ! run_wp_cli "$NEW_SITE" search-replace "$OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet; then
-    log_error "Failed to search-replace '$OLD_URL' -> '$NEW_URL'"
-    exit 1
-fi
-# Best-effort cleanup of any legacy localhost URLs carried over from the source.
-if [[ "$LEGACY_OLD_URL" != "$OLD_URL" ]]; then
-    run_wp_cli "$NEW_SITE" search-replace "$LEGACY_OLD_URL" "$NEW_URL" --skip-plugins --skip-themes --quiet 2>/dev/null || true
-fi
+# Cover LAN IP, legacy localhost, and 127.0.0.1 (container-internal) source URLs.
+for old in "http://${HOST_IP}:${SOURCE_PORT}" "http://localhost:${SOURCE_PORT}" "http://127.0.0.1:${SOURCE_PORT}"; do
+    [[ "$old" == "$NEW_URL" ]] && continue
+    if ! run_wp_cli "$NEW_SITE" search-replace "$old" "$NEW_URL" --skip-plugins --skip-themes --quiet; then
+        log_error "Failed to search-replace '$old' -> '$NEW_URL'"
+        exit 1
+    fi
+done
 
 # Update docker-compose.yml (inherit stack from source)
 log_info "Updating docker-compose configuration..."
 if [[ "$local_stack" == "apache" ]]; then
-    local php_version
-    php_version=$(get_site_php_version_from_compose "$SOURCE_SITE")
-    [[ -z "$php_version" ]] && php_version="${DEFAULT_PHP_VERSION:-8.3}"
-    compose_add_site "$NEW_SITE" "$php_version" "$NEW_PORT" "" "apache"
+    apache_php_version=$(get_site_php_version_from_compose "$SOURCE_SITE")
+    [[ -z "$apache_php_version" ]] && apache_php_version="${DEFAULT_PHP_VERSION:-8.3}"
+    compose_add_site "$NEW_SITE" "$apache_php_version" "$NEW_PORT" "" "apache"
     matrix_site_build_if_apache "$NEW_SITE"
 else
     create_nginx_config "$NEW_SITE"

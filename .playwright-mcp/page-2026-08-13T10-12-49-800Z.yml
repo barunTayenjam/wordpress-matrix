@@ -1,0 +1,236 @@
+- generic [ref=f3e1]:
+  - link "Skip to content" [ref=f3e2] [cursor=pointer]:
+    - /url: "#mainContent"
+  - banner [ref=f3e3]:
+    - navigation [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - text: MATRIX
+        - generic [ref=f3e6]: "@v2"
+      - generic [ref=f3e8]:
+        - button "0 Dashboard" [ref=f3e9] [cursor=pointer]:
+          - generic [ref=f3e10]: "0"
+          - generic [ref=f3e11]: Dashboard
+        - button "1 Sites" [ref=f3e12] [cursor=pointer]:
+          - generic [ref=f3e13]: "1"
+          - generic [ref=f3e14]: Sites
+        - button "2 Services" [ref=f3e15] [cursor=pointer]:
+          - generic [ref=f3e16]: "2"
+          - generic [ref=f3e17]: Services
+        - button "3 Frontend" [ref=f3e18] [cursor=pointer]:
+          - generic [ref=f3e19]: "3"
+          - generic [ref=f3e20]: Frontend
+        - button "4 Terminal" [ref=f3e21] [cursor=pointer]:
+          - generic [ref=f3e22]: "4"
+          - generic [ref=f3e23]: Terminal
+        - button "5 Activity" [ref=f3e24] [cursor=pointer]:
+          - generic [ref=f3e25]: "5"
+          - generic [ref=f3e26]: Activity
+      - button "Toggle theme" [ref=f3e28] [cursor=pointer]:
+        - generic [ref=f3e29]: Dark
+  - main [ref=f3e31]:
+    - generic [ref=f3e32]:
+      - heading "WordPress Matrix Dashboard▊" [level=1] [ref=f3e33]
+      - button "Refresh" [ref=f3e482] [cursor=pointer]
+    - generic [ref=f3e182]:
+      - generic [ref=f3e183]:
+        - generic [ref=f3e184]: Sites
+        - button "New Site" [active] [ref=f3e186] [cursor=pointer]
+      - generic [ref=f3e192]:
+        - searchbox "Search sites..." [ref=f3e194]
+        - combobox [ref=f3e196] [cursor=pointer]:
+          - option "All statuses" [selected]
+          - option "Running"
+          - option "Stopped"
+        - combobox [ref=f3e198] [cursor=pointer]:
+          - option "Name A-Z" [selected]
+          - option "Name Z-A"
+          - option "Status"
+          - option "PHP version"
+        - button "Reset filters" [ref=f3e199] [cursor=pointer]
+      - generic [ref=f3e200]:
+        - generic [ref=f3e622]:
+          - generic [ref=f3e623]:
+            - heading "gz" [level=3] [ref=f3e624]
+            - generic [ref=f3e625]: Stopped
+          - link "http://192.168.31.207:8203" [ref=f3e628] [cursor=pointer]:
+            - /url: http://192.168.31.207:8203
+          - generic [ref=f3e629]:
+            - link "Open" [ref=f3e630] [cursor=pointer]:
+              - /url: http://192.168.31.207:8203
+            - button "Health" [ref=f3e631] [cursor=pointer]
+          - generic [ref=f3e632]:
+            - generic [ref=f3e633]:
+              - button "Start" [ref=f3e634] [cursor=pointer]
+              - button "Stop" [ref=f3e636] [cursor=pointer]
+              - button "Restart" [ref=f3e638] [cursor=pointer]
+              - button "Check" [ref=f3e640] [cursor=pointer]
+              - button "Backup" [ref=f3e642] [cursor=pointer]
+            - button "More" [ref=f3e645] [cursor=pointer]
+        - generic [ref=f3e649]:
+          - generic [ref=f3e650]:
+            - heading "su21" [level=3] [ref=f3e651]
+            - generic [ref=f3e652]: Running
+          - link "http://192.168.31.207:8201" [ref=f3e655] [cursor=pointer]:
+            - /url: http://192.168.31.207:8201
+          - generic [ref=f3e656]:
+            - link "Open" [ref=f3e657] [cursor=pointer]:
+              - /url: http://192.168.31.207:8201
+            - button "Health" [ref=f3e658] [cursor=pointer]
+          - generic [ref=f3e659]:
+            - generic [ref=f3e660]:
+              - button "Start" [ref=f3e661] [cursor=pointer]
+              - button "Stop" [ref=f3e663] [cursor=pointer]
+              - button "Restart" [ref=f3e665] [cursor=pointer]
+              - button "Check" [ref=f3e667] [cursor=pointer]
+              - button "Backup" [ref=f3e669] [cursor=pointer]
+            - button "More" [ref=f3e672] [cursor=pointer]
+        - generic [ref=f3e676]:
+          - generic [ref=f3e677]:
+            - heading "su26" [level=3] [ref=f3e678]
+            - generic [ref=f3e679]: Running
+          - link "http://192.168.31.207:8202" [ref=f3e682] [cursor=pointer]:
+            - /url: http://192.168.31.207:8202
+          - generic [ref=f3e683]:
+            - link "Open" [ref=f3e684] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202
+            - button "Health" [ref=f3e685] [cursor=pointer]
+          - generic [ref=f3e686]:
+            - generic [ref=f3e687]:
+              - button "Start" [ref=f3e688] [cursor=pointer]
+              - button "Stop" [ref=f3e690] [cursor=pointer]
+              - button "Restart" [ref=f3e692] [cursor=pointer]
+              - button "Check" [ref=f3e694] [cursor=pointer]
+              - button "Backup" [ref=f3e696] [cursor=pointer]
+            - button "More" [ref=f3e699] [cursor=pointer]
+        - generic [ref=f3e703]:
+          - generic [ref=f3e704]:
+            - heading "su26-dev" [level=3] [ref=f3e705]
+            - generic [ref=f3e706]: Stopped
+          - link "http://192.168.31.207:8205" [ref=f3e709] [cursor=pointer]:
+            - /url: http://192.168.31.207:8205
+          - generic [ref=f3e710]:
+            - link "Open" [ref=f3e711] [cursor=pointer]:
+              - /url: http://192.168.31.207:8205
+            - button "Health" [ref=f3e712] [cursor=pointer]
+          - generic [ref=f3e713]:
+            - generic [ref=f3e714]:
+              - button "Start" [ref=f3e715] [cursor=pointer]
+              - button "Stop" [ref=f3e717] [cursor=pointer]
+              - button "Restart" [ref=f3e719] [cursor=pointer]
+              - button "Check" [ref=f3e721] [cursor=pointer]
+              - button "Backup" [ref=f3e723] [cursor=pointer]
+            - button "More" [ref=f3e726] [cursor=pointer]
+        - generic [ref=f3e730]:
+          - generic [ref=f3e731]:
+            - heading "testopt" [level=3] [ref=f3e732]
+            - generic [ref=f3e733]: Stopped
+          - link "http://192.168.31.207:8204" [ref=f3e736] [cursor=pointer]:
+            - /url: http://192.168.31.207:8204
+          - generic [ref=f3e737]:
+            - link "Open" [ref=f3e738] [cursor=pointer]:
+              - /url: http://192.168.31.207:8204
+            - button "Health" [ref=f3e739] [cursor=pointer]
+          - generic [ref=f3e740]:
+            - generic [ref=f3e741]:
+              - button "Start" [ref=f3e742] [cursor=pointer]
+              - button "Stop" [ref=f3e744] [cursor=pointer]
+              - button "Restart" [ref=f3e746] [cursor=pointer]
+              - button "Check" [ref=f3e748] [cursor=pointer]
+              - button "Backup" [ref=f3e750] [cursor=pointer]
+            - button "More" [ref=f3e753] [cursor=pointer]
+    - generic [ref=f3e757]:
+      - generic [ref=f3e758]:
+        - heading "New Site" [level=3] [ref=f3e759]
+        - button "Close" [ref=f3e760] [cursor=pointer]
+      - generic [ref=f3e761]:
+        - generic [ref=f3e762]:
+          - generic [ref=f3e763]: Site Name
+          - textbox "Site Name" [ref=f3e764]:
+            - /placeholder: e.g. mysite
+          - generic [ref=f3e765]: Alphanumeric, hyphens, underscores only
+        - generic [ref=f3e766]:
+          - generic [ref=f3e767]: PHP Version
+          - combobox "PHP Version" [ref=f3e768] [cursor=pointer]:
+            - option "PHP 8.3 (default)" [selected]
+            - option "PHP 8.2"
+            - option "PHP 8.1"
+            - option "PHP 8.0"
+            - option "PHP 7.4"
+      - generic [ref=f3e769]:
+        - button "Cancel" [ref=f3e770] [cursor=pointer]
+        - button "Create" [ref=f3e772] [cursor=pointer]
+    - generic [ref=f3e100]:
+      - generic [ref=f3e101]:
+        - generic [ref=f3e102]:
+          - generic [ref=f3e103]: su26
+          - generic [ref=f3e104]: Running
+        - button "Close" [ref=f3e107] [cursor=pointer]
+      - generic [ref=f3e108]:
+        - generic [ref=f3e109]:
+          - generic [ref=f3e110]:
+            - generic [ref=f3e111]: URL
+            - link "http://192.168.31.207:8202" [ref=f3e476] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202
+          - generic [ref=f3e113]:
+            - generic [ref=f3e114]:
+              - generic [ref=f3e115]: PHP
+              - text: "8.3"
+            - generic [ref=f3e116]:
+              - generic [ref=f3e117]: Port
+              - text: "8202"
+            - generic [ref=f3e118]:
+              - generic [ref=f3e119]: Type
+              - text: dynamic
+        - generic [ref=f3e120]:
+          - generic [ref=f3e121]: Health
+          - generic [ref=f3e122]:
+            - generic [ref=f3e124]: Healthy (973ms)
+            - button "Check" [ref=f3e125] [cursor=pointer]
+        - generic [ref=f3e126]:
+          - generic [ref=f3e127]: Lifecycle
+          - generic [ref=f3e128]:
+            - button "Start" [ref=f3e477] [cursor=pointer]
+            - button "Stop" [ref=f3e130] [cursor=pointer]
+            - button "Restart" [ref=f3e478] [cursor=pointer]
+        - generic [ref=f3e132]:
+          - generic [ref=f3e133]: Information
+          - generic [ref=f3e134]:
+            - button "Info" [ref=f3e135] [cursor=pointer]
+            - button "URL" [ref=f3e136] [cursor=pointer]
+            - button "Logs" [ref=f3e137] [cursor=pointer]
+            - button "REST API" [ref=f3e138] [cursor=pointer]
+            - button "Checks" [ref=f3e139] [cursor=pointer]
+            - button "Health" [ref=f3e140] [cursor=pointer]
+        - generic [ref=f3e141]:
+          - generic [ref=f3e142]: Database
+          - generic [ref=f3e143]:
+            - button "Export" [ref=f3e144] [cursor=pointer]
+            - button "Import" [ref=f3e145] [cursor=pointer]
+            - button "Search/Replace" [ref=f3e146] [cursor=pointer]
+        - generic [ref=f3e147]:
+          - generic [ref=f3e148]: Maintenance
+          - generic [ref=f3e149]:
+            - button "Backup" [ref=f3e150] [cursor=pointer]
+            - button "Restore" [ref=f3e151] [cursor=pointer]
+            - button "Clone" [ref=f3e152] [cursor=pointer]
+            - button "Reset" [ref=f3e153] [cursor=pointer]
+            - button "Update" [ref=f3e154] [cursor=pointer]
+            - button "Clear Cache" [ref=f3e155] [cursor=pointer]
+        - generic [ref=f3e156]:
+          - generic [ref=f3e157]: Advanced
+          - generic [ref=f3e158]:
+            - button "Edit PHP" [ref=f3e159] [cursor=pointer]
+            - button "Xdebug" [ref=f3e160] [cursor=pointer]
+            - button "Repair" [ref=f3e161] [cursor=pointer]
+          - generic [ref=f3e163]:
+            - generic [ref=f3e164]: $
+            - textbox "wp plugin list --status=active" [ref=f3e165]
+            - button [ref=f3e166] [cursor=pointer]
+        - button "Delete Site" [ref=f3e169] [cursor=pointer]
+  - generic [ref=f3e170]:
+    - generic [ref=f3e171]:
+      - generic [ref=f3e172]: Connected
+      - generic [ref=f3e175]: Updated 15:42:46
+    - generic [ref=f3e178]:
+      - generic [ref=f3e179]: "?"
+      - text: shortcuts

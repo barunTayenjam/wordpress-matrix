@@ -1,0 +1,146 @@
+- generic [active] [ref=f3e1]:
+  - link "Skip to content" [ref=f3e2] [cursor=pointer]:
+    - /url: "#mainContent"
+  - banner [ref=f3e3]:
+    - navigation [ref=f3e4]:
+      - generic [ref=f3e5]:
+        - text: MATRIX
+        - generic [ref=f3e6]: "@v2"
+      - generic [ref=f3e8]:
+        - button "0 Dashboard" [ref=f3e9] [cursor=pointer]:
+          - generic [ref=f3e10]: "0"
+          - generic [ref=f3e11]: Dashboard
+        - button "1 Sites" [ref=f3e12] [cursor=pointer]:
+          - generic [ref=f3e13]: "1"
+          - generic [ref=f3e14]: Sites
+        - button "2 Services" [ref=f3e15] [cursor=pointer]:
+          - generic [ref=f3e16]: "2"
+          - generic [ref=f3e17]: Services
+        - button "3 Frontend" [ref=f3e18] [cursor=pointer]:
+          - generic [ref=f3e19]: "3"
+          - generic [ref=f3e20]: Frontend
+        - button "4 Terminal" [ref=f3e21] [cursor=pointer]:
+          - generic [ref=f3e22]: "4"
+          - generic [ref=f3e23]: Terminal
+        - button "5 Activity" [ref=f3e24] [cursor=pointer]:
+          - generic [ref=f3e25]: "5"
+          - generic [ref=f3e26]: Activity
+      - button "Toggle theme" [ref=f3e28] [cursor=pointer]:
+        - generic [ref=f3e29]: Dark
+  - main [ref=f3e31]:
+    - generic [ref=f3e32]:
+      - heading "WordPress Matrix Dashboard▊" [level=1] [ref=f3e33]
+      - button "Refresh" [ref=f3e180] [cursor=pointer]
+    - generic [ref=f3e36]:
+      - generic [ref=f3e37]:
+        - generic [ref=f3e38]:
+          - generic [ref=f3e40]: "1"
+          - text: running
+        - generic [ref=f3e41]:
+          - generic [ref=f3e43]: "4"
+          - text: stopped
+        - generic [ref=f3e44]:
+          - generic [ref=f3e46]: "3"
+          - text: services
+        - generic [ref=f3e47]:
+          - text: "Last:"
+          - generic [ref=f3e48]: 15:41:46
+      - generic [ref=f3e49]:
+        - generic [ref=f3e52]:
+          - generic [ref=f3e53]: all time
+          - generic [ref=f3e56]:
+            - generic [ref=f3e57]: "5"
+            - generic [ref=f3e58]: Total Sites
+        - generic [ref=f3e61]:
+          - generic [ref=f3e62]: online
+          - generic [ref=f3e65]:
+            - generic [ref=f3e66]: "1"
+            - generic [ref=f3e67]: Running
+        - generic [ref=f3e70]:
+          - generic [ref=f3e71]: active
+          - generic [ref=f3e74]:
+            - generic [ref=f3e75]: "3"
+            - generic [ref=f3e76]: Services
+      - generic [ref=f3e79]:
+        - generic [ref=f3e80]: Quick Actions
+        - generic [ref=f3e84]:
+          - button "Start All" [ref=f3e85] [cursor=pointer]
+          - button "Stop All" [ref=f3e88] [cursor=pointer]
+          - button "Restart" [ref=f3e91] [cursor=pointer]
+          - button "Code Quality" [ref=f3e94] [cursor=pointer]
+          - button "Clean" [ref=f3e97] [cursor=pointer]
+    - generic [ref=f3e100]:
+      - generic [ref=f3e101]:
+        - generic [ref=f3e102]:
+          - generic [ref=f3e103]: "--"
+          - generic [ref=f3e104]: "--"
+        - button "Close" [ref=f3e107] [cursor=pointer]
+      - generic [ref=f3e108]:
+        - generic [ref=f3e109]:
+          - generic [ref=f3e110]:
+            - generic [ref=f3e111]: URL
+            - link "--" [ref=f3e112] [cursor=pointer]:
+              - /url: "#"
+          - generic [ref=f3e113]:
+            - generic [ref=f3e114]:
+              - generic [ref=f3e115]: PHP
+              - text: "--"
+            - generic [ref=f3e116]:
+              - generic [ref=f3e117]: Port
+              - text: "--"
+            - generic [ref=f3e118]:
+              - generic [ref=f3e119]: Type
+              - text: dynamic
+        - generic [ref=f3e120]:
+          - generic [ref=f3e121]: Health
+          - generic [ref=f3e122]:
+            - generic [ref=f3e124]: Checking...
+            - button "Check" [ref=f3e125] [cursor=pointer]
+        - generic [ref=f3e126]:
+          - generic [ref=f3e127]: Lifecycle
+          - generic [ref=f3e128]:
+            - button "Start" [ref=f3e129] [cursor=pointer]
+            - button "Stop" [ref=f3e130] [cursor=pointer]
+            - button "Restart" [ref=f3e131] [cursor=pointer]
+        - generic [ref=f3e132]:
+          - generic [ref=f3e133]: Information
+          - generic [ref=f3e134]:
+            - button "Info" [ref=f3e135] [cursor=pointer]
+            - button "URL" [ref=f3e136] [cursor=pointer]
+            - button "Logs" [ref=f3e137] [cursor=pointer]
+            - button "REST API" [ref=f3e138] [cursor=pointer]
+            - button "Checks" [ref=f3e139] [cursor=pointer]
+            - button "Health" [ref=f3e140] [cursor=pointer]
+        - generic [ref=f3e141]:
+          - generic [ref=f3e142]: Database
+          - generic [ref=f3e143]:
+            - button "Export" [ref=f3e144] [cursor=pointer]
+            - button "Import" [ref=f3e145] [cursor=pointer]
+            - button "Search/Replace" [ref=f3e146] [cursor=pointer]
+        - generic [ref=f3e147]:
+          - generic [ref=f3e148]: Maintenance
+          - generic [ref=f3e149]:
+            - button "Backup" [ref=f3e150] [cursor=pointer]
+            - button "Restore" [ref=f3e151] [cursor=pointer]
+            - button "Clone" [ref=f3e152] [cursor=pointer]
+            - button "Reset" [ref=f3e153] [cursor=pointer]
+            - button "Update" [ref=f3e154] [cursor=pointer]
+            - button "Clear Cache" [ref=f3e155] [cursor=pointer]
+        - generic [ref=f3e156]:
+          - generic [ref=f3e157]: Advanced
+          - generic [ref=f3e158]:
+            - button "Edit PHP" [ref=f3e159] [cursor=pointer]
+            - button "Xdebug" [ref=f3e160] [cursor=pointer]
+            - button "Repair" [ref=f3e161] [cursor=pointer]
+          - generic [ref=f3e163]:
+            - generic [ref=f3e164]: $
+            - textbox "wp plugin list --status=active" [ref=f3e165]
+            - button [ref=f3e166] [cursor=pointer]
+        - button "Delete Site" [ref=f3e169] [cursor=pointer]
+  - generic [ref=f3e170]:
+    - generic [ref=f3e171]:
+      - generic [ref=f3e172]: Connected
+      - generic [ref=f3e175]: Updated 15:41:46
+    - generic [ref=f3e178]:
+      - generic [ref=f3e179]: "?"
+      - text: shortcuts

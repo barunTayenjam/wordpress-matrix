@@ -134,3 +134,6 @@ config/nginx/*.conf
 !SITE_MANAGEMENT.md
 !*.example*
 !*.env.example
+
+# removed from git tracking
+su-static/

@@ -1847,6 +1847,7 @@ body::before {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s var(--ease);
+  visibility: hidden;
 }
 
 [data-theme="light"] .flyout-overlay {
@@ -1856,6 +1857,7 @@ body::before {
 .flyout-overlay.open {
   opacity: 1;
   pointer-events: auto;
+  visibility: visible;
 }
 
 .site-flyout {

@@ -1,0 +1,10 @@
+parameters:
+    level: 9
+    paths:
+        - wp_content/
+    excludePaths:
+        - */vendor/*
+        - */node_modules/*
+        - */cache/*
+        - */.git/*
+    ignoreErrors: []

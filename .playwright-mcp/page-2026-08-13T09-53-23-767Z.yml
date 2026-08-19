@@ -1,0 +1,421 @@
+- generic [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#mainContent"
+  - banner [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: MATRIX
+        - generic [ref=e6]: "@v2"
+      - generic [ref=e8]:
+        - button "0 Dashboard" [ref=e9] [cursor=pointer]:
+          - generic [ref=e10]: "0"
+          - generic [ref=e11]: Dashboard
+        - button "1 Sites" [ref=e12] [cursor=pointer]:
+          - generic [ref=e13]: "1"
+          - generic [ref=e14]: Sites
+        - button "2 Services" [ref=e15] [cursor=pointer]:
+          - generic [ref=e16]: "2"
+          - generic [ref=e17]: Services
+        - button "3 Frontend" [ref=e18] [cursor=pointer]:
+          - generic [ref=e19]: "3"
+          - generic [ref=e20]: Frontend
+        - button "4 Terminal" [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: "4"
+          - generic [ref=e23]: Terminal
+        - button "5 Activity" [active] [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: "5"
+          - generic [ref=e26]: Activity
+      - button "Toggle theme" [ref=e28] [cursor=pointer]:
+        - generic [ref=e29]: Dark
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - heading "WordPress Matrix Dashboard▊" [level=1] [ref=e33]
+      - generic [ref=e34]:
+        - button
+    - generic [ref=e721]:
+      - generic [ref=e722]:
+        - generic [ref=e723]: Activity
+        - button "Refresh" [ref=e725] [cursor=pointer]
+      - table [ref=e729]:
+        - rowgroup [ref=e730]:
+          - row [ref=e731]:
+            - columnheader "Timestamp" [ref=e732]
+            - columnheader "Action" [ref=e733]
+            - columnheader "Site" [ref=e734]
+            - columnheader "Details" [ref=e735]
+        - rowgroup [ref=e736]:
+          - row [ref=e737]:
+            - cell "2026-08-13 13:24:19" [ref=e738]
+            - cell "START" [ref=e739]
+            - cell [ref=e740]:
+              - strong [ref=e741]: su26
+            - cell "Started manually" [ref=e742]
+          - row [ref=e743]:
+            - cell "2026-08-12 12:43:22" [ref=e744]
+            - cell "START" [ref=e745]
+            - cell [ref=e746]:
+              - strong [ref=e747]: su26
+            - cell "Started manually" [ref=e748]
+          - row [ref=e749]:
+            - cell "2026-08-10 17:17:02" [ref=e750]
+            - cell "START" [ref=e751]
+            - cell [ref=e752]:
+              - strong [ref=e753]: su26
+            - cell "Started manually" [ref=e754]
+          - row [ref=e755]:
+            - cell "2026-08-10 11:05:36" [ref=e756]
+            - cell "START" [ref=e757]
+            - cell [ref=e758]:
+              - strong [ref=e759]: su26
+            - cell "Started manually" [ref=e760]
+          - row [ref=e761]:
+            - cell "2026-08-07 10:07:37" [ref=e762]
+            - cell "START" [ref=e763]
+            - cell [ref=e764]:
+              - strong [ref=e765]: su26
+            - cell "Started manually" [ref=e766]
+          - row [ref=e767]:
+            - cell "2026-08-07 10:07:28" [ref=e768]
+            - cell "START" [ref=e769]
+            - cell [ref=e770]:
+              - strong [ref=e771]: su26
+            - cell "Started manually" [ref=e772]
+          - row [ref=e773]:
+            - cell "2026-08-06 10:28:08" [ref=e774]
+            - cell "START" [ref=e775]
+            - cell [ref=e776]:
+              - strong [ref=e777]: su26
+            - cell "Started manually" [ref=e778]
+          - row [ref=e779]:
+            - cell "2026-08-05 16:04:19" [ref=e780]
+            - cell "START" [ref=e781]
+            - cell [ref=e782]:
+              - strong [ref=e783]: su26
+            - cell "Started manually" [ref=e784]
+          - row [ref=e785]:
+            - cell "2026-08-04 11:05:00" [ref=e786]
+            - cell "START" [ref=e787]
+            - cell [ref=e788]:
+              - strong [ref=e789]: su26
+            - cell "Started manually" [ref=e790]
+          - row [ref=e791]:
+            - cell "2026-08-03 22:49:28" [ref=e792]
+            - cell "START" [ref=e793]
+            - cell [ref=e794]:
+              - strong [ref=e795]: su26
+            - cell "Started manually" [ref=e796]
+          - row [ref=e797]:
+            - cell "2026-08-03 12:09:16" [ref=e798]
+            - cell "START" [ref=e799]
+            - cell [ref=e800]:
+              - strong [ref=e801]: su26
+            - cell "Started manually" [ref=e802]
+          - row [ref=e803]:
+            - cell "2026-08-03 11:59:32" [ref=e804]
+            - cell "START" [ref=e805]
+            - cell [ref=e806]:
+              - strong [ref=e807]: su21
+            - cell "Started manually" [ref=e808]
+          - row [ref=e809]:
+            - cell "2026-07-31 13:31:49" [ref=e810]
+            - cell "START" [ref=e811]
+            - cell [ref=e812]:
+              - strong [ref=e813]: testopt
+            - cell "Started manually" [ref=e814]
+          - row [ref=e815]:
+            - cell "2026-07-31 13:31:07" [ref=e816]
+            - cell "START" [ref=e817]
+            - cell [ref=e818]:
+              - strong [ref=e819]: su21
+            - cell "Started manually" [ref=e820]
+          - row [ref=e821]:
+            - cell "2026-07-30 10:14:36" [ref=e822]
+            - cell "START" [ref=e823]
+            - cell [ref=e824]:
+              - strong [ref=e825]: su26
+            - cell "Started manually" [ref=e826]
+          - row [ref=e827]:
+            - cell "2026-07-29 13:24:48" [ref=e828]
+            - cell "START" [ref=e829]
+            - cell [ref=e830]:
+              - strong [ref=e831]: su26-dev
+            - cell "Started manually" [ref=e832]
+          - row [ref=e833]:
+            - cell "2026-07-28 09:11:18" [ref=e834]
+            - cell "START" [ref=e835]
+            - cell [ref=e836]:
+              - strong [ref=e837]: su26
+            - cell "Started manually" [ref=e838]
+          - row [ref=e839]:
+            - cell "2026-07-27 10:29:56" [ref=e840]
+            - cell "START" [ref=e841]
+            - cell [ref=e842]:
+              - strong [ref=e843]: su26
+            - cell "Started manually" [ref=e844]
+          - row [ref=e845]:
+            - cell "2026-07-25 11:59:09" [ref=e846]
+            - cell "START" [ref=e847]
+            - cell [ref=e848]:
+              - strong [ref=e849]: su26
+            - cell "Started manually" [ref=e850]
+          - row [ref=e851]:
+            - cell "2026-07-24 10:50:51" [ref=e852]
+            - cell "START" [ref=e853]
+            - cell [ref=e854]:
+              - strong [ref=e855]: su26
+            - cell "Started manually" [ref=e856]
+          - row [ref=e857]:
+            - cell "2026-07-17 22:05:15" [ref=e858]
+            - cell "STOP" [ref=e859]
+            - cell [ref=e860]:
+              - strong [ref=e861]: gz
+            - cell "Stopped manually" [ref=e862]
+          - row [ref=e863]:
+            - cell "2026-07-17 22:04:59" [ref=e864]
+            - cell "START" [ref=e865]
+            - cell [ref=e866]:
+              - strong [ref=e867]: gz
+            - cell "Started manually" [ref=e868]
+          - row [ref=e869]:
+            - cell "2026-07-17 21:42:35" [ref=e870]
+            - cell "REPAIR" [ref=e871]
+            - cell [ref=e872]:
+              - strong [ref=e873]: all
+            - cell "0 issue(s) fixed" [ref=e874]
+          - row [ref=e875]:
+            - cell "2026-07-17 21:41:59" [ref=e876]
+            - cell "REPAIR" [ref=e877]
+            - cell [ref=e878]:
+              - strong [ref=e879]: all
+            - cell "0 issue(s) fixed" [ref=e880]
+          - row [ref=e881]:
+            - cell "2026-07-17 21:41:23" [ref=e882]
+            - cell "REPAIR" [ref=e883]
+            - cell [ref=e884]:
+              - strong [ref=e885]: all
+            - cell "0 issue(s) fixed" [ref=e886]
+          - row [ref=e887]:
+            - cell "2026-07-17 21:41:00" [ref=e888]
+            - cell "REPAIR" [ref=e889]
+            - cell [ref=e890]:
+              - strong [ref=e891]: all
+            - cell "0 issue(s) fixed" [ref=e892]
+          - row [ref=e893]:
+            - cell "2026-07-17 21:40:42" [ref=e894]
+            - cell "REPAIR" [ref=e895]
+            - cell [ref=e896]:
+              - strong [ref=e897]: all
+            - cell "0 issue(s) fixed" [ref=e898]
+          - row [ref=e899]:
+            - cell "2026-07-16 18:29:05" [ref=e900]
+            - cell "START" [ref=e901]
+            - cell [ref=e902]:
+              - strong [ref=e903]: su26
+            - cell "Started manually" [ref=e904]
+          - row [ref=e905]:
+            - cell "2026-07-15 12:32:23" [ref=e906]
+            - cell "START" [ref=e907]
+            - cell [ref=e908]:
+              - strong [ref=e909]: su26
+            - cell "Started manually" [ref=e910]
+          - row [ref=e911]:
+            - cell "2026-07-13 11:31:03" [ref=e912]
+            - cell "START" [ref=e913]
+            - cell [ref=e914]:
+              - strong [ref=e915]: su26
+            - cell "Started manually" [ref=e916]
+          - row [ref=e917]:
+            - cell "2026-07-09 23:57:39" [ref=e918]
+            - cell "STOP" [ref=e919]
+            - cell [ref=e920]:
+              - strong [ref=e921]: testopt
+            - cell "Stopped manually" [ref=e922]
+          - row [ref=e923]:
+            - cell "2026-07-09 23:56:04" [ref=e924]
+            - cell "START" [ref=e925]
+            - cell [ref=e926]:
+              - strong [ref=e927]: testopt
+            - cell "Auto-started after creation" [ref=e928]
+          - row [ref=e929]:
+            - cell "2026-07-09 23:55:53" [ref=e930]
+            - cell "CREATE" [ref=e931]
+            - cell [ref=e932]:
+              - strong [ref=e933]: testopt
+            - cell "Created with PHP 8.3, stack nginx, port 8204" [ref=e934]
+          - row [ref=e935]:
+            - cell "2026-07-08 17:36:52" [ref=e936]
+            - cell "START" [ref=e937]
+            - cell [ref=e938]:
+              - strong [ref=e939]: gz
+            - cell "Started manually" [ref=e940]
+          - row [ref=e941]:
+            - cell "2026-07-08 17:31:19" [ref=e942]
+            - cell "CREATE" [ref=e943]
+            - cell [ref=e944]:
+              - strong [ref=e945]: gz
+            - cell "Created with PHP 8.3, stack apache, port 8203" [ref=e946]
+          - row [ref=e947]:
+            - cell "2026-07-02 16:08:47" [ref=e948]
+            - cell "START" [ref=e949]
+            - cell [ref=e950]:
+              - strong [ref=e951]: su26
+            - cell "Started manually" [ref=e952]
+          - row [ref=e953]:
+            - cell "2026-06-11 17:13:51" [ref=e954]
+            - cell "START" [ref=e955]
+            - cell [ref=e956]:
+              - strong [ref=e957]: su21
+            - cell "Started manually" [ref=e958]
+          - row [ref=e959]:
+            - cell "2026-05-28 12:35:14" [ref=e960]
+            - cell "START" [ref=e961]
+            - cell [ref=e962]:
+              - strong [ref=e963]: su21
+            - cell "Started manually" [ref=e964]
+          - row [ref=e965]:
+            - cell "2026-05-28 12:35:07" [ref=e966]
+            - cell "STOP" [ref=e967]
+            - cell [ref=e968]:
+              - strong [ref=e969]: su21
+            - cell "Stopped manually" [ref=e970]
+          - row [ref=e971]:
+            - cell "2026-05-28 12:28:32" [ref=e972]
+            - cell "START" [ref=e973]
+            - cell [ref=e974]:
+              - strong [ref=e975]: su21
+            - cell "Started manually" [ref=e976]
+          - row [ref=e977]:
+            - cell "2026-05-22 12:42:13" [ref=e978]
+            - cell "REPAIR" [ref=e979]
+            - cell [ref=e980]:
+              - strong [ref=e981]: all
+            - cell "1 issue(s) fixed" [ref=e982]
+          - row [ref=e983]:
+            - cell "2026-05-22 12:06:16" [ref=e984]
+            - cell "REMOVE" [ref=e985]
+            - cell [ref=e986]:
+              - strong [ref=e987]: wmtest115358
+            - cell "Site removed" [ref=e988]
+          - row [ref=e989]:
+            - cell "2026-05-22 12:06:14" [ref=e990]
+            - cell "REMOVE" [ref=e991]
+            - cell [ref=e992]:
+              - strong [ref=e993]: wmclone120425
+            - cell "Site removed" [ref=e994]
+          - row [ref=e995]:
+            - cell "2026-05-22 12:04:19" [ref=e996]
+            - cell "REMOVE" [ref=e997]
+            - cell [ref=e998]:
+              - strong [ref=e999]: wmclone120248
+            - cell "Site removed" [ref=e1000]
+          - row [ref=e1001]:
+            - cell "2026-05-22 12:02:41" [ref=e1002]
+            - cell "REMOVE" [ref=e1003]
+            - cell [ref=e1004]:
+              - strong [ref=e1005]: wmclone120123
+            - cell "Site removed" [ref=e1006]
+          - row [ref=e1007]:
+            - cell "2026-05-22 12:01:15" [ref=e1008]
+            - cell "REMOVE" [ref=e1009]
+            - cell [ref=e1010]:
+              - strong [ref=e1011]: wmclone120021
+            - cell "Site removed" [ref=e1012]
+          - row [ref=e1013]:
+            - cell "2026-05-22 12:00:16" [ref=e1014]
+            - cell "REMOVE" [ref=e1015]
+            - cell [ref=e1016]:
+              - strong [ref=e1017]: wmclone115923
+            - cell "Site removed" [ref=e1018]
+          - row [ref=e1019]:
+            - cell "2026-05-22 11:59:17" [ref=e1020]
+            - cell "REMOVE" [ref=e1021]
+            - cell [ref=e1022]:
+              - strong [ref=e1023]: wmclone115830
+            - cell "Site removed" [ref=e1024]
+          - row [ref=e1025]:
+            - cell "2026-05-22 11:54:20" [ref=e1026]
+            - cell "EDIT" [ref=e1027]
+            - cell [ref=e1028]:
+              - strong [ref=e1029]: wmtest115358
+            - cell "Updated configuration" [ref=e1030]
+          - row [ref=e1031]:
+            - cell "2026-05-22 11:54:17" [ref=e1032]
+            - cell "START" [ref=e1033]
+            - cell [ref=e1034]:
+              - strong [ref=e1035]: wmtest115358
+            - cell "Started manually" [ref=e1036]
+    - generic [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]: su26
+          - generic [ref=e104]: Running
+        - button "Close" [ref=e107] [cursor=pointer]
+      - generic [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]: URL
+            - link "http://192.168.31.207:8202" [ref=e473] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - generic [ref=e115]: PHP
+              - text: "8.3"
+            - generic [ref=e116]:
+              - generic [ref=e117]: Port
+              - text: "8202"
+            - generic [ref=e118]:
+              - generic [ref=e119]: Type
+              - text: dynamic
+        - generic [ref=e120]:
+          - generic [ref=e121]: Health
+          - generic [ref=e122]:
+            - generic [ref=e124]: Healthy (362ms)
+            - button "Check" [ref=e125] [cursor=pointer]
+        - generic [ref=e126]:
+          - generic [ref=e127]: Lifecycle
+          - generic [ref=e128]:
+            - button "Start" [ref=e129] [cursor=pointer]
+            - button "Stop" [ref=e130] [cursor=pointer]
+            - button "Restart" [ref=e131] [cursor=pointer]
+        - generic [ref=e132]:
+          - generic [ref=e133]: Information
+          - generic [ref=e134]:
+            - button "Info" [ref=e135] [cursor=pointer]
+            - button "URL" [ref=e136] [cursor=pointer]
+            - button "Logs" [ref=e137] [cursor=pointer]
+            - button "REST API" [ref=e138] [cursor=pointer]
+            - button "Checks" [ref=e139] [cursor=pointer]
+            - button "Health" [ref=e140] [cursor=pointer]
+        - generic [ref=e141]:
+          - generic [ref=e142]: Database
+          - generic [ref=e143]:
+            - button "Export" [ref=e144] [cursor=pointer]
+            - button "Import" [ref=e145] [cursor=pointer]
+            - button "Search/Replace" [ref=e146] [cursor=pointer]
+        - generic [ref=e147]:
+          - generic [ref=e148]: Maintenance
+          - generic [ref=e149]:
+            - button "Backup" [ref=e150] [cursor=pointer]
+            - button "Restore" [ref=e151] [cursor=pointer]
+            - button "Clone" [ref=e152] [cursor=pointer]
+            - button "Reset" [ref=e153] [cursor=pointer]
+            - button "Update" [ref=e154] [cursor=pointer]
+            - button "Clear Cache" [ref=e155] [cursor=pointer]
+        - generic [ref=e156]:
+          - generic [ref=e157]: Advanced
+          - generic [ref=e158]:
+            - button "Edit PHP" [ref=e159] [cursor=pointer]
+            - button "Xdebug" [ref=e160] [cursor=pointer]
+            - button "Repair" [ref=e161] [cursor=pointer]
+          - generic [ref=e163]:
+            - generic [ref=e164]: $
+            - textbox "wp plugin list --status=active" [ref=e165]
+            - button [ref=e166] [cursor=pointer]
+        - button "Delete Site" [ref=e169] [cursor=pointer]
+  - generic [ref=e170]:
+    - generic [ref=e171]:
+      - generic [ref=e172]: Connected
+      - generic [ref=e175]: Updated 15:22:55
+    - generic [ref=e178]:
+      - generic [ref=e179]: "?"
+      - text: shortcuts

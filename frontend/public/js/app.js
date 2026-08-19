@@ -419,6 +419,21 @@ function renderSiteCard(site) {
       </div>`;
 }
 
+async function refreshSite(siteName) {
+  const response = await fetch('/api/sites');
+  const data = await response.json();
+  if (!data.success) return;
+  currentData = data;
+  const site = currentData.sites.find(s => s.name === siteName);
+  if (!site) return;
+  const oldCard = document.querySelector(`.site-card[data-site-name="${siteName}"]`);
+  if (!oldCard) return;
+  const newCardHtml = renderSiteCard(site);
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = newCardHtml;
+  oldCard.replaceWith(wrapper.firstElementChild);
+}
+
 function applySiteFilters() {
   const searchTerm = (document.getElementById('siteSearch')?.value || '').trim().toLowerCase();
   const statusFilter = document.getElementById('siteStatusFilter')?.value || 'all';
@@ -450,7 +465,7 @@ async function quickAction(action) {
     } else {
       showNotification(`"${action}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
-    await loadDashboard();
+    await refreshSite(siteName);
     hideLoading();
   } catch (error) {
     showNotification('Network error', 'danger');
@@ -615,7 +630,7 @@ async function submitWorkflow(action, siteName) {
     if (data.success) {
       closeWorkflowModal();
       showNotification(`"${action} ${siteName}" done`, 'success');
-      await loadDashboard();
+    await refreshSite(siteName);
     } else {
       if (errorEl) { errorEl.textContent = data.error?.message || data.error || 'Unknown'; errorEl.style.display = ''; }
     }
@@ -725,8 +740,19 @@ async function executeCommand() {
     const parts = command.split(' ');
     const action = parts[0];
     const args = parts.slice(1);
-    const siteActions = ['start','stop','restart','remove','delete','rm','info','url','logs','backup','restore','edit','clone','reset','export-db','import-db','create','check'];
-    const envActions = ['start','stop','restart','status','logs','clean','check','health','cache','cache-clear','search-replace','update','update-core','install'];
+    if (action === 'help') {
+      const d = document.createElement('div');
+      d.className = 'terminal-line dim';
+      d.style.whiteSpace = 'pre-wrap';
+      d.textContent = `Site actions: ${siteActions.join(', ')}
+Env actions:  ${envActions.join(', ')}
+Usage: <action> <site-name> [args]`;
+      output.appendChild(d);
+      output.scrollTop = output.scrollHeight;
+      return;
+    }
+    const siteActions = ['start','stop','restart','remove','delete','rm','info','url','logs','backup','restore','edit','clone','reset','export-db','import-db','create','check','rest','xdebug','repair','scaffold','preset','watch','optimize','mail'];
+    const envActions = ['start','stop','restart','status','logs','clean','check','health','cache','cache-clear','search-replace','update','update-core','install','scaffold','preset','watch','optimize','mail','fix','test'];
     let endpoint, body;
     if (args.length > 0 && siteActions.includes(action)) {
       endpoint = '/api/sites/' + action;
@@ -1053,6 +1079,28 @@ function initSiteFlyout() {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeSiteFlyout();
+  });
+
+  // Close flyout when clicking outside of it
+  document.addEventListener('click', (e) => {
+    const flyout = document.getElementById('siteFlyout');
+    const overlay = document.getElementById('siteFlyoutOverlay');
+    if (!flyout || !overlay) return;
+    
+    // If flyout is not open, do nothing
+    if (!flyout.classList.contains('open')) return;
+    
+    // If click is inside the flyout, do nothing
+    if (flyout.contains(e.target)) return;
+    
+    // If click is on the overlay, close the flyout
+    if (e.target === overlay) {
+      closeSiteFlyout();
+      return;
+    }
+    
+    // For any other click outside, close the flyout
+    closeSiteFlyout();
   });
 }
 

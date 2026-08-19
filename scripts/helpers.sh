@@ -193,6 +193,13 @@ get_site_port() {
 matrix_site_build_if_apache() {
     local site="${1:-}"
     if [[ "$(get_site_stack "$site")" == "apache" ]]; then
+        local php_version
+        php_version=$(get_site_php_version_from_compose "$site")
+        [[ -z "$php_version" ]] && php_version="${DEFAULT_PHP_VERSION:-8.3}"
+        if docker image inspect "wp-matrix-apache:${php_version}" >/dev/null 2>&1; then
+            log_info "Reusing existing Apache image 'wp-matrix-apache:${php_version}' for '$site'."
+            return 0
+        fi
         log_info "Building Apache image for '$site'..."
         $DOCKER_COMPOSE build "wp_${site}"
     fi

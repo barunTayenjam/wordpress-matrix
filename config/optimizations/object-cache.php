@@ -30,6 +30,10 @@ class WP_Object_Cache {
                 $this->redis = new Redis();
                 $connected = $this->redis->connect('redis', 6379, 1);
                 if ($connected) {
+                    $redis_password = defined('REDIS_PASSWORD') ? REDIS_PASSWORD : (getenv('REDIS_PASSWORD') ?: '');
+                    if (!empty($redis_password)) {
+                        $this->redis->auth($redis_password);
+                    }
                     $this->redis->setOption(Redis::OPT_SERIALIZER, Redis::SERIALIZER_PHP);
                     $this->redis->setOption(Redis::OPT_PREFIX, $this->prefix . ':');
                     $this->has_redis = true;

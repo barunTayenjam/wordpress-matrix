@@ -20,7 +20,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string
  */
 function su_finv2_tldr_heading() {
-	return 'TL;DR — SearchUnify vs Fin';
+	return 'TL;DR';
 }
 
 /**
@@ -97,12 +97,16 @@ function su_finv2_toc() {
 		),
 		array(
 			'id'    => 'comparison',
-			'label' => 'What Enterprise Teams Need Beyond Bot',
+			'label' => 'SearchUnify vs Fin Feature Comparison',
 		),
-			array(
-				'id'    => 'options',
-				'label' => 'Migrating from Coveo to SearchUnify',
-			),
+		array(
+			'id'    => 'product-experience',
+			'label' => 'Product Experience - Customers\' Ratings',
+		),
+		array(
+			'id'    => 'options',
+			'label' => 'Migration to SearchUnify',
+		),
 		array(
 			'id'    => 'faq',
 			'label' => 'Frequently Asked Questions',
@@ -121,21 +125,25 @@ function su_finv2_strategic_questions() {
 			'label'    => 'Product Direction',
 			'question' => 'How will the product evolve as part of Salesforce\'s broader AI and customer service strategy?',
 			'body'     => 'Enterprise buyers should understand how future roadmap priorities may influence product innovation, integrations, and investment areas over time.',
+			'icon'     => 'product-direction.svg',
 		),
 		array(
 			'label'    => 'Platform Flexibility',
 			'question' => 'How important is maintaining flexibility across CRM platforms, AI models, and enterprise applications?',
 			'body'     => 'Organizations committed to a single ecosystem may prioritize deep native integration, while others may value the ability to adapt as business requirements evolve.',
+			'icon'     => 'platform-flexibility.svg',
 		),
 		array(
 			'label'    => 'Cost Predictability',
 			'question' => 'How will AI costs scale as adoption expands across customers, agents, channels, and business units?',
 			'body'     => 'Pricing models that work well during pilot deployments should also be evaluated for long-term operational planning.',
+			'icon'     => 'cost-predictibility.svg',
 		),
 		array(
 			'label'    => 'Knowledge Strategy',
 			'question' => 'Does the platform simply answer questions, or does it continuously improve the enterprise knowledge that powers every future interaction?',
 			'body'     => 'For many organizations, long-term AI success depends as much on knowledge maturity as on conversational automation.',
+			'icon'     => 'knowledge-strategy.svg',
 		),
 	);
 }
@@ -155,15 +163,6 @@ function su_finv2_salesforce_context_paragraphs() {
 }
 
 /**
- * Fin migration section intro.
- *
- * @return string
- */
-function su_finv2_migration_intro() {
-	return 'Move to SearchUnify without disrupting conversational intelligence or your support operations.';
-}
-
-/**
  * Four-step Fin migration section.
  *
  * @return array<int, array{title: string, description: string, image: string}>
@@ -173,22 +172,56 @@ function su_finv2_migration_steps() {
 		array(
 			'title'       => 'Assess',
 			'description' => 'Review your current Fin setup, knowledge sources, integrations, and support workflows to build a tailored migration plan.',
-			'image'       => 'ckc-learning.svg',
+			'image'       => 'Assess.svg',
 		),
 		array(
 			'title'       => 'Connect',
 			'description' => 'Integrate SearchUnify with your existing knowledge repositories and business systems using native connectors.',
-			'image'       => 'ckc-migration.svg',
+			'image'       => 'Connect.svg',
 		),
 		array(
-			'title'       => 'Transfer Learning',
-			'description' => 'Preserve your existing conversational intelligence, knowledge bases, and training data. We migrate your Fin expertise, dialogue flows, and AI models to ensure seamless continuity while SearchUnify learns from your accumulated experience.',
-			'image'       => 'ckc-roi.svg',
+			'title'       => 'Optimize',
+			'description' => 'Configure AI search, relevance, permissions, and experiences to match your support operations and business goals.',
+			'image'       => 'Optimize.svg',
 		),
 		array(
 			'title'       => 'Go Live',
 			'description' => 'Validate performance, train teams, and launch with confidence while continuously optimizing AI outcomes through analytics.',
-			'image'       => 'ckc-support.svg',
+			'image'       => 'go-live.svg',
+		),
+	);
+}
+
+/**
+ * Fin product experience ratings (same SearchUnify customer ratings as Forethought).
+ *
+ * @return array<int, array{value: string, label: string, image: string, inner_style: string}>
+ */
+function su_finv2_experience_ratings() {
+	return array(
+		array(
+			'value'       => '99%',
+			'label'       => 'Security Protects',
+			'image'       => '99-percentage.svg',
+			'inner_style' => '',
+		),
+		array(
+			'value'       => '98%',
+			'label'       => 'Enables Productivity',
+			'image'       => '98-percentage.svg',
+			'inner_style' => '',
+		),
+		array(
+			'value'       => '94%',
+			'label'       => 'Reliable',
+			'image'       => '94-percentage.svg',
+			'inner_style' => '',
+		),
+		array(
+			'value'       => '95%+',
+			'label'       => 'Net Emotional Footprint',
+			'image'       => '+95.svg',
+			'inner_style' => 'width: 131px;',
 		),
 	);
 }
@@ -288,46 +321,6 @@ function su_finv2_comparison_rows() {
 			'category'    => 'Best Fit',
 			'searchunify' => 'Large enterprises with complex support ecosystems',
 			'fin'         => 'Organizations primarily using Intercom',
-		),
-	);
-}
-
-/**
- * Awards section id.
- *
- * @return string
- */
-function su_finv2_awards_section_id() {
-	return 'awards';
-}
-
-/**
- * Awards section heading.
- *
- * @return string
- */
-function su_finv2_awards_heading() {
-	return 'Ranked #1 in Enterprise Search 3 Years in a Row';
-}
-
-/**
- * Awards section stat highlights (vendor-agnostic — SearchUnify's SoftwareReviews Data Quadrant recognition).
- *
- * @return array<int, array{value: string, label: string}>
- */
-function su_finv2_awards_stats() {
-	return array(
-		array(
-			'value' => '90%',
-			'label' => 'likely to recommend',
-		),
-		array(
-			'value' => '95%',
-			'label' => 'plan to renew',
-		),
-		array(
-			'value' => '89%',
-			'label' => 'love using SearchUnify',
 		),
 	);
 }

@@ -361,6 +361,33 @@ Script implementation notes:
 - `README.md` - Quick start guide
 - `AGENTS.md` - This file - comprehensive guide
 
+## Frontend Testing
+
+### Dashboard Features
+- **Dashboard Tab**: Stats display (running/stopped/services), Quick Actions (Start All, Stop All, Restart, Code Quality, Clean), Auto-refresh every 30 seconds
+- **Sites Tab**: Site cards with status badges, action buttons (Start, Stop, Restart, Check, Backup, More), search/filter controls, sort options
+- **Site Flyout**: Opens on site name click, shows site details (URL, PHP, Port), health check, lifecycle controls, information buttons, database operations, maintenance actions, advanced options, WP-CLI
+- **Services Tab**: Table showing all services with status (Database, Redis, phpMyAdmin, PHP CodeSniffer, PHPStan, WP-CLI)
+- **Terminal Tab**: Matrix CLI terminal interface (requires WebSocket connection for command execution)
+- **Frontend Tab**: Status display with Open Dashboard link, control buttons (Start, Stop, Restart, Status)
+- **Activity Tab**: Activity log table with timestamps, actions, and details
+
+### Known Issues
+- Terminal commands show "Network error" when WebSocket connection is not available (expected behavior)
+- Flyout overlay may occasionally block clicks on "New Site" button (FIXED: added click-outside-to-close handler and z-index fix)
+
+### Testing Commands
+```bash
+# Run frontend tests
+npm --prefix frontend test
+
+# Start frontend for manual testing
+./matrix frontend start
+
+# Check frontend status
+./matrix frontend status
+```
+
 ## Support
 
 For issues or questions:

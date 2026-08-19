@@ -53,12 +53,12 @@ const SUPPORTED_PHP_VERSIONS = new Set(
   (VALIDATION_CONFIG && VALIDATION_CONFIG.supportedPhpVersions) || ['7.4', '8.0', '8.1', '8.2', '8.3']
 );
 const DEFAULT_PHP_VERSION = (VALIDATION_CONFIG && VALIDATION_CONFIG.defaultPhpVersion) || '8.3';
-const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair']);
+const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair', 'scaffold', 'preset', 'watch', 'optimize', 'mail']);
 const ALLOWED_SITE_ACTIONS = new Set([...SITE_ACTIONS_REQUIRING_NAME]);
-const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install']);
+const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install', 'scaffold', 'preset', 'watch', 'optimize', 'mail', 'fix', 'test']);
 const ALLOWED_FRONTEND_ACTIONS = new Set(['start', 'stop', 'restart', 'status']);
-const MUTATING_SITE_ACTIONS = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check']);
-const MUTATING_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'clean', 'check', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install']);
+const MUTATING_SITE_ACTIONS = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'scaffold', 'optimize']);
+const MUTATING_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'clean', 'check', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install', 'scaffold', 'optimize', 'fix']);
 const ERROR_STATUS_MAP = {
   INVALID_ACTION: 400,
   INVALID_NAME: 400,
@@ -74,14 +74,20 @@ const CACHE_TTL = 30; // 30 seconds cache
 const initRedis = async () => {
   if (!redis) return;
   try {
-    redisClient = redis.createClient({
-      url: process.env.REDIS_URL || 'redis://localhost:6379'
-    });
-    redisClient.on('error', (err) => console.error('[Redis] Error:', err));
-    await redisClient.connect();
+    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+    const redisPassword = process.env.REDIS_PASSWORD || '';
+    const clientOptions = { url: redisUrl };
+    if (redisPassword) {
+      clientOptions.password = redisPassword;
+    }
+    const client = redis.createClient(clientOptions);
+    client.on('error', (err) => console.error('[Redis] Error:', err));
+    await client.connect();
+    redisClient = client;
     console.log('[Redis] Connected');
   } catch (err) {
     console.log('[Redis] Not available, caching disabled');
+    redisClient = null;
   }
 };
 if (process.env.NODE_ENV !== 'test') {
@@ -293,7 +299,6 @@ const executeMatrix = async (command, args = [], options = {}) => {
 
     const matrixCmd = spawn(MATRIX_PATH, matrixArgs, {
       cwd: PROJECT_ROOT,
-      timeout: timeout,
       env: { ...process.env, NODE_ENV: 'development' }
     });
 
@@ -308,7 +313,19 @@ const executeMatrix = async (command, args = [], options = {}) => {
       stderr += data.toString();
     });
 
+    // Timeout handling — spawn does not support timeout option, use setTimeout
+    const timer = setTimeout(() => {
+      console.error(`[Frontend] Command timeout after ${timeout}ms`);
+      matrixCmd.kill('SIGTERM');
+      // Force kill after 5s if still running
+      setTimeout(() => {
+        try { matrixCmd.kill('SIGKILL'); } catch (e) { /* already dead */ }
+      }, 5000);
+      resolve({ success: false, stdout, stderr, error: 'Command timeout' });
+    }, timeout);
+
     matrixCmd.on('close', (code) => {
+      clearTimeout(timer);
       console.log(`[Frontend] Command completed with code: ${code}`);
       let data;
       if (options.json && stdout) {
@@ -328,14 +345,9 @@ const executeMatrix = async (command, args = [], options = {}) => {
     });
 
     matrixCmd.on('error', (error) => {
+      clearTimeout(timer);
       console.error(`[Frontend] Command error:`, error);
       reject(error);
-    });
-
-    matrixCmd.on('timeout', () => {
-      console.error(`[Frontend] Command timeout after ${timeout}ms`);
-      matrixCmd.kill();
-      resolve({ success: false, stdout, stderr, error: 'Command timeout' });
     });
   });
 };

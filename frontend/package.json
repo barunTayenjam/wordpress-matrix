@@ -23,7 +23,8 @@
     "express-handlebars": "^7.1.2",
     "dotenv": "^16.3.1",
     "cors": "^2.8.5",
-    "socket.io": "^4.7.4"
+    "socket.io": "^4.7.4",
+    "redis": "^4.6.12"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

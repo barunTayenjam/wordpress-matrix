@@ -1,0 +1,123 @@
+- generic [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#mainContent"
+  - banner [ref=e3]:
+    - navigation [ref=e4]:
+      - generic [ref=e5]:
+        - text: MATRIX
+        - generic [ref=e6]: "@v2"
+      - generic [ref=e8]:
+        - button "0 Dashboard" [ref=e9] [cursor=pointer]:
+          - generic [ref=e10]: "0"
+          - generic [ref=e11]: Dashboard
+        - button "1 Sites" [ref=e12] [cursor=pointer]:
+          - generic [ref=e13]: "1"
+          - generic [ref=e14]: Sites
+        - button "2 Services" [ref=e15] [cursor=pointer]:
+          - generic [ref=e16]: "2"
+          - generic [ref=e17]: Services
+        - button "3 Frontend" [active] [ref=e18] [cursor=pointer]:
+          - generic [ref=e19]: "3"
+          - generic [ref=e20]: Frontend
+        - button "4 Terminal" [ref=e21] [cursor=pointer]:
+          - generic [ref=e22]: "4"
+          - generic [ref=e23]: Terminal
+        - button "5 Activity" [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: "5"
+          - generic [ref=e26]: Activity
+      - button "Toggle theme" [ref=e28] [cursor=pointer]:
+        - generic [ref=e29]: Dark
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - heading "WordPress Matrix Dashboard▊" [level=1] [ref=e33]
+      - button "Refresh" [ref=e180] [cursor=pointer]
+    - generic [ref=e692]:
+      - generic [ref=e693]: Frontend
+      - generic [ref=e696]:
+        - generic [ref=e699]:
+          - generic [ref=e700]: Status
+          - generic [ref=e702]: Checking...
+          - link "Open Dashboard" [ref=e704] [cursor=pointer]:
+            - /url: http://localhost:8500
+        - generic [ref=e709]:
+          - generic [ref=e710]: Controls
+          - generic [ref=e712]:
+            - button "Start" [ref=e713] [cursor=pointer]
+            - button "Stop" [ref=e715] [cursor=pointer]
+            - button "Restart" [ref=e717] [cursor=pointer]
+            - button "Status" [ref=e719] [cursor=pointer]
+    - generic [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]:
+          - generic [ref=e103]: su26
+          - generic [ref=e104]: Running
+        - button "Close" [ref=e107] [cursor=pointer]
+      - generic [ref=e108]:
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]: URL
+            - link "http://192.168.31.207:8202" [ref=e473] [cursor=pointer]:
+              - /url: http://192.168.31.207:8202
+          - generic [ref=e113]:
+            - generic [ref=e114]:
+              - generic [ref=e115]: PHP
+              - text: "8.3"
+            - generic [ref=e116]:
+              - generic [ref=e117]: Port
+              - text: "8202"
+            - generic [ref=e118]:
+              - generic [ref=e119]: Type
+              - text: dynamic
+        - generic [ref=e120]:
+          - generic [ref=e121]: Health
+          - generic [ref=e122]:
+            - generic [ref=e124]: Healthy (362ms)
+            - button "Check" [ref=e125] [cursor=pointer]
+        - generic [ref=e126]:
+          - generic [ref=e127]: Lifecycle
+          - generic [ref=e128]:
+            - button "Start" [ref=e129] [cursor=pointer]
+            - button "Stop" [ref=e130] [cursor=pointer]
+            - button "Restart" [ref=e131] [cursor=pointer]
+        - generic [ref=e132]:
+          - generic [ref=e133]: Information
+          - generic [ref=e134]:
+            - button "Info" [ref=e135] [cursor=pointer]
+            - button "URL" [ref=e136] [cursor=pointer]
+            - button "Logs" [ref=e137] [cursor=pointer]
+            - button "REST API" [ref=e138] [cursor=pointer]
+            - button "Checks" [ref=e139] [cursor=pointer]
+            - button "Health" [ref=e140] [cursor=pointer]
+        - generic [ref=e141]:
+          - generic [ref=e142]: Database
+          - generic [ref=e143]:
+            - button "Export" [ref=e144] [cursor=pointer]
+            - button "Import" [ref=e145] [cursor=pointer]
+            - button "Search/Replace" [ref=e146] [cursor=pointer]
+        - generic [ref=e147]:
+          - generic [ref=e148]: Maintenance
+          - generic [ref=e149]:
+            - button "Backup" [ref=e150] [cursor=pointer]
+            - button "Restore" [ref=e151] [cursor=pointer]
+            - button "Clone" [ref=e152] [cursor=pointer]
+            - button "Reset" [ref=e153] [cursor=pointer]
+            - button "Update" [ref=e154] [cursor=pointer]
+            - button "Clear Cache" [ref=e155] [cursor=pointer]
+        - generic [ref=e156]:
+          - generic [ref=e157]: Advanced
+          - generic [ref=e158]:
+            - button "Edit PHP" [ref=e159] [cursor=pointer]
+            - button "Xdebug" [ref=e160] [cursor=pointer]
+            - button "Repair" [ref=e161] [cursor=pointer]
+          - generic [ref=e163]:
+            - generic [ref=e164]: $
+            - textbox "wp plugin list --status=active" [ref=e165]
+            - button [ref=e166] [cursor=pointer]
+        - button "Delete Site" [ref=e169] [cursor=pointer]
+  - generic [ref=e170]:
+    - generic [ref=e171]:
+      - generic [ref=e172]: Connected
+      - generic [ref=e175]: Updated 15:22:55
+    - generic [ref=e178]:
+      - generic [ref=e179]: "?"
+      - text: shortcuts
