@@ -1343,10 +1343,13 @@ rename_site() {
     local port=""
     local php_version=""
     local stack=""
+    local table_prefix=""
     if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$old_name:" "$COMPOSE_FILE"; then
         port=$(get_site_port_from_compose "$old_name")
         php_version=$(get_site_php_version_from_compose "$old_name")
         stack=$(get_site_stack "$old_name")
+        # Preserve custom WORDPRESS_TABLE_PREFIX if set
+        table_prefix=$(grep -A 20 "wp_${old_name}:" "$COMPOSE_FILE" | grep "WORDPRESS_TABLE_PREFIX:" | head -1 | sed 's/.*WORDPRESS_TABLE_PREFIX:\s*//' | tr -d '"' || true)
 
         compose_remove_site "$old_name" || log_warning "compose_remove_site failed"
 
@@ -1358,6 +1361,11 @@ rename_site() {
             log_error "Failed to add renamed site to docker-compose"
             return 1
         }
+        # Preserve custom WORDPRESS_TABLE_PREFIX if set
+        if [[ -n "$table_prefix" ]]; then
+            sed -i.bak "s/WORDPRESS_DEBUG: \${WP_DEBUG:-true}/WORDPRESS_DEBUG: \${WP_DEBUG:-true}\n      WORDPRESS_TABLE_PREFIX: ${table_prefix}/" "$COMPOSE_FILE"
+            rm -f "$COMPOSE_FILE.bak"
+        fi
     fi
 
     # Rename the database (if the DB container is running)
@@ -1372,10 +1380,21 @@ rename_site() {
         fi
     fi
 
-    # Update wp-config.php DB name
+    # Update wp-config.php DB name and table prefix
     if [[ -f "$new_dir/wp-config.php" ]]; then
         sed -i.bak "s/define( *['\"]DB_NAME['\"].*/define( 'DB_NAME', '${new_name}_db' );/" "$new_dir/wp-config.php"
         rm -f "$new_dir/wp-config.php.bak"
+        # Preserve the original table prefix from the source wp-config
+        if [[ -f "$original_dir/wp-config.php" ]]; then
+            local old_prefix
+            old_prefix=$(grep '\$table_prefix' "$original_dir/wp-config.php" | head -1 | grep -o "'[^']*'" | head -1 | tr -d "'")
+            local new_prefix
+            new_prefix=$(grep '\$table_prefix' "$new_dir/wp-config.php" | head -1 | grep -o "'[^']*'" | head -1 | tr -d "'")
+            if [[ -n "$old_prefix" && "$old_prefix" != "$new_prefix" ]]; then
+                sed -i.bak "s/\$table_prefix = '$new_prefix'/\$table_prefix = '$old_prefix'/" "$new_dir/wp-config.php"
+                rm -f "$new_dir/wp-config.php.bak"
+            fi
+        fi
     fi
 
     # Update .env site-specific port variable
