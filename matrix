@@ -145,8 +145,9 @@ Usage: ./matrix <command> [options]
 
  Site Management:
    create <name> [--php-version=X.X] [--stack=nginx|apache]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION}, stack: nginx)
-   edit <name> [--php-version=X.X] [--port=XXXX]  Edit site configuration
-   list              List all sites
+    edit <name> [--php-version=X.X] [--port=XXXX]  Edit site configuration
+    rename <old> <new> [--delete-old]  Rename an existing site
+    list              List all sites
    start <name>      Start specific site
    stop <name>       Stop specific site
    remove <name>     Remove site
@@ -184,6 +185,7 @@ Usage: ./matrix <command> [options]
     export-db <n> [f] Export database (site name, optional file)
     frontend <action> Manage frontend (start|stop|restart|status)
     mail             Open Mailpit email testing UI
+    phpmyadmin [site] Open phpMyAdmin (optionally preselect a site database)
     xdebug <site>    Enable Xdebug (always on) for site
     scaffold <type> <name> Scaffold theme/plugin (theme|plugin)
     preset <name>    List available site presets
@@ -1241,6 +1243,165 @@ edit_site() {
 
     log_success "Site '$site_name' updated"
     log_activity "EDIT" "$site_name" "Updated configuration"
+}
+
+# Rename an existing site to a new name.
+rename_site() {
+    local old_name=""
+    local new_name=""
+    local delete_old=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --delete-old)
+                delete_old=true
+                shift
+                ;;
+            -*)
+                log_error "Unknown option: $1"
+                echo "Usage: ./matrix rename <old-name> <new-name> [--delete-old]"
+                return 1
+                ;;
+            *)
+                if [[ -z "$old_name" ]]; then
+                    old_name="$1"
+                elif [[ -z "$new_name" ]]; then
+                    new_name="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$old_name" || -z "$new_name" ]]; then
+        log_error "Usage: ./matrix rename <old-name> <new-name> [--delete-old]"
+        return 1
+    fi
+
+    validate_site_name "$old_name" || return 1
+    validate_site_name "$new_name" || return 1
+
+    if ! site_exists "$old_name"; then
+        log_error "Site '$old_name' not found"
+        return 1
+    fi
+
+    if [[ "$old_name" == "$new_name" ]]; then
+        log_error "Old and new names are identical"
+        return 1
+    fi
+
+    if site_exists "$new_name"; then
+        log_error "Site '$new_name' already exists"
+        return 1
+    fi
+
+    log_info "Renaming site '$old_name' to '$new_name'..."
+
+    local original_dir="$PROJECT_ROOT/wp_$old_name"
+    local new_dir="$PROJECT_ROOT/wp_$new_name"
+
+    # Stop the site if running
+    matrix_site_stop "$old_name" || true
+
+    # Backup the database before rename (safety net)
+    log_info "Backing up database before rename..."
+    "$PROJECT_ROOT/scripts/backup.sh" "$old_name" >/dev/null 2>&1 || log_warning "Backup failed (non-fatal)"
+
+    # Rename the site directory
+    if [[ -d "$original_dir" ]]; then
+        mv "$original_dir" "$new_dir" || {
+            log_error "Failed to rename directory"
+            return 1
+        }
+    fi
+
+    # Rename the logs directory
+    if [[ -d "$PROJECT_ROOT/logs/wp_$old_name" ]]; then
+        mv "$PROJECT_ROOT/logs/wp_$old_name" "$PROJECT_ROOT/logs/wp_$new_name" 2>/dev/null || true
+    fi
+
+    # Rename the nginx config file (if it exists)
+    local old_nginx_conf="$PROJECT_ROOT/config/nginx/$old_name.conf"
+    local new_nginx_conf="$PROJECT_ROOT/config/nginx/$new_name.conf"
+    if [[ -f "$old_nginx_conf" ]]; then
+        mv "$old_nginx_conf" "$new_nginx_conf" || log_warning "Could not rename nginx config"
+    fi
+
+    # Capture compose settings before removing the old services
+    local port=""
+    local php_version=""
+    local stack=""
+    if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$old_name:" "$COMPOSE_FILE"; then
+        port=$(get_site_port_from_compose "$old_name")
+        php_version=$(get_site_php_version_from_compose "$old_name")
+        stack=$(get_site_stack "$old_name")
+
+        compose_remove_site "$old_name" || log_warning "compose_remove_site failed"
+
+        local nginx_conf_path="$PROJECT_ROOT/config/nginx/$new_name.conf"
+        if [[ "$stack" == "apache" ]]; then
+            nginx_conf_path=""
+        fi
+        compose_add_site "$new_name" "$php_version" "$port" "$nginx_conf_path" "$stack" || {
+            log_error "Failed to add renamed site to docker-compose"
+            return 1
+        }
+    fi
+
+    # Rename the database (if the DB container is running)
+    if compose_or_container_running "wp_db"; then
+        log_info "Renaming database ${old_name}_db -> ${new_name}_db..."
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
+            -e "CREATE DATABASE IF NOT EXISTS \`${new_name}_db\`;" 2>/dev/null || true
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db sh -c \
+            'exec mysqldump --no-tablespaces -u root -p"$MYSQL_PWD" "$1" | mysql -u root -p"$MYSQL_PWD" "$2"' \
+            _ "${old_name}_db" "${new_name}_db" 2>/dev/null || \
+            log_warning "Database copy failed — restore from the pre-rename backup"
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
+            -e "DROP DATABASE IF EXISTS \`${old_name}_db\`;" 2>/dev/null || true
+    fi
+
+    # Update wp-config.php DB name
+    if [[ -f "$new_dir/wp-config.php" ]]; then
+        sed -i.bak "s/define( *'DB_NAME'.*/define( 'DB_NAME', '${new_name}_db' );/" "$new_dir/wp-config.php"
+        rm -f "$new_dir/wp-config.php.bak"
+    fi
+
+    # Update .env site-specific port variable
+    if [[ -f "$PROJECT_ROOT/.env" ]]; then
+        local old_env_var
+        old_env_var=$(echo "$old_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+        local new_env_var
+        new_env_var=$(echo "$new_name" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+        local port_value
+        port_value=$(grep "^${old_env_var}_PORT=" "$PROJECT_ROOT/.env" | cut -d'=' -f2 || true)
+        if [[ -n "$port_value" ]]; then
+            grep -v "^${old_env_var}_PORT=" "$PROJECT_ROOT/.env" > "$PROJECT_ROOT/.env.tmp" || true
+            echo "# Site: $new_name" >> "$PROJECT_ROOT/.env.tmp"
+            echo "${new_env_var}_PORT=$port_value" >> "$PROJECT_ROOT/.env.tmp"
+            mv "$PROJECT_ROOT/.env.tmp" "$PROJECT_ROOT/.env"
+        fi
+    fi
+
+    # Optionally delete old site files
+    if $delete_old; then
+        log_info "Deleting old site data (--delete-old)..."
+        rm -rf "$PROJECT_ROOT/wp_$old_name" 2>/dev/null || true
+        rm -rf "$PROJECT_ROOT/logs/wp_$old_name" 2>/dev/null || true
+        rm -f "$PROJECT_ROOT/config/nginx/$old_name.conf" 2>/dev/null || true
+    fi
+
+    # Start the renamed site
+    log_info "Starting renamed site '$new_name'..."
+    if [[ "$stack" == "apache" ]]; then
+        matrix_site_build_if_apache "$new_name" || return 1
+    fi
+    matrix_site_up "$new_name"
+
+    log_success "Site renamed from '$old_name' to '$new_name'"
+    log_activity "RENAME" "$old_name" "Renamed to $new_name"
+    show_urls "$new_name"
 }
 
 # Run a tool container with compose --profile, falling back to direct run for podman
@@ -2902,6 +3063,9 @@ main() {
         "edit"|"update-site")
             edit_site "$@"
             ;;
+        "rename")
+            rename_site "$@"
+            ;;
         "clone")
             "$PROJECT_ROOT/scripts/clone.sh" "$@"
             ;;
@@ -2949,6 +3113,19 @@ main() {
                 open "http://$HOST_IP:8025"
             else
                 echo "Open http://$HOST_IP:8025 in your browser"
+            fi
+            ;;
+        "phpmyadmin")
+            local pma_url="http://$HOST_IP:8200"
+            if [[ -n "${1:-}" ]]; then
+                local site_name="${1:-}"
+                validate_site_name "$site_name" || exit 1
+                pma_url="${pma_url}?db=${site_name}_db"
+            fi
+            if command -v open >/dev/null 2>&1; then
+                open "$pma_url"
+            else
+                echo "Open $pma_url in your browser"
             fi
             ;;
         # --- Database ---
