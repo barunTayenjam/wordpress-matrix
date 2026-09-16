@@ -1301,6 +1301,13 @@ rename_site() {
     local original_dir="$PROJECT_ROOT/wp_$old_name"
     local new_dir="$PROJECT_ROOT/wp_$new_name"
 
+    # Actual source DB name (wp-config may point elsewhere after earlier renames)
+    local src_db_name=""
+    if [[ -f "$original_dir/wp-config.php" ]]; then
+        src_db_name=$(grep "define.*DB_NAME" "$original_dir/wp-config.php" | head -1 | cut -d"'" -f4)
+    fi
+    src_db_name="${src_db_name:-${old_name}_db}"
+
     # Stop the site if running
     matrix_site_stop "$old_name" || true
 
@@ -1355,15 +1362,14 @@ rename_site() {
 
     # Rename the database (if the DB container is running)
     if compose_or_container_running "wp_db"; then
-        log_info "Renaming database ${old_name}_db -> ${new_name}_db..."
-        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
-            -e "CREATE DATABASE IF NOT EXISTS \`${new_name}_db\`;" 2>/dev/null || true
-        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db sh -c \
-            'exec mysqldump --no-tablespaces -u root -p"$MYSQL_PWD" "$1" | mysql -u root -p"$MYSQL_PWD" "$2"' \
-            _ "${old_name}_db" "${new_name}_db" 2>/dev/null || \
-            log_warning "Database copy failed — restore from the pre-rename backup"
-        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
-            -e "DROP DATABASE IF EXISTS \`${old_name}_db\`;" 2>/dev/null || true
+        log_info "Renaming database ${src_db_name} -> ${new_name}_db..."
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`${new_name}_db\`;" 2>/dev/null || true
+        local db_user="${MYSQL_USER:-wp_user}"
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e "GRANT ALL PRIVILEGES ON \`${new_name}_db\`.* TO '${db_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
+        $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db sh -c "mysqldump --no-tablespaces -u root \`${src_db_name}\` | mysql -u root \`${new_name}_db\`" 2>/dev/null || log_warning "Database copy failed"
+        if [[ "$src_db_name" != "${new_name}_db" ]]; then
+            $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e "DROP DATABASE IF EXISTS \`${src_db_name}\`;" 2>/dev/null || true
+        fi
     fi
 
     # Update wp-config.php DB name
