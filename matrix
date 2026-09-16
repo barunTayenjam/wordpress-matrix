@@ -1321,11 +1321,15 @@ rename_site() {
         mv "$PROJECT_ROOT/logs/wp_$old_name" "$PROJECT_ROOT/logs/wp_$new_name" 2>/dev/null || true
     fi
 
-    # Rename the nginx config file (if it exists)
+    # Rename the nginx config file and update its fastcgi_pass upstream
     local old_nginx_conf="$PROJECT_ROOT/config/nginx/$old_name.conf"
     local new_nginx_conf="$PROJECT_ROOT/config/nginx/$new_name.conf"
     if [[ -f "$old_nginx_conf" ]]; then
         mv "$old_nginx_conf" "$new_nginx_conf" || log_warning "Could not rename nginx config"
+    fi
+    if [[ -f "$new_nginx_conf" ]]; then
+        sed -i.bak "s/fastcgi_pass wp_${old_name}:9000;/fastcgi_pass wp_${new_name}:9000;/" "$new_nginx_conf"
+        rm -f "$new_nginx_conf.bak"
     fi
 
     # Capture compose settings before removing the old services
@@ -1364,7 +1368,7 @@ rename_site() {
 
     # Update wp-config.php DB name
     if [[ -f "$new_dir/wp-config.php" ]]; then
-        sed -i.bak "s/define( *'DB_NAME'.*/define( 'DB_NAME', '${new_name}_db' );/" "$new_dir/wp-config.php"
+        sed -i.bak "s/define( *['\"]DB_NAME['\"].*/define( 'DB_NAME', '${new_name}_db' );/" "$new_dir/wp-config.php"
         rm -f "$new_dir/wp-config.php.bak"
     fi
 
