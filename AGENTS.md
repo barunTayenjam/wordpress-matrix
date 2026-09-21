@@ -356,6 +356,12 @@ Script implementation notes:
 - Use `mysqldump --no-tablespaces` to avoid MySQL `PROCESS` privilege failures.
 - Use shared `run_wp_cli` for WP-CLI operations instead of `docker-compose exec wp-cli`.
 
+Site state seam (`scripts/helpers.sh`):
+- `site_state <site>` is the single interface over Compose metadata + live container state. Returns `present=`/`running=`/`port=`/`php=`/`stack=` key=value lines. Resolution: Compose first, live container fallback.
+- `site_in_compose <site>` is the canonical anchored `wp_<site>:` presence check in `docker-compose.yml`. Use it instead of ad-hoc `grep` calls.
+- `compose_ps_names`, `container_is_running`, `compose_or_container_running` also live in `scripts/helpers.sh`; `matrix` and `scripts/*.sh` share them.
+- Offline tests for this seam: `tests/bash/site-state-test.sh` (stubbed Docker + Compose, no daemon required).
+
 ## Documentation Reference
 
 - `README.md` - Quick start guide

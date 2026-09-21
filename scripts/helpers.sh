@@ -18,6 +18,27 @@ get_lan_ip() {
 }
 HOST_IP=$(get_lan_ip)
 
+# --- Container state primitives (single home; used by matrix and scripts/*.sh) ---
+
+compose_ps_names() {
+    local names
+    names=$($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null) || true
+    if [[ -z "$names" ]]; then
+        names=$($DOCKER_COMPOSE ps 2>/dev/null | awk 'NR>1 {print $1}' | grep -v '^---$' || true)
+    fi
+    echo "$names"
+}
+
+container_is_running() {
+    local container_name="${1:-}"
+    [[ -n "$container_name" ]] && $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"
+}
+
+compose_or_container_running() {
+    local container_name="${1:-}"
+    compose_ps_names 2>/dev/null | grep -q "^${container_name}$" || container_is_running "$container_name"
+}
+
 get_sites() {
     local sites=()
     for dir in "$PROJECT_ROOT"/wp_*; do
@@ -106,6 +127,12 @@ run_wp_cli() {
 
 # --- Site stack helpers (nginx + PHP-FPM vs Apache + PHP-FPM) ---
 
+# Canonical "is this site defined in docker-compose.yml" predicate (anchored).
+site_in_compose() {
+    local site="${1:-}"
+    [[ -n "$site" && -f "$COMPOSE_FILE" ]] && grep -q "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null
+}
+
 site_has_nginx() {
     local site="${1:-}"
     [[ -n "$site" && -f "$COMPOSE_FILE" ]] && grep -q "^  nginx_${site}:" "$COMPOSE_FILE" 2>/dev/null
@@ -113,7 +140,7 @@ site_has_nginx() {
 
 get_site_stack() {
     local site="${1:-}"
-    if [[ -z "$site" || ! -f "$COMPOSE_FILE" ]]; then
+    if [[ -z "$site" ]] || ! site_in_compose "$site"; then
         echo "nginx"
         return
     fi
@@ -132,6 +159,28 @@ get_site_stack() {
         fi
     fi
     echo "nginx"
+}
+
+# --- Site state: one interface over compose metadata + live containers ---
+# Contract: running = wp_<site> container up (anchored match);
+#           port    = compose port, else live nginx port, else live wp port;
+#           php     = compose image only; stack = compose-derived, default nginx;
+#           present = service defined in docker-compose.yml.
+site_state() {
+    local site="${1:-}"
+    local present=0 running=0 port="" php="" stack=""
+
+    site_in_compose "$site" && present=1
+    compose_or_container_running "wp_$site" && running=1
+    port=$(get_site_port "$site")
+    php=$(get_site_php_version_from_compose "$site")
+    stack=$(get_site_stack "$site")
+
+    echo "present=$present"
+    echo "running=$running"
+    echo "port=$port"
+    echo "php=$php"
+    echo "stack=$stack"
 }
 
 compose_site_service_names() {
@@ -180,9 +229,8 @@ get_site_port() {
     local port=""
     port=$(get_site_port_from_compose "$site")
     if [[ -z "$port" ]]; then
-        if site_has_nginx "$site"; then
-            port=$($CONTAINER_RUNTIME port "nginx_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)
-        fi
+        # Live nginx probe works with or without compose metadata.
+        port=$($CONTAINER_RUNTIME port "nginx_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)
     fi
     if [[ -z "$port" ]]; then
         port=$($CONTAINER_RUNTIME port "wp_$site" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ' || true)

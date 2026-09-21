@@ -1,0 +1,82 @@
+#!/bin/bash
+# Test stub for docker/podman. State comes from files in $STUB_DIR:
+#   running.txt   names returned by `ps` (running only)
+#   all.txt       names returned by `ps -a`
+#   ports.txt     lines like `0.0.0.0:8201->80/tcp` for `ps --format {{.Ports}}`
+#   portmap.txt   lines like `wp_alpha 8299` consulted by `port <name>`
+#   logs/<name>   log text returned by `logs <name>`
+set -uo pipefail
+: "${STUB_DIR:?STUB_DIR must be set}"
+
+cmd="${1:-}"
+shift || true
+
+ALL=0
+QUIET=0
+FMT=""
+FILTERS=()
+last=""
+for a in "$@"; do
+    case "$last" in
+        --format) FMT="$a"; last=""; continue ;;
+        -f) FILTERS+=("$a"); last=""; continue ;;
+    esac
+    case "$a" in
+        -a|--all) ALL=1 ;;
+        -q|--quiet) QUIET=1 ;;
+        --format|-f) last="$a" ;;
+    esac
+done
+
+case "$cmd" in
+    info|version)
+        exit 0
+        ;;
+    ps)
+        src="$STUB_DIR/running.txt"
+        [[ "$ALL" == 1 ]] && src="$STUB_DIR/all.txt"
+        lines=$(cat "$src" 2>/dev/null)
+        for f in "${FILTERS[@]:-}"; do
+            [[ -z "$f" ]] && continue
+            lines=$(printf '%s\n' "$lines" | grep -E "$f" 2>/dev/null || true)
+        done
+        if [[ "$QUIET" == 1 ]]; then
+            printf '%s\n' "$lines" | grep -v '^$' | awk '{print "stubid" NR}'
+        elif [[ "$FMT" == "{{.Names}}" ]]; then
+            printf '%s\n' "$lines" | grep -v '^$' || true
+        elif [[ "$FMT" == "{{.Ports}}" ]]; then
+            cat "$STUB_DIR/ports.txt" 2>/dev/null
+        elif [[ "$FMT" == *table* ]]; then
+            echo "NAMES  STATUS  PORTS"
+            printf '%s\n' "$lines" | grep -v '^$' | awk '{print $1"  Up  80"}'
+        fi
+        exit 0
+        ;;
+    port)
+        name="${1:-}"
+        while read -r n p; do
+            [[ "$n" == "$name" ]] && { echo "80/tcp -> 0.0.0.0:$p"; exit 0; }
+        done < "$STUB_DIR/portmap.txt" 2>/dev/null
+        exit 0
+        ;;
+    logs)
+        # swallow flags, take first container name
+        name=""
+        last=""
+        for a in "$@"; do
+            case "$last" in --tail) last=""; continue ;; esac
+            case "$a" in --tail=*) ;; --tail) last="$a" ;; *) [[ -z "$name" ]] && name="$a" ;; esac
+        done
+        cat "$STUB_DIR/logs/$name" 2>/dev/null
+        exit 0
+        ;;
+    start)
+        exit 0
+        ;;
+    inspect|image|exec|run|network)
+        exit 1
+        ;;
+    *)
+        exit 0
+        ;;
+esac

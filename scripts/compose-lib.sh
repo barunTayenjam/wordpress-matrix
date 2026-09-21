@@ -49,7 +49,7 @@ compose_add_site() {
     local nginx_conf_path="$4"
     local stack="${5:-nginx}"
 
-    if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
+    if site_in_compose "$site_name"; then
         log_warning "Site '$site_name' already in docker-compose.yml"
         return 0
     fi
@@ -149,7 +149,7 @@ compose_remove_site() {
         return 0
     fi
 
-    if ! grep -q "wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
+    if ! site_in_compose "$site_name"; then
         return 0
     fi
 

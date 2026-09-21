@@ -1,0 +1,48 @@
+#!/bin/bash
+# Test stub for docker-compose/podman-compose. State comes from $STUB_DIR:
+#   compose-ps.txt        service/container names returned by `ps --format {{.Names}}`
+#   compose-logs-<svc>    log text returned by `logs --tail=N <svc>`
+#   compose-logs-all      log text returned by `logs --tail=N`
+set -uo pipefail
+: "${STUB_DIR:?STUB_DIR must be set}"
+
+cmd="${1:-}"
+shift || true
+
+case "$cmd" in
+    ps)
+        if [[ "${1:-}" == "--format" ]]; then
+            # skip the format arg
+            cat "$STUB_DIR/compose-ps.txt" 2>/dev/null
+        else
+            echo "NAME  STATUS  PORTS"
+            sed 's/$/  Up  80/' "$STUB_DIR/compose-ps.txt" 2>/dev/null
+        fi
+        exit 0
+        ;;
+    logs)
+        svcs=()
+        last=""
+        for a in "$@"; do
+            case "$last" in --tail) last=""; continue ;; esac
+            case "$a" in
+                --tail=*) ;;
+                --tail) last="$a" ;;
+                *) svcs+=("$a") ;;
+            esac
+        done
+        if [[ ${#svcs[@]} -gt 0 ]]; then
+            cat "$STUB_DIR/compose-logs-${svcs[0]}.txt" 2>/dev/null
+        else
+            cat "$STUB_DIR/compose-logs-all.txt" 2>/dev/null
+        fi
+        exit 0
+        ;;
+    config)
+        exit 0
+        ;;
+    *)
+        # up, stop, rm, exec, build, ... succeed as no-ops
+        exit 0
+        ;;
+esac

@@ -73,7 +73,7 @@ update_compose_file() {
         log_error "docker-compose.yml not found. Run ./matrix repair first."
         return 1
     fi
-    if grep -q "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null; then
+    if site_in_compose "$site"; then
         log_warning "$site is already present in docker-compose.yml"
         return 0
     fi

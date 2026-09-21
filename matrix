@@ -50,26 +50,6 @@ check_docker_json() {
 
 # sanitize_sql_identifier, validate_site_name now sourced from config/validation.sh
 
-# Get container names from compose ps, with podman-compose fallback
-compose_ps_names() {
-    local names
-    names=$($DOCKER_COMPOSE ps --format "{{.Names}}" 2>/dev/null) || true
-    if [[ -z "$names" ]]; then
-        names=$($DOCKER_COMPOSE ps 2>/dev/null | awk 'NR>1 {print $1}' | grep -v '^---$' || true)
-    fi
-    echo "$names"
-}
-
-container_is_running() {
-    local container_name="${1:-}"
-    [[ -n "$container_name" ]] && $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${container_name}$"
-}
-
-compose_or_container_running() {
-    local container_name="${1:-}"
-    compose_ps_names 2>/dev/null | grep -q "^${container_name}$" || container_is_running "$container_name"
-}
-
 # Helper functions
 log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
 log_success() { echo -e "${GREEN}✅ $1${NC}"; }
@@ -583,18 +563,14 @@ list_sites_json() {
         local status="stopped"
         local port=""
 
-        if compose_ps_names 2>/dev/null | grep -q "wp_$site"; then
-            status="running"
-        elif $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^wp_$site$"; then
+        if compose_or_container_running "wp_$site"; then
             status="running"
         fi
 
         port=$(get_site_port "$site")
 
-        local php_version=""
-        if [[ -f "$COMPOSE_FILE" ]]; then
-            php_version=$(get_site_php_version_from_compose "$site")
-        fi
+        local php_version
+        php_version=$(get_site_php_version_from_compose "$site")
 
         local stack
         stack=$(get_site_stack "$site")
@@ -803,6 +779,29 @@ list_sites() {
     echo ""
 }
 
+# Start a single site: compose up when the site is known to compose,
+# otherwise start its existing containers directly (stale/missing compose).
+cmd_start_site() {
+    local site_name="$1"
+
+    log_info "Starting site '$site_name'..."
+
+    if [[ "$(site_state "$site_name" | sed -n 's/^present=//p')" == "1" ]]; then
+        matrix_site_up "$site_name"
+    else
+        if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^wp_${site_name}$"; then
+            $CONTAINER_RUNTIME start "wp_${site_name}" 2>/dev/null || true
+        fi
+        if site_has_nginx "$site_name" && $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^nginx_${site_name}$"; then
+            $CONTAINER_RUNTIME start "nginx_${site_name}" 2>/dev/null || true
+        fi
+    fi
+
+    log_success "Site '$site_name' started"
+    log_activity "START" "$site_name" "Started manually"
+    show_urls "$site_name"
+}
+
 # Start environment
 start_env() {
     log_info "Starting WordPress environment..."
@@ -887,16 +886,22 @@ show_status_json() {
     output_json "{\"success\":true,\"containers\":[$containers_json],\"frontend\":{\"name\":\"frontend\",\"status\":\"$fe_status\",\"pid\":$fe_pid,\"url\":$fe_url}}"
 }
 
-# Show status
-show_status() {
-    log_info "System Status:"
-    echo ""
+# Whole-environment status: compose table when the compose file exists,
+# live container table otherwise.
+show_compose_or_live_status() {
     if [[ -f "$COMPOSE_FILE" ]]; then
         $DOCKER_COMPOSE ps
     else
         log_warning "docker-compose.yml missing; showing running containers directly"
         $CONTAINER_RUNTIME ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" 2>/dev/null || true
     fi
+}
+
+# Show status
+show_status() {
+    log_info "System Status:"
+    echo ""
+    show_compose_or_live_status
     echo ""
     
     # Show frontend status if available
@@ -907,74 +912,90 @@ show_status() {
     list_sites
 }
 
+# Print input newest-first (show_logs presents tail output in reverse order)
+reverse_lines() {
+    perl -e 'print reverse <>'
+}
+
+# Compose service logs, falling back to the named container when
+# docker-compose.yml is missing. One seam for the per-service ladder.
+service_logs() {
+    local svc="$1"
+    local container="$2"
+
+    if [[ -f "$COMPOSE_FILE" ]]; then
+        $DOCKER_COMPOSE logs --tail=100 "$svc" 2>/dev/null | reverse_lines
+    else
+        $CONTAINER_RUNTIME logs --tail=100 "$container" 2>&1 | reverse_lines
+    fi
+}
+
+# Site logs: compose first, then live wp_<site> / nginx_<site> containers.
+site_logs() {
+    local site="$1"
+    local log_services
+    log_services=$(compose_site_service_names "$site")
+
+    if $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | grep -q .; then
+        $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | reverse_lines
+        return
+    fi
+
+    if container_is_running "wp_$site"; then
+        $CONTAINER_RUNTIME logs --tail=100 "wp_$site" 2>&1 | reverse_lines
+    elif site_has_nginx "$site" && container_is_running "nginx_$site"; then
+        $CONTAINER_RUNTIME logs --tail=100 "nginx_$site" 2>&1 | reverse_lines
+    else
+        log_error "No containers found for site: $site"
+    fi
+}
+
 # Show logs (newest first)
 show_logs() {
     local service="${1:-}"
-    local reverse_cmd="perl -e 'print reverse <>'"
 
-    if [[ -n "$service" ]]; then
-        if [[ "$service" == "db" ]]; then
+    case "$service" in
+        "")
             if [[ -f "$COMPOSE_FILE" ]]; then
-                $DOCKER_COMPOSE logs --tail=100 "$service" | eval "$reverse_cmd"
+                $DOCKER_COMPOSE logs --tail=100 | reverse_lines
             else
-                $CONTAINER_RUNTIME logs --tail=100 wp_db 2>&1 | eval "$reverse_cmd"
+                $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | while read -r container; do
+                    [[ -z "$container" ]] && continue
+                    echo "==> $container <=="
+                    $CONTAINER_RUNTIME logs --tail=50 "$container" 2>&1 || true
+                done | reverse_lines
             fi
-        elif [[ "$service" == "nginx" ]]; then
-            local nginx_containers=($(compose_ps_names | grep "^nginx_" || true))
-            if [[ ${#nginx_containers[@]} -eq 0 ]]; then
-                nginx_containers=($($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" || true))
+            ;;
+        db)
+            service_logs "db" "wp_db"
+            ;;
+        nginx)
+            local nginx_container
+            nginx_container=$(compose_ps_names | grep "^nginx_" | head -1)
+            if [[ -z "$nginx_container" ]]; then
+                nginx_container=$($CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep "^nginx_" | head -1)
             fi
-            if [[ ${#nginx_containers[@]} -gt 0 ]]; then
-                if [[ -f "$COMPOSE_FILE" ]]; then
-                    $DOCKER_COMPOSE logs --tail=100 "${nginx_containers[0]}" 2>/dev/null | eval "$reverse_cmd" || \
-                    $CONTAINER_RUNTIME logs --tail=100 "${nginx_containers[0]}" 2>&1 | eval "$reverse_cmd"
-                else
-                    $CONTAINER_RUNTIME logs --tail=100 "${nginx_containers[0]}" 2>&1 | eval "$reverse_cmd"
-                fi
-            else
+            if [[ -z "$nginx_container" ]]; then
                 log_error "No nginx containers running"
+                return
             fi
-        elif [[ "$service" == "redis" || "$service" == "cache" ]]; then
             if [[ -f "$COMPOSE_FILE" ]]; then
-                $DOCKER_COMPOSE logs --tail=100 redis | eval "$reverse_cmd"
+                $DOCKER_COMPOSE logs --tail=100 "$nginx_container" 2>/dev/null | reverse_lines || \
+                $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1 | reverse_lines
             else
-                $CONTAINER_RUNTIME logs --tail=100 wp_redis 2>&1 | eval "$reverse_cmd"
+                $CONTAINER_RUNTIME logs --tail=100 "$nginx_container" 2>&1 | reverse_lines
             fi
-        elif [[ "$service" == "phpmyadmin" || "$service" == "pma" ]]; then
-            if [[ -f "$COMPOSE_FILE" ]]; then
-                $DOCKER_COMPOSE logs --tail=100 phpmyadmin | eval "$reverse_cmd"
-            else
-                $CONTAINER_RUNTIME logs --tail=100 wp_phpmyadmin 2>&1 | eval "$reverse_cmd"
-            fi
-        else
-            # Assume it's a site name
-            local wp_container="wp_$service"
-            local log_services
-            log_services=$(compose_site_service_names "$service")
-
-            if $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | grep -q .; then
-                $DOCKER_COMPOSE logs --tail=100 $log_services 2>/dev/null | eval "$reverse_cmd"
-            else
-                if $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                    $CONTAINER_RUNTIME logs --tail=100 "$wp_container" 2>&1 | eval "$reverse_cmd"
-                elif site_has_nginx "$service" && $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | grep -q "^nginx_${service}$"; then
-                    $CONTAINER_RUNTIME logs --tail=100 "nginx_${service}" 2>&1 | eval "$reverse_cmd"
-                else
-                    log_error "No containers found for site: $service"
-                fi
-            fi
-        fi
-    else
-        if [[ -f "$COMPOSE_FILE" ]]; then
-            $DOCKER_COMPOSE logs --tail=100 | eval "$reverse_cmd"
-        else
-            $CONTAINER_RUNTIME ps --format "{{.Names}}" 2>/dev/null | while read -r container; do
-                [[ -z "$container" ]] && continue
-                echo "==> $container <=="
-                $CONTAINER_RUNTIME logs --tail=50 "$container" 2>&1 || true
-            done | eval "$reverse_cmd"
-        fi
-    fi
+            ;;
+        redis|cache)
+            service_logs "redis" "wp_redis"
+            ;;
+        phpmyadmin|pma)
+            service_logs "phpmyadmin" "wp_phpmyadmin"
+            ;;
+        *)
+            site_logs "$service"
+            ;;
+    esac
 }
 
 # Remove site
@@ -1133,14 +1154,14 @@ edit_site() {
 
     # Get current PHP version from docker-compose.yml
     local current_php_version=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$site_name:" "$COMPOSE_FILE"; then
+    if site_in_compose "$site_name"; then
         current_php_version=$(get_site_php_version_from_compose "$site_name")
         [[ -n "$current_php_version" ]] && current_php_version="php${current_php_version}"
     fi
 
     # Get current port from docker-compose.yml
     local current_port=""
-    if [[ -f "$COMPOSE_FILE" ]]; then
+    if site_in_compose "$site_name"; then
         current_port=$(get_site_port_from_compose "$site_name")
     fi
 
@@ -1149,7 +1170,7 @@ edit_site() {
     local current_cpu=""
     local current_nginx_memory=""
     local current_nginx_cpu=""
-    if [[ -f "$COMPOSE_FILE" ]]; then
+    if site_in_compose "$site_name"; then
         current_memory=$(grep -A 20 "wp_$site_name:" "$COMPOSE_FILE" | grep "mem_limit:" | head -1 | awk '{print $2}' || true)
         current_cpu=$(grep -A 20 "wp_$site_name:" "$COMPOSE_FILE" | grep "^[[:space:]]*cpus:" | head -1 | awk '{print $2}' || true)
         current_nginx_memory=$(grep -A 20 "nginx_$site_name:" "$COMPOSE_FILE" | grep "mem_limit:" | head -1 | awk '{print $2}' || true)
@@ -1161,7 +1182,7 @@ edit_site() {
         return 1
     fi
 
-    if [[ -f "$COMPOSE_FILE" ]]; then
+    if site_in_compose "$site_name"; then
         if [[ -n "$new_php_version" ]]; then
             compose_edit_php_version "$site_name" "$new_php_version" || return 1
         fi
@@ -1344,7 +1365,7 @@ rename_site() {
     local php_version=""
     local stack=""
     local table_prefix=""
-    if [[ -f "$COMPOSE_FILE" ]] && grep -q "wp_$old_name:" "$COMPOSE_FILE"; then
+    if site_in_compose "$old_name"; then
         port=$(get_site_port_from_compose "$old_name")
         php_version=$(get_site_php_version_from_compose "$old_name")
         stack=$(get_site_stack "$old_name")
@@ -1636,17 +1657,10 @@ show_info_json() {
     fi
 
     local port=""
-    if [[ -f "$COMPOSE_FILE" ]]; then
-        port=$(get_site_port_from_compose "$site_name")
-    fi
-    if [[ -z "$port" ]]; then
-        port=$(get_site_port "$site_name")
-    fi
+    port=$(get_site_port "$site_name")
 
     local php_version=""
-    if [[ -f "$COMPOSE_FILE" ]]; then
-        php_version=$(get_site_php_version_from_compose "$site_name")
-    fi
+    php_version=$(get_site_php_version_from_compose "$site_name")
 
     local stack
     stack=$(get_site_stack "$site_name")
@@ -2740,7 +2754,7 @@ EOF
         fi
 
         local in_compose=false
-        if [[ -f "$COMPOSE_FILE" ]] && grep -q "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null; then
+        if site_in_compose "$site"; then
             in_compose=true
         fi
 
@@ -2997,27 +3011,7 @@ main() {
                     exit 1
                 fi
 
-                log_info "Starting site '$site_name'..."
-
-                # Check if site is in docker-compose.yml
-                if grep -q "^  wp_${site_name}:" "$COMPOSE_FILE" 2>/dev/null; then
-                    matrix_site_up "$site_name"
-                else
-                    local wp_container="wp_${site_name}"
-                    if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${wp_container}$"; then
-                        $CONTAINER_RUNTIME start "$wp_container" 2>/dev/null || true
-                    fi
-                    if site_has_nginx "$site_name"; then
-                        local nginx_container="nginx_${site_name}"
-                        if $CONTAINER_RUNTIME ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${nginx_container}$"; then
-                            $CONTAINER_RUNTIME start "$nginx_container" 2>/dev/null || true
-                        fi
-                    fi
-                fi
-
-                log_success "Site '$site_name' started"
-                log_activity "START" "$site_name" "Started manually"
-                show_urls "$site_name"
+                cmd_start_site "$site_name"
             else
                 start_env
             fi
