@@ -191,6 +191,7 @@ create_site() {
     local php_version="$DEFAULT_PHP_VERSION"
     local preset="blank"
     local stack="nginx"
+    local multisite=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -219,9 +220,17 @@ create_site() {
                 preset="$2"
                 shift 2
                 ;;
+            --multisite=*)
+                multisite="${1#*=}"
+                shift
+                ;;
+            --multisite)
+                multisite="$2"
+                shift 2
+                ;;
             -*)
                 log_error "Unknown option: $1"
-                echo "Usage: ./matrix create <name> [--php-version=X.X] [--stack=nginx|apache] [--preset=preset-name]"
+                echo "Usage: ./matrix create <name> [--php-version=X.X] [--stack=nginx|apache] [--preset=preset-name] [--multisite=subdirectory|subdomain]"
                 return 1
                 ;;
             *)
@@ -252,7 +261,18 @@ create_site() {
             return 1
             ;;
     esac
-    
+
+    # Validate multisite mode
+    if [[ -n "$multisite" ]]; then
+        case "$multisite" in
+            subdirectory|subdomain) ;;
+            *)
+                log_error "Invalid multisite mode: $multisite (use subdirectory or subdomain)"
+                return 1
+                ;;
+        esac
+    fi
+
     if site_exists "$site_name"; then
         log_error "Site '$site_name' already exists"
         return 1
@@ -2381,19 +2401,7 @@ apply_preset() {
                 log_warning "BuddyPress installation may have failed"
             ;;
         "multisite")
-            local port
-            port=$(get_site_port "$site_name")
-            run_wp_cli "$site_name" core install \
-                --url="http://${HOST_IP}:${port:-80}" \
-                --title="WordPress Multisite" \
-                --admin_user=admin --admin_password=admin \
-                --admin_email=admin@example.com --allow-root 2>/dev/null || true
-            log_info "Enabling Multisite..."
-            cat >> "$site_dir/wp-config.php" << 'EOF'
-
-// Enable Multisite
-define('WP_ALLOW_MULTISITE', true);
-EOF
+            apply_multisite "$site_name" "${multisite:-subdirectory}"
             ;;
         *)
             log_warning "Unknown preset: $preset"
@@ -2402,6 +2410,123 @@ EOF
     esac
 
     log_success "Preset '$preset' applied to '$site_name'"
+}
+
+# Apply multisite conversion to an installed site.
+# Usage: apply_multisite <site> <subdirectory|subdomain>
+# Runs wp core multisite-install via the on-demand WP-CLI path, then writes
+# MULTISITE markers into wp-config.php (insert-if-absent), generates the
+# per-stack rewrite rules, and prints hosts lines for subdomain mode.
+apply_multisite() {
+    local site="${1:-}"
+    local mode="${2:-subdirectory}"
+
+    if [[ -z "$site" ]]; then
+        log_error "Usage: apply_multisite <site> [subdirectory|subdomain]"
+        return 1
+    fi
+
+    local subdomains=0
+    [[ "$mode" == "subdomain" ]] && subdomains=1
+    local site_dir="$PROJECT_ROOT/wp_$site"
+    local port
+    port=$(get_site_port "$site")
+
+    # Convert via WP-CLI (single invocation; ordering asserted by tests).
+    run_wp_cli "$site" core multisite-install \
+        --url="http://${HOST_IP:-localhost}:${port:-80}" \
+        --title="WordPress Multisite" \
+        --subdomains=$subdomains \
+        --admin_user=admin --admin_password=admin \
+        --admin_email=admin@example.com --allow-root 2>/dev/null || true
+
+    # Insert-if-absent wp-config markers (never duplicate; round-trip safe).
+    local wp_config="$site_dir/wp-config.php"
+    if [[ -f "$wp_config" ]] && ! grep -q "define( 'MULTISITE', true )" "$wp_config"; then
+        cat >> "$wp_config" << EOF
+
+// Enable Multisite
+define( 'WP_ALLOW_MULTISITE', true );
+define( 'MULTISITE', true );
+define( 'SUBDOMAIN_INSTALL', $( [[ $subdomains -eq 1 ]] && echo true || echo false ) );
+define( 'DOMAIN_CURRENT_SITE', '${site}.test' );
+define( 'PATH_CURRENT_SITE', '/' );
+define( 'SITE_ID_CURRENT_SITE', 1 );
+define( 'BLOG_ID_CURRENT_SITE', 1 );
+EOF
+    fi
+
+    # Per-stack rewrite rules.
+    generate_multisite_rewrite "$site" "$mode"
+
+    # Subdomain mode: print the hosts lines the user must add (no DNS magic).
+    if [[ "$mode" == "subdomain" ]]; then
+        local lan_ip
+        lan_ip=$(get_lan_ip)
+        echo "Add these lines to /etc/hosts for subdomain multisite:"
+        echo "  ${lan_ip} ${site}.test"
+        echo "  ${lan_ip} *.${site}.test"
+    fi
+
+    log_success "Multisite ($mode) enabled for '$site'"
+}
+
+# Whether a site's wp-config carries the MULTISITE marker.
+site_is_multisite() {
+    local site="${1:-}"
+    [[ -n "$site" && -f "$PROJECT_ROOT/wp_$site/wp-config.php" ]] && \
+        grep -q "define( 'MULTISITE', true )" "$PROJECT_ROOT/wp_$site/wp-config.php"
+}
+
+# Read a site's multisite mode from the SUBDOMAIN_INSTALL marker.
+# Echoes 'subdirectory' | 'subdomain' | '' (not multisite).
+site_multisite_mode() {
+    local site="${1:-}"
+    local wp_config="$PROJECT_ROOT/wp_$site/wp-config.php"
+    if [[ -f "$wp_config" ]] && grep -q "define( 'MULTISITE', true )" "$wp_config"; then
+        if grep -q "define( 'SUBDOMAIN_INSTALL', true )" "$wp_config"; then
+            echo "subdomain"
+        else
+            echo "subdirectory"
+        fi
+    fi
+}
+
+# Generate per-stack multisite rewrite rules for a site.
+# nginx: appends a marker block to config/nginx/<site>.conf
+# apache: appends rules to the site's .htaccess
+generate_multisite_rewrite() {
+    local site="${1:-}"
+    local mode="${2:-subdirectory}"
+    local site_dir="$PROJECT_ROOT/wp_$site"
+
+    # nginx (always generated when the conf exists; apache sites have none)
+    local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
+    if [[ -f "$nginx_conf" ]] && ! grep -q "BEGIN WordPress Multisite" "$nginx_conf"; then
+        cat >> "$nginx_conf" << 'EOF'
+
+    # BEGIN WordPress Multisite (subdirectory mode)
+    location ~ ^/wp-files(/.*|$) {
+        rewrite ^/wp-files(/.*)$ /wp-files/$1 last;
+    }
+    # Upload handling for mapped sites
+    rewrite ^/files/(.+)$ /wp-includes/ms-files.php?file=$1 last;
+    # END WordPress Multisite
+EOF
+    fi
+
+    # Apache .htaccess
+    local htaccess="$site_dir/.htaccess"
+    if [[ -f "$htaccess" ]] && ! grep -q "BEGIN WordPress Multisite" "$htaccess"; then
+        cat >> "$htaccess" << 'EOF'
+
+# BEGIN WordPress Multisite
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule ^([_0-9a-zA-Z-]+/)?wp-admin$ $1wp-admin/ [R=301,L]
+# END WordPress Multisite
+EOF
+    fi
 }
 
 watch_site() {
