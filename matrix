@@ -110,6 +110,7 @@ source "$PROJECT_ROOT/scripts/presets-lib.sh"
 source "$PROJECT_ROOT/scripts/ssl-lib.sh"
 source "$PROJECT_ROOT/scripts/doctor-lib.sh"
 source "$PROJECT_ROOT/scripts/export-import-lib.sh"
+source "$PROJECT_ROOT/scripts/share-lib.sh"
 
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
@@ -176,6 +177,7 @@ Usage: ./matrix <command> [options]
     test              Run compat matrix for a site (--wp-versions=6.4,6.5 --json)
     export            Export a site to a tar.gz bundle (manifest + files + db dump)
     import            Import a site from a tar.gz bundle
+    share             Share a running site via cloudflared/ngrok/bore tunnel (--yes)
 
  Frontend:
    ./matrix start            # Starts frontend at http://$HOST_IP:8500
@@ -3224,6 +3226,9 @@ main() {
             ;;
         "import")
             import_site "$@"
+            ;;
+        "share")
+            share_site "$@"
             ;;
         "test")
             compat_test "$@"
