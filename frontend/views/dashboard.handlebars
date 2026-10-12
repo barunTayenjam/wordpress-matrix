@@ -132,6 +132,12 @@
         <i class="ph-light ph-hard-drives"></i>
         <span>Sites</span>
       </div>
+      <button class="action-btn outline" onclick="openModal('importBundleModal')">
+        <span class="btn-inner">
+          <span>Import Bundle</span>
+          <span class="btn-icon-wrap"><i class="ph-light ph-package"></i></span>
+        </span>
+      </button>
       <button class="action-btn primary" onclick="openModal('createSiteModal'); loadPresetOptions();">
         <span class="btn-inner">
           <span>New Site</span>
@@ -270,6 +276,29 @@
       <div class="panel-title">
         <i class="ph-light ph-server"></i>
         <span>Services</span>
+      </div>
+      <button class="action-btn primary" onclick="loadDoctor(true)">
+        <span class="btn-inner">
+          <span>Run Doctor</span>
+          <span class="btn-icon-wrap"><i class="ph-light ph-stethoscope"></i></span>
+        </span>
+      </button>
+    </div>
+    <!-- Doctor results (matrix doctor) -->
+    <div class="section-panel" id="doctorSection" style="display:none; margin-bottom:1rem">
+      <div class="shell">
+        <div class="inner inner--flush">
+          <table class="glass-table" id="doctorTable">
+            <thead>
+              <tr>
+                <th>Check</th>
+                <th>Status</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
     <div class="section-panel">
@@ -499,6 +528,41 @@
   </div>
 </div>
 
+<!-- Import Bundle Modal -->
+<div class="modal-overlay" id="importBundleModal">
+  <div class="modal-shell">
+    <div class="modal-inner">
+      <div class="modal-header">
+        <h3><i class="ph-light ph-package"></i> Import Bundle</h3>
+        <button class="modal-close" onclick="closeModal('importBundleModal')" aria-label="Close">
+          <i class="ph-light ph-x"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="field-group">
+          <label for="bundleFile">Bundle path</label>
+          <input type="text" id="bundleFile" placeholder="backups/demo-bundle.tar.gz" class="glass-input">
+          <span class="field-hint">Relative path inside the project</span>
+        </div>
+        <div class="field-group">
+          <label for="importDestName">New site name</label>
+          <input type="text" id="importDestName" placeholder="newsite" class="glass-input">
+          <span class="field-hint">Alphanumeric, hyphens, underscores only</span>
+        </div>
+        <div class="field-group">
+          <label for="importForce" class="checkbox-label">
+            <input type="checkbox" id="importForce"> Overwrite an existing site with the same name
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="action-btn outline" onclick="closeModal('importBundleModal')"><span class="btn-inner">Cancel</span></button>
+        <button class="action-btn primary" onclick="importBundle()"><span class="btn-inner">Import</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Code Quality Results Modal -->
 <div class="modal-overlay" id="checkResultsModal">
   <div class="modal-shell wide">
@@ -573,6 +637,27 @@
       </div>
     </div>
 
+    <!-- SSL -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">SSL</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutSsl('enable')"><i class="ph-light ph-lock-simple"></i> Enable</button>
+        <button class="action-chip" onclick="flyoutSsl('revoke')"><i class="ph-light ph-lock-open"></i> Revoke</button>
+        <button class="action-chip" onclick="flyoutDomain()"><i class="ph-light ph-globe"></i> Domain</button>
+      </div>
+      <div class="field-hint" id="flyoutSslInfo" style="margin-top:0.5rem"></div>
+    </div>
+
+    <!-- Share -->
+    <div class="flyout-section">
+      <div class="flyout-section-title">Share</div>
+      <div class="flyout-action-grid cols-3">
+        <button class="action-chip" onclick="flyoutShare()"><i class="ph-light ph-broadcast"></i> Start Tunnel</button>
+        <button class="action-chip" onclick="flyoutShareStop()"><i class="ph-light ph-plugs-connected"></i> Stop Tunnel</button>
+      </div>
+      <div class="field-hint" id="flyoutShareInfo" style="margin-top:0.5rem"></div>
+    </div>
+
     <!-- Lifecycle -->
     <div class="flyout-section">
       <div class="flyout-section-title">Lifecycle</div>
@@ -616,6 +701,15 @@
         <button class="action-chip" onclick="flyoutAction('reset')"><i class="ph-light ph-arrow-counter-clockwise"></i> Reset</button>
         <button class="action-chip" onclick="flyoutUpdateCore()"><i class="ph-light ph-cloud-arrow-up"></i> Update</button>
         <button class="action-chip" onclick="flyoutClearCache()"><i class="ph-light ph-broom"></i> Clear Cache</button>
+      </div>
+      <div class="flyout-action-grid cols-3" style="margin-top:0.5rem">
+        <button class="action-chip" onclick="flyoutExportBundle()"><i class="ph-light ph-package"></i> Export Bundle</button>
+        <button class="action-chip" onclick="flyoutCompat()"><i class="ph-light ph-flask"></i> Test Compat</button>
+        <button class="action-chip" onclick="flyoutScheduleBackup()"><i class="ph-light ph-calendar-clock"></i> Schedule</button>
+      </div>
+      <div class="flyout-action-grid cols-2" style="margin-top:0.5rem">
+        <button class="action-chip" onclick="flyoutCron('install')"><i class="ph-light ph-clock-plus"></i> Cron Install</button>
+        <button class="action-chip" onclick="flyoutCron('remove')"><i class="ph-light ph-clock-minus"></i> Cron Remove</button>
       </div>
     </div>
 

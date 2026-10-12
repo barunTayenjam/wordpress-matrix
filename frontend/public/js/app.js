@@ -1,6 +1,7 @@
 let currentData = { sites: [], services: [] };
 let socket = null;
 let flyoutSite = null;
+let doctorLoaded = false;
 let scrollRevealObserver = null;
 let autoRefreshTimer = null;
 
@@ -148,6 +149,7 @@ function initTabs() {
       const panel = document.getElementById(`panel-${tab}`);
       if (panel) panel.classList.add('active');
       if (tab === 'activity') loadActivity();
+      if (tab === 'services') loadDoctor(); // auto-run once, cached in-memory
       panel?.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
     });
   });
@@ -696,6 +698,37 @@ async function loadPresetOptions() {
     }
   } catch (error) {
     // dropdown stays with the "none" default; presets still usable via CLI
+  }
+}
+
+// Import a site bundle into a new site name.
+async function importBundle() {
+  const bundleFile = document.getElementById('bundleFile')?.value.trim();
+  const destName = document.getElementById('importDestName')?.value.trim();
+  const force = document.getElementById('importForce')?.checked || false;
+  if (!bundleFile || !destName) {
+    showNotification('Bundle path and new site name are required', 'warning');
+    return;
+  }
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/import-bundle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bundleFile, destName, force })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Imported as "${data.site}" (from ${data.importedFrom})`, 'success');
+      closeModal('importBundleModal');
+      await loadDashboard();
+    } else {
+      showNotification(`Import failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
   }
 }
 
@@ -1293,6 +1326,234 @@ async function flyoutClearCache() {
     }
   } catch (e) {
     hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+// --- Roadmap feature handlers (Phases 1-8) ----------------------------------
+
+async function flyoutSsl(action) {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/ssl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, revoke: action === 'revoke', force: action === 'enable' })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      const info = document.getElementById('flyoutSslInfo');
+      if (info) {
+        info.textContent = data.revoked
+          ? 'Certificate revoked'
+          : `${data.certSource || ''} cert · ${data.url || ''}`;
+      }
+      showNotification(data.revoked ? `SSL revoked for "${name}"` : `SSL enabled: ${data.url}`, 'success');
+    } else {
+      showNotification(`SSL ${action} failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutDomain() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  const hostname = prompt(`Hostname for "${name}" (default: ${name}.test):`, `${name}.test`);
+  if (hostname === null) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/domain', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, hostname: hostname.trim() || undefined })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Hosts entry added for ${data.hostname} (sudo may prompt)`, 'success');
+    } else {
+      showNotification(`Domain failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutShare() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    const info = document.getElementById('flyoutShareInfo');
+    if (info) info.textContent = 'Starting tunnel...';
+    const response = await fetch('/api/sites/share', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name })
+    });
+    const data = await response.json();
+    if (data.success) {
+      if (info) info.textContent = `${data.url}`;
+      showNotification(`Tunnel live: ${data.url}`, 'success');
+    } else {
+      if (info) info.textContent = '';
+      showNotification(`Share failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutShareStop() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    const response = await fetch('/api/sites/share-stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name })
+    });
+    const data = await response.json();
+    const info = document.getElementById('flyoutShareInfo');
+    if (data.success) {
+      if (info) info.textContent = '';
+      showNotification(`Tunnel stopped for "${name}"`, 'success');
+    } else {
+      showNotification(`Stop failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutExportBundle() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/export-bundle', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showActionOutput('export-bundle', name, `Bundle: ${data.bundle}\nDB dump sha256: ${data.dbDumpSha256}`);
+    } else {
+      showNotification(`Export failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutCompat() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  const input = prompt('WordPress versions to test (comma-separated, 6.4/6.5/6.6/latest):', '6.4,6.5');
+  if (!input) return;
+  const wpVersions = input.split(',').map(v => v.trim()).filter(Boolean);
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/compat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, wpVersions })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      const table = data.rows.map(r => `${r.site}  php ${r.php}  wp ${r.wp}  → ${r.result}`).join('\n');
+      showActionOutput('compat', name, table);
+    } else {
+      showNotification(`Compat test failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutScheduleBackup() {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  const schedule = prompt('Schedule (hourly/daily/weekly/monthly):', 'daily');
+  if (!schedule) return;
+  const retention = prompt('Retention (number of backups to keep):', '7');
+  if (retention === null) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/backup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, schedule, retention })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Backup schedule written for "${name}"`, 'success');
+    } else {
+      showNotification(`Schedule failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+async function flyoutCron(op) {
+  const name = flyoutSite?.name;
+  if (!name) return;
+  try {
+    showLoading();
+    const response = await fetch('/api/sites/cron', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ siteName: name, op })
+    });
+    const data = await response.json();
+    hideLoading();
+    if (data.success) {
+      showNotification(`Cron ${op} done for "${name}"`, 'success');
+    } else {
+      showNotification(`Cron ${op} failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
+    hideLoading();
+    showNotification('Network error', 'danger');
+  }
+}
+
+// Doctor table on the Services tab.
+async function loadDoctor(force = false) {
+  const section = document.getElementById('doctorSection');
+  const tbody = document.querySelector('#doctorTable tbody');
+  if (!section || !tbody) return;
+  if (!force && doctorLoaded) return;
+  try {
+    const response = await fetch('/api/doctor');
+    const data = await response.json();
+    if (data.success && Array.isArray(data.checks)) {
+      tbody.innerHTML = data.checks.map(c => `
+        <tr>
+          <td class="service-name">${c.check}</td>
+          <td><span class="status-tag ${c.status === 'ok' ? 'live' : 'down'}"><span class="status-tag-dot"></span>${c.status}</span></td>
+          <td class="muted">${c.detail || '—'}</td>
+        </tr>`).join('');
+      section.style.display = '';
+      doctorLoaded = true;
+    } else {
+      showNotification(`Doctor failed: ${data.error?.message || 'Unknown'}`, 'danger');
+    }
+  } catch (e) {
     showNotification('Network error', 'danger');
   }
 }
