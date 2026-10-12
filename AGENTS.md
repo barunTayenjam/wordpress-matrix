@@ -39,13 +39,17 @@ wordpress-matrix/
 ├── wp_*/                      # WordPress sites; wp_content is shared scaffolding content, not a site
 ├── frontend/                  # Web management interface
 │   ├── app.js                # Express server
+│   ├── middleware/auth.js    # Token auth middleware (Phase 8)
 │   ├── public/               # Static assets
 │   ├── views/                # Handlebars templates
 │   └── package.json          # Node dependencies
-├── scripts/                   # Utility scripts
+├── scripts/                   # Utility scripts + libs (presets-lib, doctor-lib,
+│                              #   export-import-lib, share-lib, ops-lib, ssl-lib)
 ├── config/nginx/             # Nginx configurations
-├── docker-compose.yml        # Main Docker configuration
+├── config/presets/           # Preset files (one .sh per preset)
+├── docker-compose.yml        # Main Docker Configuration
 ├── matrix                    # Main management script
+├── tests/bash/               # Offline stub-based test suites (10 suites)
 └── logs/                     # Application logs
 ```
 
@@ -67,6 +71,8 @@ scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports
 ./matrix create <site-name>                      # Create new WordPress site (PHP 8.3)
 ./matrix create <site-name> --php-version=7.4    # Create site with PHP 7.4
 ./matrix create <site-name> --php-version=8.1    # Create site with PHP 8.1
+./matrix create <site-name> --wp-version=6.4     # Pin WP core version (6.4/6.5/6.6/latest)
+./matrix create <site-name> --multisite=subdir   # Multisite at creation (subdirectory|subdomain)
 ./matrix start <site-name>                       # Start specific site
 ./matrix stop <site-name>                        # Stop specific site
 ./matrix remove <site-name>                      # Remove site
@@ -74,6 +80,14 @@ scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports
 ./matrix info <site-name> --json                 # Show machine-readable site details
 ./matrix url <site-name>                         # Show site URLs
 ./matrix rest <site-name>                        # Show WordPress REST API metadata
+./matrix doctor                                  # Env/bootstrap checks (--json supported)
+./matrix share <site> --yes                      # Public tunnel via cloudflared/ngrok/bore
+./matrix export <site>                           # Site → tar.gz bundle (manifest+files+db)
+./matrix import <bundle> <new-name>              # Import a bundle into a new site
+./matrix test <site> --wp-versions=6.4,6.5       # Compat matrix (--json supported)
+./matrix backup <site> --schedule=daily --retention=7   # Schedule + retention
+./matrix cron-install <site>                     # Install scheduled backup into crontab
+./matrix cron-remove <site>                      # Remove scheduled backup from crontab
 ```
 
 ### Code Quality Tools
@@ -138,7 +152,7 @@ scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports
 - PHPUnit for unit tests
 - Frontend API tests use Jest and Supertest from `frontend/`
 - Coverage reports generated in `./tests/coverage/`
-- Current verified release bar: `bash -n matrix`, `bash -n scripts/*.sh`, `npm --prefix frontend test`, `./matrix * --json | python3 -m json.tool`, and `scripts/health-check.sh`
+- Current verified release bar: `bash -n matrix`, `bash -n scripts/*.sh`, offline suites `tests/bash/{site-state,stubs,ssl,multisite,presets,doctor,wp-version,export-import,share,ops}-test.sh` (189 asserts), `npm --prefix frontend test` (37 tests), `./matrix * --json | python3 -m json.tool`, and `scripts/health-check.sh`
 
 ## Access URLs
 
@@ -191,6 +205,41 @@ This automatically:
 
 # Check PHP version of a running site
 docker exec wp_mysite php -v
+```
+
+### Roadmap Features (dev-choice roadmap, 2026-10)
+```bash
+# Environment/bootstrap checks (Phase 5)
+./matrix doctor                       # table; --json for machine-readable
+# fails exit 1; checks: container_runtime, compose_tool, node_npm, ports,
+# env_file, disk_headroom (>2GiB), hosts_reachability, hooks_path
+
+# Public tunnels (Phase 4) — requires cloudflared|ngrok|bore on PATH
+./matrix share mysite --yes           # --yes confirms public exposure;
+                                      #   without --yes a tty prompts, non-tty refuses
+./matrix share mysite --provider=cloudflared --json
+
+# Site portability (Phase 6) — tar.gz bundle: manifest.json (last member),
+#   files/ (excludes logs/, .git), db/site.sql.gz with sha in manifest
+./matrix export mysite --out bundle.tar.gz
+./matrix import bundle.tar.gz newsite           # --yes overwrites an existing site
+# errors: EXPORT_SITE_MISSING, IMPORT_MANIFEST_INVALID, IMPORT_SHA_MISMATCH,
+#         IMPORT_NAME_TAKEN
+
+# WP version pinning + compat lab (Phase 7)
+./matrix create lab --wp-version=6.4            # 6.4/6.5/6.6/latest (resolve latest→6.6)
+./matrix test lab --wp-versions=6.4,6.5 --json  # rows {site,php,wp,result}
+
+# Ops hygiene (Phase 8)
+./matrix backup mysite --schedule=daily --retention=7   # writes .cron/mysite.cron
+./matrix cron-install mysite                    # marker-block sync into crontab
+./matrix cron-remove mysite                     # drops only our block
+# MATRIX_CRONTAB_FILE overrides the crontab path (used by tests; production
+# wiring to real crontab is a follow-up)
+
+# Presets as files (Phase 3) — drop a .sh into config/presets/
+./matrix preset                                  # lists dir + descriptions
+./matrix create shop --preset=woocommerce
 ```
 
 ## Important Gotchas
