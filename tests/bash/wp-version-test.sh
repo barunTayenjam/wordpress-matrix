@@ -72,7 +72,13 @@ source "$REPO_ROOT/matrix"
 set +e
 set -uo pipefail
 
-# Re-stub after matrix sourcing (same pattern as other suites).
+# Undo matrix sourcing side effects (same pattern as multisite/presets suites):
+# matrix reset PROJECT_ROOT to the real repo and overwrote the run_wp_cli stub.
+export PROJECT_ROOT="$SANDBOX"
+export COMPOSE_FILE="$SANDBOX/docker-compose.yml"
+export DOCKER_COMPOSE="matrix-compose-stub"
+export CONTAINER_RUNTIME="docker"
+export ACTIVITY_LOG="$SANDBOX/logs/activity.log"
 run_wp_cli() {
     local site="${1:-}"; shift
     echo "$site $*" >> "$STUB_DIR/wp-cli-calls.txt"
@@ -121,7 +127,7 @@ assert_eq "T7.4 two rows" "2" \
     "$(python3 -c 'import json,sys; print(len(json.load(sys.stdin)))' <<<"$json_out" 2>/dev/null || echo 0)"
 assert_eq "T7.4 first row result ok" "ok" \
     "$(python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["result"])' <<<"$json_out" 2>/dev/null || echo 0)"
-assert_eq "T7.4 row names combo container" "1" \
+assert_eq "T7.4 verify-checksums called per combo" "2" \
     "$(grep -c 'core verify-checksums' "$STUB_DIR/wp-cli-calls.txt")"
 # T7.5 teardown: combo container removed from stub state
 assert_eq "T7.5 running.txt cleared" "0" "$(grep -c 'wp_pin_t8364' "$STUB_DIR/running.txt" || true)"

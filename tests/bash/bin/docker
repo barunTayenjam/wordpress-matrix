@@ -81,6 +81,17 @@ case "$cmd" in
         stub_record_args "$STUB_DIR/restarted.txt" "$@"
         exit 0
         ;;
+    rm)
+        # Record rm calls; drop named containers from state files (teardown seam).
+        stub_record_args "$STUB_DIR/rm.txt" "$@"
+        for name in "$@"; do
+            [[ "$name" == -* ]] && continue
+            for f in running.txt all.txt portmap.txt; do
+                [[ -f "$STUB_DIR/$f" ]] && sed -i "/^${name}$/d" "$STUB_DIR/$f"
+            done
+        done
+        exit 0
+        ;;
     start)
         exit 0
         ;;

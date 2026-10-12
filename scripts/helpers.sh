@@ -331,7 +331,7 @@ site_wp_version() {
     local site="${1:-}"
     local version_file="$PROJECT_ROOT/wp_$site/wp-includes/version.php"
     if [[ -f "$version_file" ]]; then
-        grep -oE "\$wp_version = '[0-9]+\.[0-9]+'" "$version_file" 2>/dev/null | cut -d\' -f2
+        sed -n "s/.*\$wp_version = '\([^']*\)'.*/\1/p" "$version_file" 2>/dev/null
     fi
 }
 
@@ -355,16 +355,20 @@ compat_test() {
     php_version=$(grep -E '^image: wordpress:php' "$PROJECT_ROOT/docker-compose.yml" | head -1 | sed 's/.*php\([0-9]\.[0-9]\)-fpm.*/\1/')
     [[ -z "$php_version" ]] && php_version="8.3"
 
-    local IFS=',' versions=($wp_versions) rows=()
+    # Split AFTER IFS is in effect: `local IFS=',' x=($v)` expands with the
+    # old IFS in the same simple-command, so split on a separate line.
+    local versions
+    IFS=',' read -ra versions <<< "$wp_versions"
+    local rows=()
+    [[ "$json" != true ]] && printf "%-12s %-5s %-5s %-6s %s\n" "site" "php" "wp" "result" "detail"
     for wp in "${versions[@]}"; do
-        local combo_name="${site}_t${php_version}${wp//./}"
+        local combo_name="wp_${site}_t${php_version//./}${wp//./}"
         local result="ok"
         local detail=""
 
         # Ephemeral setup: create temp dir, fetch core, run verify-checksums
         local temp_dir
         temp_dir=$(mktemp -d -t "${combo_name}.XXXXXX")
-        trap "rm -rf '$temp_dir'" RETURN
 
         if ! wp_fetch_core "$wp" "$temp_dir" >/dev/null 2>&1; then
             result="fail"
@@ -373,6 +377,7 @@ compat_test() {
             result="fail"
             detail="checksums failed"
         fi
+        rm -rf "$temp_dir"
 
         # Cleanup: remove any ephemeral containers
         $CONTAINER_RUNTIME rm -f "$combo_name" 2>/dev/null || true
@@ -380,7 +385,7 @@ compat_test() {
         if [[ "$json" == true ]]; then
             rows+=("{\"site\":\"$site\",\"php\":\"$php_version\",\"wp\":\"$wp\",\"result\":\"$result\"}")
         else
-            printf "%-12s %-5s %-5s %-4s %s\n" "$site" "$php_version" "$wp" "$result" "$detail"
+            printf "%-12s %-5s %-5s %-6s %s\n" "$site" "$php_version" "$wp" "$result" "$detail"
         fi
     done
 
