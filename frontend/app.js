@@ -488,14 +488,27 @@ app.get('/api/sites', async (req, res) => {
 
 // Backup endpoint
 app.post('/api/sites/backup', async (req, res) => {
-  const { siteName } = req.body;
+  const { siteName, schedule, retention } = req.body;
 
   if (!validateRequestSiteName(res, siteName)) {
     return;
   }
 
+  const scheduleValidation = validateBackupSchedule(schedule);
+  if (!scheduleValidation.valid) {
+    return sendError(res, scheduleValidation.code, scheduleValidation.message);
+  }
+  const retentionValidation = validateRetention(retention);
+  if (!retentionValidation.valid) {
+    return sendError(res, retentionValidation.code, retentionValidation.message);
+  }
+
+  const args = [siteName];
+  if (schedule) args.push(`--schedule=${schedule}`);
+  if (retention) args.push(`--retention=${retention}`);
+
   try {
-    const result = await executeMatrix('backup', [siteName]);
+    const result = await executeMatrix('backup', args);
 
     if (result.success) {
       await invalidateSitesCache();

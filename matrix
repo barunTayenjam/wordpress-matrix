@@ -3315,11 +3315,9 @@ main() {
             optimize_site "$@"
             ;;
         "ssl")
-            shift
             cmd_ssl "$@"
             ;;
         "domain")
-            shift
             cmd_domain "$@"
             ;;
         "help"|"-h"|"--help")
