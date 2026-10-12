@@ -1763,7 +1763,16 @@ show_info_json() {
         container_id_json="\"$container_id\""
     fi
 
-    output_json "{\"success\":true,\"site\":{\"name\":\"$site_name\",\"status\":\"$status\",\"stack\":\"$stack\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"dbName\":\"$db_name\",\"dbSize\":$db_size,\"diskUsage\":$disk_usage,\"nginxConfigPath\":$nginx_config,\"wordpressVersion\":$wp_version}}"
+    local multisite_json="false"
+    local multisite_mode_json="null"
+    if site_is_multisite "$site_name"; then
+        multisite_json="true"
+        local ms_mode
+        ms_mode=$(site_multisite_mode "$site_name")
+        [[ -n "$ms_mode" ]] && multisite_mode_json="\"$ms_mode\""
+    fi
+
+    output_json "{\"success\":true,\"site\":{\"name\":\"$site_name\",\"status\":\"$status\",\"stack\":\"$stack\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"dbName\":\"$db_name\",\"dbSize\":$db_size,\"diskUsage\":$disk_usage,\"nginxConfigPath\":$nginx_config,\"wordpressVersion\":$wp_version,\"multisite\":$multisite_json,\"multisite_mode\":$multisite_mode_json}}"
 }
 
 # Show URLs

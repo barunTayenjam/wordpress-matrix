@@ -189,3 +189,16 @@ assert_eq "T2.8 subdomains=0 for subdirectory" "1" \
 echo ""
 echo "multisite tests: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
+# --- T2.9 info --json exposes multisite fields (spec Phase 2 contract) --------
+setup_site
+out=$(show_info_json alpha 2>&1); echo "$out" > "$SANDBOX/info.json"
+assert_contains "T2.9 info --json multisite:false" '"multisite":false' "$SANDBOX/info.json"
+assert_contains "T2.9 info --json mode null" '"multisite_mode":null' "$SANDBOX/info.json"
+apply_multisite alpha subdomain >/dev/null 2>&1
+out=$(show_info_json alpha 2>&1); echo "$out" > "$SANDBOX/info.json"
+assert_contains "T2.9 info --json multisite:true" '"multisite":true' "$SANDBOX/info.json"
+assert_contains "T2.9 info --json mode subdomain" '"multisite_mode":"subdomain"' "$SANDBOX/info.json"
+
+echo ""
+echo "multisite tests: $PASS passed, $FAIL failed"
+[[ "$FAIL" -eq 0 ]]
