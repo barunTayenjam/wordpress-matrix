@@ -94,9 +94,9 @@ unset MATRIX_DISK_CMD
 
 # container_runtime: fake always-ok runtime
 printf '#!/bin/sh\nexit 0\n' > "$SANDBOX/bin/fakert" && chmod +x "$SANDBOX/bin/fakert"
-CONTAINER_RUNTIME=fakert out=$(CONTAINER_RUNTIME=fakert check_container_runtime)
+out=$(CONTAINER_RUNTIME=fakert check_container_runtime)
 assert_eq "T5.1 runtime ok" "status=ok" "$(check_status "$out")"
-CONTAINER_RUNTIME=false out=$(CONTAINER_RUNTIME=false check_container_runtime)
+out=$(CONTAINER_RUNTIME=false check_container_runtime)
 assert_eq "T5.1 runtime fail" "status=fail" "$(check_status "$out")"
 
 # --- T5.2 exit code: any fail → 1, warn-only → 0 ------------------------------
