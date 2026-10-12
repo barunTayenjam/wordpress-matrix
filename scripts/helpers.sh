@@ -287,3 +287,106 @@ matrix_site_rm_containers() {
     # shellcheck disable=SC2086
     $CONTAINER_RUNTIME rm -f $services 2>/dev/null || true
 }
+
+# --- WP version helpers (Phase 7) ---
+
+# Validate a WP version string: dotted x.y or 'latest'.
+validate_wp_version() {
+    local v="${1:-}"
+    [[ "$v" == "latest" ]] && return 0
+    [[ "$v" =~ ^[0-9]+\.[0-9]+$ ]] || return 1
+    # Accept 6.4, 6.5, 6.6 (major 6, minor 4+)
+    local major minor
+    major=$(echo "$v" | cut -d. -f1)
+    minor=$(echo "$v" | cut -d. -f2)
+    [[ "$major" -eq 6 && "$minor" -ge 4 ]] && return 0
+    return 1
+}
+
+# Resolve 'latest' to a concrete version; pass through valid concrete versions.
+resolve_wp_version() {
+    local v="${1:-latest}"
+    [[ "$v" == "latest" ]] && echo "6.6" || echo "$v"
+}
+
+# Fetch WordPress core for a given version into a target directory.
+# Uses MATRIX_WP_FETCH_CMD env override (default: curl from wordpress.org).
+# Usage: wp_fetch_core <version> <target_dir>
+wp_fetch_core() {
+    local version="${1:-}"
+    local target="${2:-}"
+    [[ -z "$version" || -z "$target" ]] && return 1
+    local url="https://wordpress.org/wordpress-${version}.tar.gz"
+    if [[ -n "${MATRIX_WP_FETCH_CMD:-}" ]]; then
+        # shellcheck disable=SC2086
+        ${MATRIX_WP_FETCH_CMD} "$url" "$target"
+    else
+        curl -sL "$url" | tar -xz -C "$target" --strip-components=1
+    fi
+}
+
+# Read the WP version from a site's version.php.
+# Usage: site_wp_version <site>
+site_wp_version() {
+    local site="${1:-}"
+    local version_file="$PROJECT_ROOT/wp_$site/wp-includes/version.php"
+    if [[ -f "$version_file" ]]; then
+        grep -oE "\$wp_version = '[0-9]+\.[0-9]+'" "$version_file" 2>/dev/null | cut -d\' -f2
+    fi
+}
+
+# Compatibility test matrix: run checks across WP versions for a site.
+# Usage: compat_test <site> [--wp-versions=6.4,6.5] [--json]
+compat_test() {
+    local site="${1:-}"
+    local wp_versions="6.4,6.5"
+    local json=false
+    shift || true
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --wp-versions=*) wp_versions="${1#*=}"; shift ;;
+            --json) json=true; shift ;;
+            *) shift ;;
+        esac
+    done
+    [[ -z "$site" ]] && return 1
+
+    local php_version
+    php_version=$(grep -E '^image: wordpress:php' "$PROJECT_ROOT/docker-compose.yml" | head -1 | sed 's/.*php\([0-9]\.[0-9]\)-fpm.*/\1/')
+    [[ -z "$php_version" ]] && php_version="8.3"
+
+    local IFS=',' versions=($wp_versions) rows=()
+    for wp in "${versions[@]}"; do
+        local combo_name="${site}_t${php_version}${wp//./}"
+        local result="ok"
+        local detail=""
+
+        # Ephemeral setup: create temp dir, fetch core, run verify-checksums
+        local temp_dir
+        temp_dir=$(mktemp -d -t "${combo_name}.XXXXXX")
+        trap "rm -rf '$temp_dir'" RETURN
+
+        if ! wp_fetch_core "$wp" "$temp_dir" >/dev/null 2>&1; then
+            result="fail"
+            detail="fetch failed"
+        elif ! run_wp_cli "$combo_name" core verify-checksums >/dev/null 2>&1; then
+            result="fail"
+            detail="checksums failed"
+        fi
+
+        # Cleanup: remove any ephemeral containers
+        $CONTAINER_RUNTIME rm -f "$combo_name" 2>/dev/null || true
+
+        if [[ "$json" == true ]]; then
+            rows+=("{\"site\":\"$site\",\"php\":\"$php_version\",\"wp\":\"$wp\",\"result\":\"$result\"}")
+        else
+            printf "%-12s %-5s %-5s %-4s %s\n" "$site" "$php_version" "$wp" "$result" "$detail"
+        fi
+    done
+
+    if [[ "$json" == true ]]; then
+        local joined
+        joined=$(IFS=,; echo "${rows[*]}")
+        output_json "[$joined]"
+    fi
+}

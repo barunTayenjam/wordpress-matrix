@@ -108,6 +108,7 @@ source "$PROJECT_ROOT/config/validation.sh"
 source "$PROJECT_ROOT/scripts/helpers.sh"
 source "$PROJECT_ROOT/scripts/presets-lib.sh"
 source "$PROJECT_ROOT/scripts/ssl-lib.sh"
+source "$PROJECT_ROOT/scripts/doctor-lib.sh"
 
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
@@ -170,6 +171,8 @@ Usage: ./matrix <command> [options]
   System:
     repair [site]     Repair missing configs, containers, and databases
     health            Run system health check
+    doctor            Run environment/bootstrap checks (--json supported)
+    test              Run compat matrix for a site (--wp-versions=6.4,6.5 --json)
 
  Frontend:
    ./matrix start            # Starts frontend at http://$HOST_IP:8500
@@ -193,6 +196,7 @@ create_site() {
     local preset="blank"
     local stack="nginx"
     local multisite=""
+    local wp_version=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -225,13 +229,21 @@ create_site() {
                 multisite="${1#*=}"
                 shift
                 ;;
+            --wp-version=*)
+                wp_version="${1#*=}"
+                shift
+                ;;
+            --wp-version)
+                wp_version="$2"
+                shift 2
+                ;;
             --multisite)
                 multisite="$2"
                 shift 2
                 ;;
             -*)
                 log_error "Unknown option: $1"
-                echo "Usage: ./matrix create <name> [--php-version=X.X] [--stack=nginx|apache] [--preset=preset-name] [--multisite=subdirectory|subdomain]"
+                echo "Usage: ./matrix create <name> [--php-version=X.X] [--wp-version=X.X|latest] [--stack=nginx|apache] [--preset=preset-name] [--multisite=subdirectory|subdomain]"
                 return 1
                 ;;
             *)
@@ -274,6 +286,15 @@ create_site() {
         esac
     fi
 
+    # Validate + resolve WP version pin
+    if [[ -n "$wp_version" ]]; then
+        validate_wp_version "$wp_version" || {
+            log_error "Invalid WP version: $wp_version (use X.Y like 6.4, or latest)"
+            return 1
+        }
+        wp_version=$(resolve_wp_version "$wp_version")
+    fi
+
     if site_exists "$site_name"; then
         log_error "Site '$site_name' already exists"
         return 1
@@ -301,6 +322,16 @@ create_site() {
     log_info "Installing WP-CLI..."
     $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
         bash -c "curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && mv wp-cli.phar /var/www/html/wp && chown www-data:www-data /var/www/html/wp"
+
+    # Pin WP core to --wp-version (Phase 7): overlay pinned core over image copy
+    if [[ -n "$wp_version" ]]; then
+        log_info "Pinning WordPress core to $wp_version..."
+        if wp_fetch_core "$wp_version" "$site_dir"; then
+            log_success "WordPress $wp_version pinned"
+        else
+            log_warning "WP core pin to $wp_version failed; keeping image default"
+        fi
+    fi
 
     # Copy baseline performance optimization files
     if [[ -d "$PROJECT_ROOT/config/optimizations" ]]; then
@@ -3172,6 +3203,12 @@ main() {
             ;;
         "health")
             "$PROJECT_ROOT/scripts/health-check.sh"
+            ;;
+        "doctor")
+            cmd_doctor "$@"
+            ;;
+        "test")
+            compat_test "$@"
             ;;
         "mail")
             if command -v open >/dev/null 2>&1; then
