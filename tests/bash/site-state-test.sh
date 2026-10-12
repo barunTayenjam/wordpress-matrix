@@ -19,6 +19,7 @@ trap 'rm -rf "$SANDBOX"' EXIT
 mkdir -p "$SANDBOX/bin" "$SANDBOX/logs"
 cp "$REPO_ROOT/tests/bash/bin/docker" "$SANDBOX/bin/docker"
 cp "$REPO_ROOT/tests/bash/bin/matrix-compose-stub" "$SANDBOX/bin/matrix-compose-stub"
+cp "$REPO_ROOT/tests/bash/bin/stub-common.sh" "$SANDBOX/bin/stub-common.sh"
 chmod +x "$SANDBOX/bin/"*
 export PATH="$SANDBOX/bin:$PATH"
 export STUB_DIR="$SANDBOX/state"

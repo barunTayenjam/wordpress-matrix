@@ -5,6 +5,7 @@
 #   compose-logs-all      log text returned by `logs --tail=N`
 set -uo pipefail
 : "${STUB_DIR:?STUB_DIR must be set}"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stub-common.sh"
 
 cmd="${1:-}"
 shift || true
@@ -39,6 +40,10 @@ case "$cmd" in
         exit 0
         ;;
     config)
+        exit 0
+        ;;
+    restart)
+        stub_record_args "$STUB_DIR/restarted.txt" "$@"
         exit 0
         ;;
     *)

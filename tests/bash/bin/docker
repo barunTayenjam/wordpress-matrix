@@ -7,6 +7,7 @@
 #   logs/<name>   log text returned by `logs <name>`
 set -uo pipefail
 : "${STUB_DIR:?STUB_DIR must be set}"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/stub-common.sh"
 
 cmd="${1:-}"
 shift || true
@@ -68,6 +69,16 @@ case "$cmd" in
             case "$a" in --tail=*) ;; --tail) last="$a" ;; *) [[ -z "$name" ]] && name="$a" ;; esac
         done
         cat "$STUB_DIR/logs/$name" 2>/dev/null
+        exit 0
+        ;;
+    cp)
+        # Record the destination arg (container path) so tests can assert
+        # that a copy operation was attempted. No-op otherwise.
+        stub_record_args "$STUB_DIR/copied.txt" "$@"
+        exit 0
+        ;;
+    restart)
+        stub_record_args "$STUB_DIR/restarted.txt" "$@"
         exit 0
         ;;
     start)
