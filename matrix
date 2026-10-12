@@ -109,6 +109,7 @@ source "$PROJECT_ROOT/scripts/helpers.sh"
 source "$PROJECT_ROOT/scripts/presets-lib.sh"
 source "$PROJECT_ROOT/scripts/ssl-lib.sh"
 source "$PROJECT_ROOT/scripts/doctor-lib.sh"
+source "$PROJECT_ROOT/scripts/export-import-lib.sh"
 
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
@@ -173,6 +174,8 @@ Usage: ./matrix <command> [options]
     health            Run system health check
     doctor            Run environment/bootstrap checks (--json supported)
     test              Run compat matrix for a site (--wp-versions=6.4,6.5 --json)
+    export            Export a site to a tar.gz bundle (manifest + files + db dump)
+    import            Import a site from a tar.gz bundle
 
  Frontend:
    ./matrix start            # Starts frontend at http://$HOST_IP:8500
@@ -197,10 +200,15 @@ create_site() {
     local stack="nginx"
     local multisite=""
     local wp_version=""
+    local skip_download=0
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --skip-download)
+                skip_download=1
+                shift
+                ;;
             --php-version=*)
                 php_version="${1#*=}"
                 shift
@@ -314,23 +322,27 @@ create_site() {
     fi
 
     # Copy WordPress files using Docker/Podman
-    log_info "Installing WordPress (PHP $php_version)..."
-    $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
-        bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
+    if [[ "$skip_download" -eq 0 ]]; then
+        log_info "Installing WordPress (PHP $php_version)..."
+        $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
+            bash -c "cp -a /usr/src/wordpress/. /var/www/html/ && chown -R www-data:www-data /var/www/html"
 
-    # Install WP-CLI in site directory (persists via volume)
-    log_info "Installing WP-CLI..."
-    $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
-        bash -c "curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && mv wp-cli.phar /var/www/html/wp && chown www-data:www-data /var/www/html/wp"
+        # Install WP-CLI in site directory (persists via volume)
+        log_info "Installing WP-CLI..."
+        $CONTAINER_RUNTIME run --rm -v "$site_dir":/var/www/html wordpress:php${php_version}-fpm \
+            bash -c "curl -sO https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar && chmod +x wp-cli.phar && mv wp-cli.phar /var/www/html/wp && chown www-data:www-data /var/www/html/wp"
 
-    # Pin WP core to --wp-version (Phase 7): overlay pinned core over image copy
-    if [[ -n "$wp_version" ]]; then
-        log_info "Pinning WordPress core to $wp_version..."
-        if wp_fetch_core "$wp_version" "$site_dir"; then
-            log_success "WordPress $wp_version pinned"
-        else
-            log_warning "WP core pin to $wp_version failed; keeping image default"
+        # Pin WP core to --wp-version (Phase 7): overlay pinned core over image copy
+        if [[ -n "$wp_version" ]]; then
+            log_info "Pinning WordPress core to $wp_version..."
+            if wp_fetch_core "$wp_version" "$site_dir"; then
+                log_success "WordPress $wp_version pinned"
+            else
+                log_warning "WP core pin to $wp_version failed; keeping image default"
+            fi
         fi
+    else
+        log_info "Skipping WP download (--skip-download: files restored from bundle)"
     fi
 
     # Copy baseline performance optimization files
@@ -3206,6 +3218,12 @@ main() {
             ;;
         "doctor")
             cmd_doctor "$@"
+            ;;
+        "export")
+            export_site "$@"
+            ;;
+        "import")
+            import_site "$@"
             ;;
         "test")
             compat_test "$@"
