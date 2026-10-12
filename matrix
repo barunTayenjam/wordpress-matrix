@@ -111,6 +111,7 @@ source "$PROJECT_ROOT/scripts/ssl-lib.sh"
 source "$PROJECT_ROOT/scripts/doctor-lib.sh"
 source "$PROJECT_ROOT/scripts/export-import-lib.sh"
 source "$PROJECT_ROOT/scripts/share-lib.sh"
+source "$PROJECT_ROOT/scripts/ops-lib.sh"
 
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
@@ -153,7 +154,9 @@ Usage: ./matrix <command> [options]
      update <name>     Update WordPress core
      cache <name>      Clear site caches
      search-replace    Database search/replace
-     backup <name>     Backup site database/files
+     backup <name>     Backup site database/files (--schedule=<interval> --retention=N to schedule)
+    cron-install      Install a site's scheduled backup into the crontab
+    cron-remove       Remove a site's scheduled backup from the crontab
      optimize [name]   Apply performance optimizations to existing site(s)
 
   Development:
@@ -3147,7 +3150,13 @@ main() {
             create_site "$@"
             ;;
         "backup")
-            "$PROJECT_ROOT/scripts/backup.sh" "$@"
+            cmd_backup "$@"
+            ;;
+        "cron-install")
+            cron_install "$@"
+            ;;
+        "cron-remove")
+            cron_remove "$@"
             ;;
         "restore")
             restore_site "$@"
