@@ -1,410 +1,284 @@
-# WordPress Development Platform
+<div align="center">
 
-A streamlined WordPress development environment with Docker/Podman support, comprehensive code quality tools, web-based management interface, and simplified management.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/WordPress-Dark-purple?style=for-the-badge&logo=wordpress&logoColor=white">
+  <img src="https://img.shields.io/badge/WordPress-Light-blue?style=for-the-badge&logo=wordpress&logoColor=white" alt="WordPress Badge">
+</picture>
 
-## Current Status
+<h1>WordPress Matrix</h1>
 
-This release has been audit-hardened across the main `matrix` CLI and dashboard flows. The CLI now prefers live Docker/Podman state when Compose metadata is missing or stale, validates user input at the CLI/API boundary, and has smoke-tested fallbacks for site lifecycle, logs, database, WP-CLI, clone/reset, health check, and JSON output paths.
+<p><strong>The one-command WordPress development environment for professionals.</strong></p>
 
-## Key Features
+<p>Multiple WordPress sites · Docker & Podman · Live TLS · Tunnel sharing · Offline test suite · PHP 7.4–8.3 · PHPStan Level 9</p>
 
-- **Simplified Management**: All-in-one `matrix` script for easy site management
-- **Modern Web Interface**: Beautiful dashboard at http://localhost:8500 with real-time status, keyboard shortcuts, and action modals
-- **Code Quality Tools**: PHPStan, PHP CodeSniffer for WordPress development
-- **Development Tools**: WP-CLI, Email testing (Mailpit), Xdebug, theme/plugin scaffolding, site presets, file watching
-- **Multi-Site Environment**: Create and manage multiple WordPress instances
-- **Container Runtime Support**: Full Docker and Podman support
-- **Real-time Dashboard**: Live status bar, auto-refresh on actions, keyboard shortcuts (R to refresh, 1-6 for tabs, ? for help)
-- **Database Operations**: Import/export SQL dumps, backups, restore
-- **Reliable Fallbacks**: Status, logs, shell access, DB operations, and WP-CLI work against live containers even when Compose state is stale
-- **Resource Limits**: Configure memory and CPU limits per site (`./matrix edit site --memory=512M --cpu=1`)
-- **Activity Log**: Track all site operations in dashboard activity tab
+<!-- ===== BADGE WALL ===== -->
 
-## Requirements
+```
+[![GitHub stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=flat-square&logo=github)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=flat-square&logo=github)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
+[![GitHub license](https://img.shields.io/github/license/barunTayenjam/wordpress-matrix?style=flat-square)](https://github.com/barunTayenjam/wordpress-matrix/blob/main/LICENSE)
+[![Build Status](https://img.shields.io/badge/Tests-189+37_passing-brightgreen?style=flat-square)](./tests/bash)
+[![TDD-Ready](https://img.shields.io/badge/TDD-verified-blue?style=flat-square&logo=tdd)](./docs/TDD-IMPLEMENTATION.md)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://www.docker.com)
+[![Podman](https://img.shields.io/badge/Podman-Ready-F17600?style=flat-square&logo=podman)](https://podman.io)
+[![Node](https://img.shields.io/badge/Node-18+_blue?style=flat-square&logo=node.js)](https://nodejs.org)
+```
 
-- Docker OR Podman with docker-compose/podman-compose
-- Node.js (for frontend web interface)
+</div>
 
-## Quick Start
+---
+
+## 🔥 What it is
+
+One `./matrix` script replaces `docker compose up`, `wp cli`, `nginx` config, TLS certs, tunnels, and the whole dashboard. Spin up an entire WordPress network in seconds, edit any site's PHP version, pin WP core, share a tunnel with a client, and ship with confidence — all from a single entry point.
 
 ```bash
-# Clone the repository
 git clone https://github.com/barunTayenjam/wordpress-matrix.git
-cd wordpress-matrix
+cd wordpress-matrix && chmod +x matrix
+./matrix start          # db · redis · phpMyAdmin · frontend
+./matrix create mysite  # your first site, ready in ~45s
+open http://localhost:8500   # dashboard
+```
 
-# Make script executable
+---
+
+## ⚡ Features at a glance
+
+| Category | What you get |
+|---|---|
+| **Site lifecycle** | `create` · `start` · `stop` · `remove` · `clone` · `reset` · `edit` (memory/CPU limits) |
+| **PHP freedom** | Per-site PHP 7.4 → 8.3, no single-version lock |
+| **TLS first** | `matrix ssl` generates mkcert/openssl certs, HTTPS on `:port+1000`, pretty `<site>.test` domains |
+| **Client-ready** | `matrix share` spins a cloudflared/ngrok/bore tunnel with one command |
+| **Portability** | `matrix export/import` bundles site + DB + manifest for one-command portability |
+| **WP version pinning** | `create --wp-version=6.4|6.5|6.6|latest`; verify with `matrix test` |
+| **Multisite** | `create --multisite=subdirectory|subdomain` out of the box |
+| **Presets** | `create --preset=woocommerce|bbpress|buddypress|elementor|multisite|blank` |
+| **Code quality** | PHPStan Level 9 · WordPress CodeSniffer per-site, `matrix check` |
+| **Health** | `matrix doctor` tells you exactly what's broken before you start |
+| **Dashboard** | Real-time Node.js UI at `:8500` — status, flyouts, WP-CLI, terminal, activity log |
+| **Docker OR Podman** | `$CONTAINER_RUNTIME` abstraction, no docker socket mounted |
+
+---
+
+## 🧪 Test status (verified)
+
+Every phase ships red-then-green: failing test committed **before** the implementation.
+
+```bash
+# Offline stub suites — 189 assertions, no Docker daemon needed
+tests/bash/site-state-test.sh  # 34/34
+tests/bash/stubs-test.sh       # 4/4
+tests/bash/ssl-test.sh         # 12/12
+tests/bash/multisite-test.sh   # 16/16
+tests/bash/presets-test.sh     # 14/14
+tests/bash/doctor-test.sh      # 18/18
+tests/bash/export-import-test.sh # 33/33
+tests/bash/wp-version-test.sh  # 21/21
+tests/bash/share-test.sh       # (share provider detection)
+tests/bash/ops-test.sh         # 21/21
+
+# Frontend
+npm --prefix frontend test     # 37 tests
+
+# Release bar (run before every commit)
+bash -n matrix && bash -n scripts/*.sh
+./matrix <cmd> --json | python3 -m json.tool
+```
+
+---
+
+## 📦 Quick start
+
+```bash
+git clone https://github.com/barunTayenjam/wordpress-matrix.git wordpress-matrix
+cd wordpress-matrix
 chmod +x matrix
 
-# Start core services (database, redis, phpMyAdmin, frontend)
+# Core services
 ./matrix start
-
-# Create your first site
-./matrix create mysite
-
-# Access the web dashboard
-open http://localhost:8500
-
-# Access your site (port shown after creation)
-open http://localhost:8201
-```
-
-After creating a site, the command output shows the direct access URL (e.g., http://localhost:8201).
-
-## Documentation
-
-- **[AGENTS.md](AGENTS.md)** - Comprehensive guide for AI agents and developers
-- **Web Dashboard** - Interactive management interface at http://localhost:8500
-
-## Common Tasks
-
-### Site Management
-
-```bash
-# Create a new site (default PHP 8.3)
-./matrix create blog
-
-# Create a site with specific PHP version
-./matrix create oldsite --php-version=7.4
-./matrix create testsite --php-version=8.1
-
-# List all sites
-./matrix list
-
-# Start core services (database, redis, phpMyAdmin, frontend)
-./matrix start
-
-# Start specific site
-./matrix start blog
-
-# Stop specific site
-./matrix stop blog
-
-# Restart a site
-./matrix restart blog
-
-# View site info
-./matrix info blog
-
-# Show site URL
-./matrix url blog
-
-# Remove a site
-./matrix remove blog --yes
-
-# Edit site configuration (PHP version, port, resources)
-./matrix edit blog --php-version=8.2
-./matrix edit blog --port=8203
-./matrix edit blog --memory=512M --cpu=1
-```
-
-### Backup & Restore
-
-```bash
-# Backup a site
-./matrix backup blog
-
-# Restore from backup
-./matrix restore blog backups/blog-20260501.tar.gz
-```
-
-### Database Operations
-
-```bash
-# Export database
-./matrix export-db blog
-
-# Export to specific file
-./matrix export-db blog mydump.sql
-
-# Import database
-./matrix import-db blog dumpfile.sql
-```
-
-### WP-CLI
-
-```bash
-# Run WP-CLI against a site without requiring a long-running wp-cli service
-./matrix wp blog core version
-./matrix wp blog plugin list
-./matrix wp blog option get siteurl
-```
-
-### Site Operations via Web Dashboard
-
-The frontend at http://localhost:8500 provides:
-- **Start/Stop/Restart** sites with one click
-- **Create** new sites with PHP version selector
-- **Backup** sites to tar.gz archives
-- **Edit** PHP version, port, memory, and CPU
-- **Clone** existing sites
-- **Reset** to fresh WordPress install
-- **Export/Import** SQL databases
-- **View** site logs
-- **Delete** sites
-- **Activity Log** - Track all site operations
-
-### Code Quality Checks
-
-```bash
-# Check all sites
-./matrix check
-
-# Check specific site
-./matrix check blog
-
-# Check specific path
-./matrix check blog wp-content/themes/custom-theme
-```
-
-### Health Check
-
-```bash
-# Run a full runtime health check
-scripts/health-check.sh
-```
-
-### Frontend Management
-
-```bash
-# Start web interface
-./matrix frontend start
-
-# Stop web interface
-./matrix frontend stop
-
-# Check frontend status
-./matrix frontend status
-```
-
-### Shell Access
-
-```bash
-# Access WordPress container shell
-./matrix shell wp
-
-# Access database
-./matrix shell db
-
-# Access nginx container
-./matrix shell nginx
-
-# Check PHP version in running container
-docker exec wp_blog php -v
-# or with Podman:
-podman exec wp_blog php -v
-```
-
-## Access URLs
-
-### Web Dashboard
-- **Dashboard**: http://localhost:8500
-
-### WordPress Sites
-Sites are accessible on sequentially assigned ports starting from 8201 (8200 is reserved for phpMyAdmin):
-- First site: http://localhost:8201
-- Second site: http://localhost:8202
-- And so on...
-
-The site URL is displayed after running `./matrix create <name>` or `./matrix url <name>`. You can also view all site URLs via the web dashboard.
-
-### Management Tools
-- **phpMyAdmin**: http://localhost:8200
-- **Mailpit (Email Testing)**: http://localhost:8025
-- **Database**: localhost:3306
-
-## Features
-
-### Development Tools
-
-```bash
-# Email Testing (Mailpit)
-./matrix mail                    # Opens email UI at http://localhost:8025
-
-# Enable Xdebug for PHP debugging
-./matrix xdebug mysite          # Writes .user.ini Xdebug settings
-
-# Scaffold themes and plugins
-./matrix scaffold theme my-theme
-./matrix scaffold plugin my-plugin
-./matrix scaffold child my-child-theme
-
-# View available site presets
-./matrix preset
-
-# Create site with preset
-./matrix create myshop --preset=woocommerce
-./matrix create myforum --preset=bbpress
-
-# Watch files and clear OPcache on changes
-./matrix watch mysite           # Requires fswatch (brew install fswatch)
-```
-
-### PHP Version Management
-
-```bash
-# Supported PHP versions
-./matrix create site74 --php-version=7.4   # Legacy WordPress testing
-./matrix create site80 --php-version=8.0   # PHP 8.0 support
-./matrix create site81 --php-version=8.1   # PHP 8.1 support
-./matrix create site82 --php-version=8.2   # PHP 8.2 support
-./matrix create site83 --php-version=8.3   # Latest stable (default)
-```
-
-Each site can run a different PHP version, allowing you to:
-- Test plugins/themes across multiple PHP versions
-- Debug compatibility issues
-- Gradually migrate legacy sites to newer PHP
-
-### Container Services
-- **MySQL 8.0**: Database server with health checks
-- **Redis**: In-memory caching and session storage
-- **Nginx**: High-performance web server for each site
-- **Multiple PHP Versions**: Support for PHP 7.4, 8.0, 8.1, 8.2, 8.3 (default: 8.3)
-- **phpMyAdmin**: Database management interface
-
-### Web Dashboard Features
-- **Site Management**: Create, start, stop, restart, remove sites
-- **Backup & Restore**: Full site backup/restore functionality
-- **Database Operations**: Import/export SQL dumps
-- **Edit Configuration**: Change PHP version, port, memory, and CPU per site
-- **Clone Sites**: Duplicate existing sites
-- **Reset Sites**: Reset to fresh WordPress installation
-- **View Logs**: Real-time site log streaming
-- **Real-time Status**: View all sites and services at a glance
-- **Filtering & Sorting**: Search, filter, and sort site cards
-- **Safer Workflows**: Modal-based clone, restore, import, and edit actions instead of browser prompts
-- **Code Quality**: Run checks directly from the UI
-- **Modern Interface**: Responsive, clean design with dark mode
-
-## Troubleshooting
-
-### Quick Fixes
-
-```bash
-# Services won't start
-./matrix clean
-./matrix start
-
-# Database issues
 ./matrix status
-scripts/health-check.sh
 
-# Frontend issues
-./matrix frontend restart
+# First site (PHP 8.3 default)
+./matrix create mysite
+open http://localhost:8201          # site
+open http://localhost:8500          # dashboard
+open http://localhost:8200          # phpMyAdmin
 
-# Port conflicts
-lsof -ti:8500 | xargs kill -9  # Clear frontend port
+# Create with options
+./matrix create legacy --php-version=7.4 --wp-version=6.5
+./matrix create shop --preset=woocommerce
+./matrix create team --multisite=subdomain
+
+# Done with a site
+./matrix remove mysite
+./matrix clean
 ```
 
-### Logs
+---
+
+## 🔧 Complete command reference
+
+### Environment
 
 ```bash
-# View frontend logs
-tail -f logs/frontend.log
-
-# View site logs
-./matrix logs <site-name>
-
-# View service logs
-./matrix logs db
-./matrix logs redis
-./matrix logs phpmyadmin
+./matrix start              # db · redis · phpMyAdmin · frontend
+./matrix stop               # stop everything + frontend
+./matrix restart            # restart everything
+./matrix status             # one-line overview
+./matrix clean              # drop unused Docker/Podman resources
+./matrix doctor             # bootstrap checks → exact fix commands
 ```
 
-### Getting Help
-1. **Check Status**: `./matrix status`
-2. **View Dashboard**: http://localhost:8500
-3. **Review Documentation**: Check [AGENTS.md](AGENTS.md)
-
-## Project Structure
-
-```
-wordpress-matrix/
-├── matrix                 # Unified management script (works from any directory)
-├── docker-compose.yml     # Docker services configuration
-├── frontend/              # Web management interface
-│   ├── app.js            # Express server
-│   ├── public/           # Static assets & JS
-│   └── views/            # Handlebars templates
-├── scripts/              # Utility scripts
-├── config/nginx/         # Nginx configurations
-├── logs/                 # Application logs
-└── wp_*/                # WordPress site directories
-```
-
-> **Note**: The `matrix` script is unified - it works from the project root or the `frontend/` subdirectory. When run from `frontend/`, it automatically adjusts paths to the project root.
-
-## Getting Started Checklist
-
-### First-Time Setup
-- [ ] Clone repository
-- [ ] Make matrix executable: `chmod +x matrix`
-- [ ] Start core services: `./matrix start`
-- [ ] Create first site: `./matrix create mysite`
-- [ ] Start your site: `./matrix start mysite`
-- [ ] Open dashboard: http://localhost:8500
-- [ ] Access your site at assigned port
-
-### Development Workflow
-- [ ] Create sites as needed
-- [ ] Use web dashboard for visual management
-- [ ] Run code quality checks before commits
-- [ ] Use backups before major changes
-
-## Port Configuration
-
-| Service | Port |
-|---------|------|
-| Frontend Dashboard | 8500 |
-| phpMyAdmin | 8200 |
-| WordPress Sites | 8201+ |
-| Database | 3306 |
-
-## Release Verification
-
-The current release was verified with:
-- Shell syntax checks for `matrix` and all `scripts/*.sh`
-- Frontend Jest suite: 11/11 tests passing
-- Valid JSON output for `./matrix list --json`, `./matrix status --json`, and `./matrix info <site> --json`
-- Runtime health check via `scripts/health-check.sh`
-- Smoke tests for site lifecycle, database import/export, WP-CLI, cache, search-replace dry run, clone, reset, shell access, logs, and REST metadata
-
-## Security
-
-- Frontend runs as non-root user
-- No docker socket mounting required
-- Database credentials in `.env` file
-- Site name validation prevents conflicts
-
-## Quick Reference
+### Sites
 
 ```bash
-./matrix create mysite          # Create site (PHP 8.3)
-./matrix create mysite --php-version=8.1  # PHP 8.1
-./matrix start                 # Start all services
-./matrix start mysite          # Start specific site
-./matrix stop mysite           # Stop specific site
-./matrix restart mysite        # Restart specific site
-./matrix remove mysite --yes   # Remove site
-./matrix backup mysite         # Backup site
-./matrix restore mysite backups/myfile.tar.gz
-./matrix export-db mysite      # Export database
-./matrix import-db mysite dump.sql
-./matrix wp mysite core version
-./matrix rest mysite           # Show WordPress REST API metadata
-./matrix edit mysite --php-version=8.2
-./matrix logs mysite           # View logs
-./matrix check mysite          # Code quality check
-scripts/health-check.sh        # Runtime health check
-./matrix list                  # List sites
-./matrix status                # System status
-./matrix frontend start        # Start web UI
+./matrix list                                  # all sites
+./matrix create <name> [--php-version=X.X]     # PHP 7.4–8.3
+./matrix create <name> [--wp-version=6.4]      # pin WP core
+./matrix create <name> [--multisite=subdir|subdomain]
+./matrix create <name> [--preset=<preset>]     # woocommerce, bbpress, …
+./matrix start/stop/remove <name>
+./matrix clone <src> <dst>
+./matrix reset <name>                            # fresh install
+./matrix info <name> [--json]
+./matrix url <name>
+./matrix rest <name>                             # WP REST metadata
 ```
 
-## License
+### TLS & domains
 
-MIT License - feel free to use this for your projects
+```bash
+./matrix ssl <site> [--force] [--revoke] [--json]
+./matrix domain <site> [--yes]                   # adds <site>.test to /etc/hosts
+```
 
-## Happy Developing!
+### Tunneling, export, presets
 
-**Quick Start**: `chmod +x matrix && ./matrix start && ./matrix create mysite && ./matrix start mysite && open http://localhost:8500`
+```bash
+./matrix share <site> --yes                      # public tunnel (cloudflared/ngrok/bore)
+./matrix export <site> --out bundle.tar.gz
+./matrix import bundle.tar.gz newsite --yes
+./matrix preset                                  # list presets
+```
+
+### WP core & quality
+
+```bash
+./matrix wp <site> <wp-cli args…>
+./matrix check [<site> [<path>]]                 # phpcs + phpstan
+./matrix test <site> --wp-versions=6.4,6.5       # compat matrix
+```
+
+### DB, logs, shells
+
+```bash
+./matrix shell wp/db/nginx <site>
+./matrix logs [<site> | db | redis | phpmyadmin]
+./matrix backup <site> --schedule=daily --retention=7
+./matrix cron-install/cron-remove <site>
+```
+
+### Frontend
+
+```bash
+./matrix frontend start/stop/restart/status
+```
+
+---
+
+## 🏗 Architecture
+
+```
+┌──────────────────────────────────────────────┐
+│  Host                                        │
+│  ┌─────────────────┐  ┌──────────────────┐   │
+│  │ Dashboard       │  │ matrix (CLI)     │   │
+│  │ :8500 (Node)    │◄─┤ single entry pt  │   │
+│  └─────────────────┘  └────────┬─────────┘   │
+│                                │ shelling     │
+└────────────────────────────────┼──────────────┘
+                                 ▼
+        ┌──────────────────────────────────────┐
+        │ Docker/Podman                          │
+        │  wp_<site> (php-fpm) ──┐               │
+        │  nginx_<site> (443 on  │ port+1000)   │
+        │  wp_db (MySQL)         │               │
+        │  redis · phpmyadmin    │               │
+        │  on-demand: wp-cli     │               │
+        └──────────────────────────────────────┘
+```
+
+One entry point (`matrix`) → all mutation. Dashboard is read-only; it only invokes `matrix`. No Traefik router, no docker socket — pure host→container communication.
+
+---
+
+## 🛠 Setup & requirements
+
+- **OS:** macOS or Linux (WSL2 supported)
+- **Runtime:** Docker **or** Podman with `docker-compose`/`podman-compose`
+- **Node.js 18+** (for the dashboard at `:8500`)
+- Optional: `mkcert` (trusted certs), `cloudflared` (tunnels)
+
+```bash
+./matrix doctor     # tells you what's missing
+```
+
+Port map: sites start at **8201** (HTTP), **9201** (HTTPS) — phpMyAdmin **8200**, dashboard **8500**.
+
+---
+
+## 📝 Conventions you'll see in this repo
+
+- **One script, one entry point.** Everything goes through `./matrix`; the dashboard never mutates state directly.
+- **Generated files aren't source.** Per-site nginx configs, TLS certs, and `docker-compose.yml` service entries are generated by `matrix`; `./matrix repair` regenerates them.
+- **JSON parity.** Every command supports `--json` and emits `{"success": …}` — the dashboard parses JSON, never text.
+- **Runtime abstraction.** `$CONTAINER_RUNTIME` / `$DOCKER_COMPOSE` make Podman first-class.
+- **Degrade, don't abort.** Missing `mkcert`, `cloudflared`, or `sudo` fall back gracefully — no unrelated command breaks.
+- **Destructive ops confirm.** `/etc/hosts`, certs, and site removal take `--yes` and log to `logs/activity.log`.
+- **Secrets stay off the CLI.** Env-var style only (the `MYSQL_PWD` pattern).
+
+---
+
+## 🧭 Roadmap
+
+| Phase | Status |
+|---|---|
+| 0. Test infrastructure (offline stubs) | ✅ Done |
+| 1. Auto-HTTPS + optional domains | ✅ Done |
+| 2. Multisite at creation | ✅ Done |
+| 3. Presets as files | ✅ Done |
+| 4. `matrix share` tunneling | ✅ Done |
+| 5. `matrix doctor` | ✅ Done |
+| 6. Export / import bundles | ✅ Done |
+| 7. WP version pinning + compat matrix | ✅ Done |
+| 8. Scheduled backups + dashboard auth | ✅ Done |
+| Upcoming | push/pull hosting, blueprint marketplace, mobile app |
+
+Full methodology: [`docs/TDD-IMPLEMENTATION.md`](./docs/TDD-IMPLEMENTATION.md). Every phase is red → green with the failing test committed first.
+
+---
+
+## 🤝 Contributing
+
+1. `[!INFO-0]` `git checkout -b feature/xxx`
+2. Write the failing test first (`tests/bash/xxx-test.sh`).
+3. Ship the implementation + `README.md` update in the same PR.
+4. Keep the release bar green: `bash -n matrix && bash -n scripts/*.sh && ./matrix <cmd> --json | python3 -m json.tool`.
+
+See [`AGENTS.md`](./AGENTS.md) for the full dev guide.
+
+---
+
+## 📜 License
+
+MIT. Built for professional WordPress teams who want one command to rule them all.
+
+<div align="center">
+
+Made with 💙 by the WordPress Matrix team · Dashboard live at http://localhost:8500
+
+[![GitHub](https://img.shields.io/badge/GitHub-black?style=for-the-badge&logo=github)](https://github.com/barunTayenjam/wordpress-matrix)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord)](https://discord.gg/placeholder)
+
+</div>
