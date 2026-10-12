@@ -169,6 +169,12 @@ apply_preset t3 demo >/dev/null 2>&1
 assert_eq "T3.6 wp_config not duplicated" "1" \
     "$(grep -c "define( 'DEMO_KEY', 'demo-value' );" "$SANDBOX/wp_t3/wp-config.php")"
 
+# T3.7 list_presets --json: machine-readable for the dashboard
+out=$(list_presets --json 2>&1)
+assert_contains "T3.7 json success shape" '"success":true' "$out"
+assert_contains "T3.7 json presets array" '"presets":[' "$out"
+assert_contains "T3.7 json name+description pair" '{"name":"woocommerce","description":"WooCommerce with starter theme"}' "$out"
+
 echo ""
 echo "presets tests: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

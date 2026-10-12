@@ -24,24 +24,46 @@ validate_preset_name() {
 }
 
 # List all available presets with their descriptions.
+# Usage: list_presets [--json]
 list_presets() {
+    local json_mode=0
+    [[ "${1:-}" == "--json" ]] && json_mode=1
+
     local presets_dir="$MATRIX_PRESETS_DIR"
     if [[ ! -d "$presets_dir" ]]; then
+        if [[ "$json_mode" -eq 1 ]]; then
+            output_json '{"success":true,"presets":[]}'
+            return 0
+        fi
         log_warning "No presets directory at $presets_dir"
+        return 0
+    fi
+
+    local names=() descs=()
+    local file name desc
+    for file in "$presets_dir"/*.sh; do
+        [[ -f "$file" ]] || continue
+        name=$(basename "$file" .sh)
+        desc=$( ( source "$file" 2>/dev/null && preset_description 2>/dev/null ) 2>/dev/null || true )
+        names+=("$name")
+        descs+=("${desc//\"/\\\"}")
+    done
+
+    if [[ "$json_mode" -eq 1 ]]; then
+        local rows=""
+        local i
+        for i in "${!names[@]}"; do
+            [[ -n "$rows" ]] && rows+=","
+            rows+="{\"name\":\"${names[$i]}\",\"description\":\"${descs[$i]}\"}"
+        done
+        output_json "{\"success\":true,\"presets\":[$rows]}"
         return 0
     fi
 
     printf "%-15s %-50s\n" "Preset" "Description"
     echo "────────────────────────────────────────────────────────────────────────"
-    local file
-    for file in "$presets_dir"/*.sh; do
-        [[ -f "$file" ]] || continue
-        local name
-        name=$(basename "$file" .sh)
-        local desc=""
-        # Subshell: capture description without polluting this shell's functions.
-        desc=$( ( source "$file" 2>/dev/null && preset_description 2>/dev/null ) 2>/dev/null || true )
-        printf "%-15s %-50s\n" "$name" "$desc"
+    for i in "${!names[@]}"; do
+        printf "%-15s %-50s\n" "${names[$i]}" "${descs[$i]}"
     done
 }
 

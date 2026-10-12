@@ -643,6 +643,9 @@ async function submitWorkflow(action, siteName) {
 async function createSite() {
   const siteName = document.getElementById('siteName').value.trim();
   const phpVersion = document.getElementById('phpVersion')?.value || '8.3';
+  const multisite = document.getElementById('multisiteVersion')?.value || '';
+  const wpVersion = document.getElementById('wpVersionSelect')?.value || '';
+  const preset = document.getElementById('presetSelect')?.value || '';
   if (!siteName) { showNotification('Enter a site name', 'warning'); return; }
   if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(siteName)) {
     showNotification('Name: start with letter, alphanumeric/hyphens/underscores', 'warning');
@@ -653,7 +656,7 @@ async function createSite() {
     const response = await fetch('/api/sites/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ siteName, phpVersion })
+      body: JSON.stringify({ siteName, phpVersion, multisite, wpVersion, preset })
     });
     const data = await response.json();
     if (data.success && (!data.exitCode || data.exitCode === 0)) {
@@ -673,6 +676,26 @@ async function createSite() {
   } catch (error) {
     showNotification('Network error', 'danger');
     hideLoading();
+  }
+}
+
+// Feed the preset dropdown when the create modal opens.
+async function loadPresetOptions() {
+  const select = document.getElementById('presetSelect');
+  if (!select || select.options.length > 1) return; // already populated
+  try {
+    const response = await fetch('/api/presets');
+    const data = await response.json();
+    if (data.success && Array.isArray(data.presets)) {
+      for (const p of data.presets) {
+        const opt = document.createElement('option');
+        opt.value = p.name;
+        opt.textContent = p.description ? `${p.name} — ${p.description}` : p.name;
+        select.appendChild(opt);
+      }
+    }
+  } catch (error) {
+    // dropdown stays with the "none" default; presets still usable via CLI
   }
 }
 

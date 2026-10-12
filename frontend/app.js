@@ -53,11 +53,14 @@ const SUPPORTED_PHP_VERSIONS = new Set(
   (VALIDATION_CONFIG && VALIDATION_CONFIG.supportedPhpVersions) || ['7.4', '8.0', '8.1', '8.2', '8.3']
 );
 const DEFAULT_PHP_VERSION = (VALIDATION_CONFIG && VALIDATION_CONFIG.defaultPhpVersion) || '8.3';
-const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair', 'scaffold', 'preset', 'watch', 'optimize', 'mail']);
+const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair', 'scaffold', 'preset', 'watch', 'optimize', 'mail', 'ssl', 'domain', 'share', 'share-stop', 'export-bundle', 'import-bundle', 'compat', 'cron']);
 const ALLOWED_SITE_ACTIONS = new Set([...SITE_ACTIONS_REQUIRING_NAME]);
-const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install', 'scaffold', 'preset', 'watch', 'optimize', 'mail', 'fix', 'test']);
+const ALLOWED_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'status', 'logs', 'clean', 'check', 'health', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install', 'scaffold', 'preset', 'watch', 'optimize', 'mail', 'fix', 'test', 'doctor']);
 const ALLOWED_FRONTEND_ACTIONS = new Set(['start', 'stop', 'restart', 'status']);
-const MUTATING_SITE_ACTIONS = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'scaffold', 'optimize']);
+const MUTATING_SITE_ACTIONS = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'scaffold', 'optimize', 'ssl', 'domain', 'share', 'share-stop', 'export-bundle', 'import-bundle', 'cron']);
+const SUPPORTED_WP_VERSIONS = new Set(['6.4', '6.5', '6.6', 'latest']);
+const SUPPORTED_MULTISITE_MODES = new Set(['subdirectory', 'subdomain']);
+const SUPPORTED_BACKUP_SCHEDULES = new Set(['hourly', 'daily', 'weekly', 'monthly']);
 const MUTATING_ENV_ACTIONS = new Set(['start', 'stop', 'restart', 'clean', 'check', 'cache', 'cache-clear', 'search-replace', 'update', 'update-core', 'install', 'scaffold', 'optimize', 'fix']);
 const ERROR_STATUS_MAP = {
   INVALID_ACTION: 400,
@@ -141,6 +144,55 @@ const validatePhpVersion = (version) => {
     return { valid: false, code: 'INVALID_INPUT', message: 'Unsupported PHP version' };
   }
   return { valid: true };
+};
+
+const validateMultisiteMode = (mode) => {
+  if (!mode) return { valid: true };
+  if (!SUPPORTED_MULTISITE_MODES.has(String(mode))) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Multisite mode must be subdirectory or subdomain' };
+  }
+  return { valid: true };
+};
+
+const validateWpVersion = (version) => {
+  if (!version) return { valid: true };
+  if (!SUPPORTED_WP_VERSIONS.has(String(version))) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Unsupported WordPress version (6.4, 6.5, 6.6, latest)' };
+  }
+  return { valid: true };
+};
+
+const validatePresetName = (name) => {
+  if (!name) return { valid: true };
+  if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(name)) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Preset name must be alphanumeric, dash, or underscore' };
+  }
+  return { valid: true };
+};
+
+const validateBackupSchedule = (schedule) => {
+  if (!schedule) return { valid: true };
+  if (!SUPPORTED_BACKUP_SCHEDULES.has(String(schedule))) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Schedule must be hourly, daily, weekly, or monthly' };
+  }
+  return { valid: true };
+};
+
+const validateRetention = (retention) => {
+  if (retention === undefined || retention === null || retention === '') return { valid: true };
+  if (!/^\d+$/.test(String(retention)) || Number(retention) < 1) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Retention must be a positive integer' };
+  }
+  return { valid: true };
+};
+
+// Build matrix create args from the validated create-modal body.
+const buildCreateArgs = (siteName, phpVersion, body) => {
+  const args = [siteName, `--php-version=${phpVersion}`];
+  if (body.multisite) args.push(`--multisite=${body.multisite}`);
+  if (body.wpVersion) args.push(`--wp-version=${body.wpVersion}`);
+  if (body.preset) args.push(`--preset=${body.preset}`);
+  return args;
 };
 
 const validateRelativeFilePath = (value, label) => {
@@ -741,6 +793,260 @@ app.post('/api/sites/wp-cli', async (req, res) => {
   }
 });
 
+// SSL: enable/revoke per-site TLS (matrix ssl <site> [--force|--revoke] --json).
+// CLI emits https_port; the dashboard-facing URL is derived here.
+app.post('/api/sites/ssl', async (req, res) => {
+  const { siteName, force, revoke } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  const args = [siteName];
+  if (revoke) args.push('--revoke');
+  if (force) args.push('--force');
+  try {
+    const result = await executeMatrix('ssl', args, { json: true });
+    if (result.success && result.data) {
+      await invalidateSitesCache();
+      res.json({
+        success: true,
+        site: result.data.site,
+        httpsPort: result.data.https_port,
+        url: result.data.https_port ? `https://localhost:${result.data.https_port}` : null,
+        certSource: result.data.cert_source || null,
+        revoked: Boolean(result.data.revoked),
+        raw: result.data
+      });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Local domain: optional <site>.test hosts entry (sudo-gated in CLI; --yes for non-tty)
+app.post('/api/sites/domain', async (req, res) => {
+  const { siteName, hostname } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  if (hostname && !/^([a-zA-Z][a-zA-Z0-9-]+\.)*[a-zA-Z][a-zA-Z0-9-]+$/.test(String(hostname))) {
+    return sendError(res, 'INVALID_NAME', 'Hostname must be a valid DNS name (letters, digits, hyphens, dots)');
+  }
+  const args = [siteName];
+  if (hostname) args.push(String(hostname));
+  args.push('--yes');
+  try {
+    const result = await executeMatrix('domain', args, { json: true });
+    if (result.success && result.data) {
+      res.json({ success: true, site: result.data.site, hostname: result.data.hostname });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Share: persistent public tunnel (detached child; stopped via /api/sites/share-stop)
+const SHARE_URL_PATTERN = /https?:\/\/[^\s"']*(?:trycloudflare\.com|ngrok\.[a-z]+|ngrok-free\.app|bore\.pub)/i;
+const activeShares = new Map(); // site -> { child, provider, url, startedAt }
+
+const startShareProcess = (siteName, provider) => {
+  return new Promise((resolve, reject) => {
+    const args = ['share', siteName, '--yes'];
+    if (provider) args.push(`--provider=${provider}`);
+    const child = spawn(MATRIX_PATH, args, { cwd: PROJECT_ROOT, env: { ...process.env, NODE_ENV: 'development' } });
+    const entry = { child, provider: provider || null, url: null, startedAt: new Date().toISOString() };
+    activeShares.set(siteName, entry);
+
+    let stdout = '';
+    let settled = false;
+    const settle = (fn, value) => { if (!settled) { settled = true; clearTimeout(timer); fn(value); } };
+
+    const timer = setTimeout(() => {
+      try { child.kill('SIGTERM'); } catch (e) { /* already dead */ }
+      activeShares.delete(siteName);
+      settle(reject, new Error('Tunnel did not report a URL within 30s'));
+    }, 30000);
+
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
+      const match = stdout.match(SHARE_URL_PATTERN);
+      if (match) {
+        entry.url = match[0];
+        settle(resolve, { provider: entry.provider, url: entry.url });
+      }
+    });
+    child.stderr.on('data', (data) => { stdout += data.toString(); });
+    child.on('close', (code) => {
+      activeShares.delete(siteName);
+      if (!settled) {
+        settle(reject, new Error(code === 0 ? 'Tunnel exited before reporting a URL' : `matrix share exited with code ${code}`));
+      }
+    });
+    child.on('error', (err) => {
+      activeShares.delete(siteName);
+      settle(reject, err);
+    });
+  });
+};
+
+app.post('/api/sites/share', async (req, res) => {
+  const { siteName, provider } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  if (provider && !['cloudflared', 'ngrok', 'bore'].includes(String(provider))) {
+    return sendError(res, 'INVALID_INPUT', 'Provider must be cloudflared, ngrok, or bore');
+  }
+  if (activeShares.has(siteName)) {
+    return sendError(res, 'SHARE_ALREADY_ACTIVE', `A tunnel for "${siteName}" is already running`, 409);
+  }
+  try {
+    const result = await startShareProcess(siteName, provider);
+    res.json({ success: true, site: siteName, provider: result.provider, url: result.url });
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+app.post('/api/sites/share-stop', async (req, res) => {
+  const { siteName } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  const entry = activeShares.get(siteName);
+  if (!entry) {
+    return sendError(res, 'SHARE_NOT_ACTIVE', `No active tunnel for "${siteName}"`, 404);
+  }
+  entry.child.kill('SIGTERM');
+  setTimeout(() => { try { entry.child.kill('SIGKILL'); } catch (e) { /* already dead */ } }, 5000);
+  activeShares.delete(siteName);
+  res.json({ success: true, site: siteName, stopped: true });
+});
+
+app.get('/api/share-status', (req, res) => {
+  const shares = [...activeShares.entries()].map(([site, e]) => ({
+    site, provider: e.provider, url: e.url, startedAt: e.startedAt
+  }));
+  res.json({ success: true, active: shares.length > 0, shares });
+});
+
+// Site bundle export (matrix export <site> [--out] --json)
+app.post('/api/sites/export-bundle', async (req, res) => {
+  const { siteName, outputFile } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  const args = [siteName];
+  if (outputFile) {
+    const fileValidation = validateRelativeFilePath(outputFile, 'Output file');
+    if (!fileValidation.valid) return sendError(res, fileValidation.code, fileValidation.message);
+    args.push('--out', String(outputFile));
+  }
+  try {
+    const result = await executeMatrix('export', args, { json: true });
+    if (result.success && result.data) {
+      res.json({
+        success: true,
+        site: result.data.site,
+        bundle: result.data.bundle,
+        dbDumpSha256: result.data.db_dump_sha256
+      });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Site bundle import (matrix import <bundle> <new-site> [--yes] --json)
+app.post('/api/sites/import-bundle', async (req, res) => {
+  const { bundleFile, destName, force } = req.body;
+  const fileValidation = validateRelativeFilePath(bundleFile, 'Bundle file');
+  if (!fileValidation.valid) return sendError(res, fileValidation.code, fileValidation.message);
+  const destValidation = validateSiteName(destName);
+  if (!destValidation.valid) return sendError(res, destValidation.code, destValidation.message);
+  const args = [String(bundleFile), destName];
+  if (force) args.push('--yes');
+  try {
+    const result = await executeMatrix('import', args, { json: true });
+    if (result.success && result.data) {
+      await invalidateSitesCache();
+      res.json({ success: true, site: result.data.site, importedFrom: result.data['imported-from'] });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// WP compat matrix (matrix test <site> --wp-versions=<csv> --json → bare row array)
+app.post('/api/sites/compat', async (req, res) => {
+  const { siteName, wpVersions } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  if (!Array.isArray(wpVersions) || wpVersions.length === 0) {
+    return sendError(res, 'INVALID_INPUT', 'wpVersions must be a non-empty array');
+  }
+  for (const v of wpVersions) {
+    if (!SUPPORTED_WP_VERSIONS.has(String(v))) {
+      return sendError(res, 'INVALID_INPUT', `Unsupported WordPress version "${v}" (6.4, 6.5, 6.6, latest)`);
+    }
+  }
+  try {
+    const result = await executeMatrix('test', [siteName, `--wp-versions=${wpVersions.join(',')}`], { json: true });
+    if (result.success && Array.isArray(result.data)) {
+      res.json({ success: true, rows: result.data });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Cron block management (matrix cron-install|cron-remove — no --json; exit code decides)
+app.post('/api/sites/cron', async (req, res) => {
+  const { siteName, op } = req.body;
+  if (!validateRequestSiteName(res, siteName)) return;
+  if (!['install', 'remove'].includes(String(op))) {
+    return sendError(res, 'INVALID_INPUT', 'op must be install or remove');
+  }
+  const command = op === 'install' ? 'cron-install' : 'cron-remove';
+  try {
+    const result = await executeMatrix(command, [siteName]);
+    if (result.success) {
+      res.json({ success: true, output: result.stdout });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Preset list for the create modal (matrix preset --json)
+app.get('/api/presets', async (req, res) => {
+  try {
+    const result = await executeMatrix('preset', ['--json'], { json: true });
+    if (result.success && result.data) {
+      res.json({ success: true, presets: result.data.presets || [] });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
+// Doctor results for the Services tab (matrix doctor --json).
+// doctor exits 1 when any check fails — rows still come back in result.data.
+app.get('/api/doctor', async (req, res) => {
+  try {
+    const result = await executeMatrix('doctor', [], { json: true });
+    if (result.data) {
+      res.json({ success: true, checks: result.data });
+    } else {
+      sendError(res, 'COMMAND_FAILED', getErrorMessage(result));
+    }
+  } catch (error) {
+    sendError(res, 'COMMAND_FAILED', error.message);
+  }
+});
+
 // Catch-all for remaining site actions (create, start, stop, remove, info, check)
 app.post('/api/sites/:action', async (req, res) => {
   const { action } = req.params;
@@ -755,15 +1061,27 @@ app.post('/api/sites/:action', async (req, res) => {
   }
 
   if (action === 'create') {
-      const phpValidation = validatePhpVersion(phpVersion || DEFAULT_PHP_VERSION);
+    const phpValidation = validatePhpVersion(phpVersion || DEFAULT_PHP_VERSION);
     if (!phpValidation.valid) {
       return sendError(res, phpValidation.code, phpValidation.message);
+    }
+    const msValidation = validateMultisiteMode(req.body.multisite);
+    if (!msValidation.valid) {
+      return sendError(res, msValidation.code, msValidation.message);
+    }
+    const wpValidation = validateWpVersion(req.body.wpVersion);
+    if (!wpValidation.valid) {
+      return sendError(res, wpValidation.code, wpValidation.message);
+    }
+    const presetValidation = validatePresetName(req.body.preset);
+    if (!presetValidation.valid) {
+      return sendError(res, presetValidation.code, presetValidation.message);
     }
   }
 
   try {
     const args = action === 'create'
-      ? [siteName, `--php-version=${phpVersion || DEFAULT_PHP_VERSION}`]
+      ? buildCreateArgs(siteName, phpVersion || DEFAULT_PHP_VERSION, req.body)
       : ['remove', 'delete', 'rm'].includes(action)
         ? [siteName, '--yes']
         : [siteName];
@@ -1090,12 +1408,20 @@ module.exports = {
   validatePhpVersion,
   validateRelativeFilePath,
   validateCommandArgs,
+  validateMultisiteMode,
+  validateWpVersion,
+  validatePresetName,
+  validateBackupSchedule,
+  validateRetention,
   sendError,
   constants: {
     ALLOWED_SITE_ACTIONS,
     ALLOWED_ENV_ACTIONS,
     ALLOWED_FRONTEND_ACTIONS,
     SUPPORTED_PHP_VERSIONS,
+    SUPPORTED_WP_VERSIONS,
+    SUPPORTED_MULTISITE_MODES,
+    SUPPORTED_BACKUP_SCHEDULES,
     RESERVED_SITE_NAMES,
     DEFAULT_PHP_VERSION,
     VALIDATION_CONFIG,

@@ -186,9 +186,6 @@ assert_eq "T2.8 multisite-install called exactly once" "1" "$ms_calls"
 assert_eq "T2.8 subdomains=0 for subdirectory" "1" \
     "$(grep -q -- '--subdomains=0' <<<"$calls" && echo 1 || echo 0)"
 
-echo ""
-echo "multisite tests: $PASS passed, $FAIL failed"
-[[ "$FAIL" -eq 0 ]]
 # --- T2.9 info --json exposes multisite fields (spec Phase 2 contract) --------
 setup_site
 out=$(show_info_json alpha 2>&1); echo "$out" > "$SANDBOX/info.json"

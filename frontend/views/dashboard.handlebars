@@ -132,7 +132,7 @@
         <i class="ph-light ph-hard-drives"></i>
         <span>Sites</span>
       </div>
-      <button class="action-btn primary" onclick="openModal('createSiteModal')">
+      <button class="action-btn primary" onclick="openModal('createSiteModal'); loadPresetOptions();">
         <span class="btn-inner">
           <span>New Site</span>
           <span class="btn-icon-wrap"><i class="ph-light ph-plus"></i></span>
@@ -460,6 +460,30 @@
             <option value="8.0">PHP 8.0</option>
             <option value="7.4">PHP 7.4</option>
           </select>
+        </div>
+        <div class="field-group">
+          <label for="wpVersionSelect">WordPress Version</label>
+          <select id="wpVersionSelect" class="glass-select">
+            <option value="">latest (default)</option>
+            <option value="6.6">WordPress 6.6</option>
+            <option value="6.5">WordPress 6.5</option>
+            <option value="6.4">WordPress 6.4</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="multisiteVersion">Multisite</label>
+          <select id="multisiteVersion" class="glass-select">
+            <option value="">none (default)</option>
+            <option value="subdirectory">Multisite — subdirectory</option>
+            <option value="subdomain">Multisite — subdomain</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label for="presetSelect">Preset</label>
+          <select id="presetSelect" class="glass-select">
+            <option value="">none (default)</option>
+          </select>
+          <span class="field-hint">Drop .sh files into config/presets/ to add more</span>
         </div>
       </div>
       <div class="modal-footer">
