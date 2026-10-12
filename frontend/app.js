@@ -272,6 +272,12 @@ app.use(cors({
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Dashboard token auth (Phase 8): static assets stay open; /api/* guarded
+// when MATRIX_DASHBOARD_TOKEN is set; /health always exempt.
+const DASHBOARD_TOKEN = process.env.MATRIX_DASHBOARD_TOKEN || '';
+const { createAuthMiddleware } = require('./middleware/auth');
+app.use(createAuthMiddleware({ token: DASHBOARD_TOKEN }));
+
 // Handlebars setup
 app.engine('handlebars', exphbs.engine({
   defaultLayout: 'main',
@@ -1057,10 +1063,14 @@ app.use((req, res) => {
 const startServer = (port = PORT) => {
   startStatusPolling();
   const lanIp = process.env.MATRIX_LAN_IP || '';
-  return server.listen(port, () => {
-    console.log(`WordPress Matrix Frontend listening on 0.0.0.0:${port}`);
+  const bindHost = DASHBOARD_TOKEN ? '0.0.0.0' : '127.0.0.1';
+  if (!DASHBOARD_TOKEN) {
+    console.warn('[SECURITY] No MATRIX_DASHBOARD_TOKEN — binding to 127.0.0.1 only. Set MATRIX_DASHBOARD_TOKEN to enable LAN access.');
+  }
+  return server.listen(port, bindHost, () => {
+    console.log(`WordPress Matrix Frontend listening on ${bindHost}:${port}`);
     console.log(`Dashboard:   http://localhost:${port}`);
-    if (lanIp) console.log(`Dashboard:   http://${lanIp}:${port}  (LAN)`);
+    if (lanIp && DASHBOARD_TOKEN) console.log(`Dashboard:   http://${lanIp}:${port}  (LAN)`);
     console.log(`API Endpoint: http://localhost:${port}/api`);
     console.log('WebSocket: Enabled');
   });
