@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Local WordPress Dev Tool Competitor Analysis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f7f5f1; --fg: #1a1a18; --ink: #10100f;
+  --surface: #ffffff; --border: #d9d7d1; --line: #e6e4de;
+  --accent: #16604f; --accent-soft: #eaf3ef; --mint: #16604f;
+  --honey: #c98706; --honey-soft: #fff4da;
+  --amber: #b76e00; --rose: #b23a3a; --rose-soft: #fcece9;
+  --code-bg: #161615; --code-fg: #e3e0d8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121110; --fg: #eceadd; --ink: #e6e4de;
+    --surface: #1b1a19; --border: #33312f; --line: #262523;
+    --accent: #6fd3a3; --accent-soft: #0e2f23; --mint: #6fd3a3;
+    --honey: #ffc04d; --honey-soft: #3a2805;
+    --amber: #ffcf7f; --rose: #f08383; --rose-soft: #3e1515;
+    --code-bg: #0e0e0d; --code-fg: #c8c5bc;
+  }
+  :root[data-theme="dark"] {
+    --bg: #121110; --fg: #eceadd; --ink: #e6e4de;
+    --surface: #1b1a19; --border: #33312f; --line: #262523;
+    --accent: #6fd3a3; --accent-soft: #0e2f23; --mint: #6fd3a3;
+    --honey: #ffc04d; --honey-soft: #3a2805;
+    --amber: #ffcf7f; --rose: #f08383; --rose-soft: #3e1515;
+    --code-bg: #0e0e0d; --code-fg: #c8c5bc;
+  }
+}
+body { background: var(--bg); color: var(--fg); font: 400 15px/1.6 Inter, system-ui, sans-serif; margin: 0; padding: 0 20px; }
+h1,h2,h3 { color: var(--ink); font-family: 'Bricolage Grotesque', sans-serif; text-wrap: balance; margin: 0 0 0.5em; }
+h1 { font-size: 2.1rem; line-height: 1.1; }
+h2 { font-size: 1.35rem; padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); margin-top: 2.5rem; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+p { margin: 0 0 1em; }
+strong { color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: var(--surface); border: 1px solid var(--border); padding: 0.08em 0.35em; border-radius: 6px; color: var(--ink); }
+table { border-collapse: collapse; width: 100%; margin: 1.2rem 0; font-size: 0.95rem; }
+th { text-align: left; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink/80); border-bottom: 2px solid var(--border); padding: 0.6rem 0.7rem; }
+td { border-bottom: 1px solid var(--line); padding: 0.6rem 0.7rem; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td.col-0 { font-weight: 600; min-width: 150px; white-space: nowrap; }
+thead td { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+thead tr { border-bottom: 2px solid var(--border); }
+.badge { display: inline-block; padding: 0.18em 0.55em; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; border-radius: 999px; }
+.badge-open { background: var(--accent-soft); color: var(--accent); }
+.badge-paid { background: var(--honey-soft); color: var(--honey); }
+.badge-official { background: var(--rose-soft); color: var(--rose); }
+.badge-cli { background: #d9e2ec; color: #1b3a57; }
+.badge-note { background: var(--rose-soft); color: var(--rose); }
+.lead { font-size: 1.12rem; color: var(--ink); margin-bottom: 1.6rem; }
+.hero { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.6rem; margin: 1.4rem 0 2rem; }
+.hero h2 { font-size: 1.3rem; border: none; margin: 0; }
+.section-intro { display: flex; gap: 1rem; align-items: flex-start; }
+.section-tag { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--accent); padding: 0.2em 0.55em; border: 1px solid var(--border); border-radius: 6px; white-space: nowrap; }
+.strengths, .gaps, .verdict { padding: 1.2rem 1.4rem; border-radius: 12px; }
+.strengths { background: var(--accent-soft); }
+.gaps { background: var(--rose-soft); }
+.verdict { background: var(--surface); border: 1px solid var(--border); }
+.strengths h4, .gaps h4, .verdict h4 { font-size: 0.9rem; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.06em; text-transform: uppercase; margin: 0 0 0.5em; }
+.strengths ul, .gaps ul { margin: 0; padding-left: 1.1rem; }
+.strengths li, .gaps li { margin-bottom: 0.35rem; font-size: 0.95rem; }
+.verdict p { font-size: 0.95rem; margin: 0.4em 0; }
+.hero-score { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+.score-tile { flex: 1 1 150px; min-width: 130px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; text-align: center; }
+.score-num { font-family: 'Bricolage Grotesque', sans-serif; font-size: 1.7rem; font-weight: 700; color: var(--ink); display: block; }
+.score-label { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink/75); }
+.summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+.summary-card h4 { font-size: 0.95rem; margin: 0 0 0.4rem; }
+.summary-card .sub { font-size: 0.85rem; color: var(--ink/70); }
+.note { font-size: 0.85rem; color: var(--ink/65); border-top: 1px solid var(--border); padding-top: 0.7rem; margin-top: 2rem; }
+.kicker { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink/65); margin-bottom: 0.3em; }
+@media (max-width: 640px) {
+  h1 { font-size: 1.6rem; }
+  th, td { padding: 0.5rem 0.55rem; }
+  table { font-size: 0.9rem; }
+}
+</style>
+</head>
+<body>
+
+<div class="kicker"> wordpress-matrix roadmap brief • 2026-10-12 • research via SearXNG, knowledge-based for features not indexed</div>
+<h1>Local WordPress Development Environments — Competitor Analysis</h1>
+<p class="lead">
+wordpress-matrix is a hand-rolled, Docker/Podman-driven platform focused on multi-site workflows, code quality tooling, and CLI control. Against the wider field, its natural position is <strong>developer-oriented</strong> rather than <strong>beginner-oriented</strong>. The biggest gaps versus the market leaders are: zero-click install, one-click PHP/version switching, TLS/local domains, and managed hosting push/pull.
+</p>
+
+<div class="hero">
+  <h2>What wordpress-matrix gets right out of the box</h2>
+  <div class="hero-score">
+    <div class="score-tile">
+      <span class="score-num">5</span>
+      <span class="score-label">PHP versions per site (7.4–8.3)</span>
+    </div>
+    <div class="score-tile">
+      <span class="score-num">multi</span>
+      <span class="score-label">independent sites + nginx per site</span>
+    </div>
+    <div class="score-tile">
+      <span class="score-num">phar</span>
+      <span class="score-label">WP-CLI (no long-running wp-cli service)</span>
+    </div>
+    <div class="score-tile">
+      <span class="score-num">phpcs + phpstan</span>
+      <span class="score-label">built-in code quality lane</span>
+    </div>
+  </div>
+</div>
+
+<h2>Competitor landscape</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <span class="badge badge-open">Free • desktop app</span>
+    <h4>Local (Flywheel/WP Engine)</h4>
+    <p class="sub">The consumer-default. One-click installs, instant site start, per-site PHP swaps, root SSH, WP-CLI shell, Mailpit, Xdebug, Blueprints, Live Links. Push/pull to WP Engine and Flywheel. Electron-based.</p>
+  </div>
+  <div class="summary-card">
+    <span class="badge badge-open">Free • desktop app</span>
+    <h4>Studio (Automattic)</h4>
+    <p class="sub">Official WordPress.com local tool. Fast persistent projects, theme/plugin editing, sync/export. Newer; less mature ecosystem than Local.</p>
+  </div>
+  <div class="summary-card">
+    <span class="badge badge-open">Free • desktop app</span>
+    <h4>DevKinsta (Kinsta)</h4>
+    <p class="sub">One-click sites, per-site PHP switching, database management, Xdebug. Docker under the hood, aimed at Kinsta customers.</p>
+  </div>
+  <div class="summary-card">
+    <span class="badge badge-paid">Free tier • CLI-first</span>
+    <h4>DDEV</h4>
+    <p class="sub">Multi-project, config-as-code (<code>ddev config</code>), Mutagen for 10x+ file I/O on macOS/Windows, built-in mailhog, Xdebug, ssh-env, global CLI. WordPress recipe exists.</p>
+  </div>
+  <div class="summary-card">
+    <span class="badge badge-official">npm • CLI</span>
+    <h4>wp-env</h4>
+    <p class="sub">Official @wordpress/env. NPM dev dependency, <code>.wp-env.json</code> config, single-site, geared to plugin/theme devs. No GUI.</p>
+  </div>
+  <div class="summary-card">
+    <span class="badge badge-note">Legacy stack</span>
+    <h4>Lando / XAMPP</h4>
+    <p class="sub">Lando: great Docker abstractions, still alive in 2026, project-scoped config, but heavier/older and not WP-first. XAMPP: Apache+PHP+MySQL bundles; still in the WordPress handbook as a valid option but no per-site isolation, no modern DX.</p>
+  </div>
+</div>
+
+<h2>Head-to-head: wordpress-matrix vs the field</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th class="col-0">Capability</th>
+      <th>wordpress-matrix</th>
+      <th>Local / Studio / DevKinsta</th>
+      <th>DDEV / Lando</th>
+      <th>wp-env</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="col-0">Per-site PHP versions</td>
+      <td>✅ 7.4/8.0/8.1/8.2/8.3 at create</td>
+      <td>✅ hot-swap per site</td>
+      <td>✅ via image choice</td>
+      <td>⚠️ manual</td>
+    </tr>
+    <tr>
+      <td class="col-0">Zero-click install</td>
+      <td>❌ manual git clone + <code>./matrix start</code></td>
+      <td>✅ one click, starts instantly</td>
+      <td>⚠️ <code>composer require</code> / install</td>
+      <td>✅ <code>npm install</code></td>
+    </tr>
+    <tr>
+      <td class="col-0">Automatic port/host discovery</td>
+      <td>✅ ports 8201+, <code>.nip.io</code>, LAN IP</td>
+      <td>✅ managed domains</td>
+      <td>✅ self-generated domains</td>
+      <td>❌ localhost:xxxx</td>
+    </tr>
+    <tr>
+      <td class="col-0">Per-site TLS / custom domains</td>
+      <td>❌ not implemented</td>
+      <td>✅ auto HTTPS + site domains</td>
+      <td>✅ self-signed per site</td>
+      <td>❌ plain HTTP</td>
+    </tr>
+    <tr>
+      <td class="col-0">Multisite out of the box</td>
+      <td>❌ no flag</td>
+      <td>✅ multisite on creation</td>
+      <td>✅ plugin-based</td>
+      <td>❌ manual</td>
+    </tr>
+    <tr>
+      <td class="col-0">Mailtrap/mail catcher</td>
+      <td>✅ Mailpit included</td>
+      <td>✅ Mailpit in Local</td>
+      <td>✅ mailhog built-in</td>
+      <td>❌ manual</td>
+    </tr>
+    <tr>
+      <td class="col-0">WP-CLI / shell access</td>
+      <td>✅ <code>./matrix wp</code>, per-site shells</td>
+      <td>✅ site shells</td>
+      <td>✅ <code>ddev ssh</code></td>
+      <td>✅ npx wp</td>
+    </tr>
+    <tr>
+      <td class="col-0">Code quality lane</td>
+      <td>✅ phpcs (WPCS) + phpstan level 9</td>
+      <td>❌ none bundled</td>
+      <td>⚠️ can be added</td>
+      <td>❌ none bundled</td>
+    </tr>
+    <tr>
+      <td class="col-0">Frontend dashboard</td>
+      <td>✅ Node/Express + Handlebars UI</td>
+      <td>✅ native app</td>
+      <td>❌ CLI only</td>
+      <td>❌ CLI only</td>
+    </tr>
+    <tr>
+      <td class="col-0">Site presets (Woo, bbPress)</td>
+      <td>✅ <code>--preset</code></td>
+      <td>✅ templates/blueprints</td>
+      <td>⚠️ recipes</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td class="col-0">Push/pull hosting sync</td>
+      <td>❌</td>
+      <td>✅ WP Engine / Flywheel</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td class="col-0">Share live site (tunnel)</td>
+      <td>❌</td>
+      <td>✅ Live Links</td>
+      <td>❌</td>
+      <td>❌</td>
+    </tr>
+    <tr>
+      <td class="col-0">No daemon / one-off tooling</td>
+      <td>✅ live-container fallback</td>
+      <td>❌ always-running app</td>
+      <td>⚠️ project daemons</td>
+      <td>✅</td>
+    </tr>
+    <tr>
+      <td class="col-0">Podman support</td>
+      <td>✅ docker-compose OR podman-compose</td>
+      <td>❌ Docker only</td>
+      <td>❌ Docker only</td>
+      <td>❌ Docker only</td>
+    </tr>
+    <tr>
+      <td class="col-0">Cross-platform</td>
+      <td>⚠️ Linux/macOS (CLI)</td>
+      <td>✅ Win/Mac/Linux</td>
+      <td>✅</td>
+      <td>✅ (node)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Where wordpress-matrix wins</h2>
+<div class="strengths">
+  <h4>Reasons a developer would pick this over the consumer tools</h4>
+  <ul>
+    <li><strong>Podman support</strong> — the only mainstream option here besides Docker; matters on WSL2, rootless setups, and containers-on-Linux.</li>
+    <li><strong>Per-site nginx + nginx configs committed</strong> under <code>config/nginx/</code>. Consumer tools bundle opaque defaults; here you get real, versionable per-site server blocks.</li>
+    <li><strong>Built-in code quality</strong> — phpcs with WordPress Coding Standards and PHPStan Level 9 is not something Local or wp-env ships. That’s a genuine differentiator for agencies/teams.</li>
+    <li><strong>Multi-site-first</strong> — ports allocated sequentially (8201+), independent stacks per site, shared DB/Redis. Local/WP-ENV are naturally single-site; you can run them side-by-side but not as one managed fleet.</li>
+    <li><strong>One-off WP-CLI without a long-running service</strong> — the tool container joins the live network on demand. Lighter than DDEV daemons for small sites.</li>
+    <li><strong>LAN access</strong> — automatic .nip.io + LAN IP so teammates/phones can hit dev sites without ngrok/Local tunnels.</li>
+  </ul>
+</div>
+
+<h2>Where wordpress-matrix loses</h2>
+<div class="gaps">
+  <h4>Gaps a user would feel immediately</h4>
+  <ul>
+    <li><strong>No zero-click install.</strong> Cloning a repo and running <code>./matrix start</code> is a 5-minute task vs one click. Onboarding is the highest-friction moment for everyone in this field.</li>
+    <li><strong>No automatic TLS / pretty hostnames.</strong> .nip.io works but self-signed HTTPS and custom domains (a.dev / site.local / .test) are table stakes; Local, Studio, DevKinsta, and DDEV all provide this per site.</li>
+    <li><strong>No multisite flag.</strong> Local offers multisite at creation; wordpress-matrix requires a manual install and rewrite.</li>
+    <li><strong>No push/pull or Live Links.</strong> The "connect to hosting" workflow and "share this with a client" tunnel are the killer UX moments in Local.</li>
+    <li><strong>Less polished UI surface.</strong> The Node dashboard is functional (status, start/stop/create/logs, code checks) but not feature-matched to a desktop app (no site-flyout detail, no Xdebug toggle GUI, no blueprints).</li>
+  </ul>
+</div>
+
+<h2>Recommendations — what to build next</h2>
+<div class="verdict">
+  <p><strong>Don’t compete on being Local.</strong> A GUI that copies Blueprints/Live Links is a losing fight. Compete on the three things only a CLI/Docker-first tool can win: Podman, per-site nginx fidelity, and the quality-tooling lane.</p>
+  <p>Priority roadmap (highest leverage first):</p>
+  <ol>
+    <li><strong>Auto HTTPS + a managed domain scheme</strong> — add a <code>./matrix domain</code> command (local.dev, .test, or self-signed wildcard). This closes the single biggest "first-day" friction versus every competitor.</li>
+    <li><strong>Multisite mode</strong> — <code>./matrix create --multisite=subdirectory</code> wiring the subsite network into the port/URL layer, mirroring Local’s creation-time offer.</li>
+    <li><strong>Presets as reusable configs</strong> — extend the existing <code>--preset=</code> flag into shareable presets stored in <code>config/presets/</code> (theme + plugins + wp-config tweaks), so Woo/bbPress isn’t a one-off.</li>
+    <li><strong>Share link / tunnel helper</strong> — a <code>./matrix share</code> that wraps ngrok/cloudflared or tunnels via a lightweight relay, so the dashboard’s "open on my phone" works without user setup.</li>
+    <li><strong>One-line bootstrap</strong> — a <code>./matrix bootstrap</code> / install doc that turns the current clone+start into one command; optionally an <code>npm create wp-matrix</code> stub.</li>
+  </ol>
+</div>
+
+<div class="note">
+Sources: SearXNG queries run 2026-10-12 from <code>http://192.168.31.99:3003</code>. Competitive feature summaries reflect the indexed pages (localwp.com/features, kinsta.com/devkinsta/features, wordpress.org dev handbook, ddev.com/blog, automattic.com/for-agencies) plus knowledge-based observations for items not well-indexed; mark "knowledge-based" features as needing a live verify before roadmap commitment. wordpress-matrix capability data read directly from <code>./matrix</code>, <code>scripts/</code>, <code>docker-compose.yml</code>, and the frontend app.
+</div>
+
+</body>
+</html>
