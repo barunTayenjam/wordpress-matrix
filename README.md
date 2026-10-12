@@ -1,284 +1,282 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://img.shields.io/badge/WordPress-Dark-purple?style=for-the-badge&logo=wordpress&logoColor=white">
-  <img src="https://img.shields.io/badge/WordPress-Light-blue?style=for-the-badge&logo=wordpress&logoColor=white" alt="WordPress Badge">
-</picture>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:21759B,50:1E4E79,100:0F2B3D&height=180&section=header&text=WordPress%20Matrix&fontSize=48&fontAlignY=32&desc=One%20command.%20Every%20WordPress%20site.&descAlignY=55&descSize=18&animation=fadeIn&fontColor=ffffff" width="100%" alt="WordPress Matrix banner" />
 
-<h1>WordPress Matrix</h1>
+<!-- Badge wall — live repo metrics first, then stack badges -->
+[![Stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=flat-square&logo=github&label=stars)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
+[![Forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=flat-square&logo=github&label=forks)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
+[![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/wordpress-matrix/feature/dev-choice-roadmap?style=flat-square&logo=git&label=last%20commit)](https://github.com/barunTayenjam/wordpress-matrix/commits/feature/dev-choice-roadmap)
 
-<p><strong>The one-command WordPress development environment for professionals.</strong></p>
+[![Bash](https://img.shields.io/badge/CLI-Bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com)
+[![Podman](https://img.shields.io/badge/Podman-892CA0?style=flat-square&logo=podman&logoColor=white)](https://podman.io)
+[![WordPress](https://img.shields.io/badge/WordPress%207.4–8.3-21759B?style=flat-square&logo=wordpress&logoColor=white)](https://wordpress.org)
+[![Node](https://img.shields.io/badge/Dashboard-Node%2018+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
 
-<p>Multiple WordPress sites · Docker & Podman · Live TLS · Tunnel sharing · Offline test suite · PHP 7.4–8.3 · PHPStan Level 9</p>
+[![Tests](https://img.shields.io/badge/tests-189%20bash%20%2B%2037%20jest-brightgreen?style=flat-square&logo=checkmarx&logoColor=white)](tests/bash)
+[![TDD](https://img.shields.io/badge/method-red%20→%20green%20→%20refactor-orange?style=flat-square)](docs/TDD-IMPLEMENTATION.md)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=flat-square)](https://github.com/barunTayenjam/wordpress-matrix/pulls)
 
-<!-- ===== BADGE WALL ===== -->
+**A self-hosted, one-script WordPress development platform — Docker or Podman, your choice.**
 
-```
-[![GitHub stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=flat-square&logo=github)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=flat-square&logo=github)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
-[![GitHub license](https://img.shields.io/github/license/barunTayenjam/wordpress-matrix?style=flat-square)](https://github.com/barunTayenjam/wordpress-matrix/blob/main/LICENSE)
-[![Build Status](https://img.shields.io/badge/Tests-189+37_passing-brightgreen?style=flat-square)](./tests/bash)
-[![TDD-Ready](https://img.shields.io/badge/TDD-verified-blue?style=flat-square&logo=tdd)](./docs/TDD-IMPLEMENTATION.md)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](https://www.docker.com)
-[![Podman](https://img.shields.io/badge/Podman-Ready-F17600?style=flat-square&logo=podman)](https://podman.io)
-[![Node](https://img.shields.io/badge/Node-18+_blue?style=flat-square&logo=node.js)](https://nodejs.org)
-```
+`matrix` creates sites, generates TLS certs, tunnels for client demos, exports portable
+bundles, runs WP core compat matrices — and a real-time dashboard supervises it all.
+
+[Getting Started](#-getting-started) ·
+[Features](#-features) ·
+[Command Reference](#-command-reference) ·
+[Architecture](#%EF%B8%8F-architecture) ·
+[Testing](#-testing--tdd)
 
 </div>
 
 ---
 
-## 🔥 What it is
-
-One `./matrix` script replaces `docker compose up`, `wp cli`, `nginx` config, TLS certs, tunnels, and the whole dashboard. Spin up an entire WordPress network in seconds, edit any site's PHP version, pin WP core, share a tunnel with a client, and ship with confidence — all from a single entry point.
+## 🚀 Getting Started
 
 ```bash
 git clone https://github.com/barunTayenjam/wordpress-matrix.git
-cd wordpress-matrix && chmod +x matrix
-./matrix start          # db · redis · phpMyAdmin · frontend
-./matrix create mysite  # your first site, ready in ~45s
-open http://localhost:8500   # dashboard
-```
-
----
-
-## ⚡ Features at a glance
-
-| Category | What you get |
-|---|---|
-| **Site lifecycle** | `create` · `start` · `stop` · `remove` · `clone` · `reset` · `edit` (memory/CPU limits) |
-| **PHP freedom** | Per-site PHP 7.4 → 8.3, no single-version lock |
-| **TLS first** | `matrix ssl` generates mkcert/openssl certs, HTTPS on `:port+1000`, pretty `<site>.test` domains |
-| **Client-ready** | `matrix share` spins a cloudflared/ngrok/bore tunnel with one command |
-| **Portability** | `matrix export/import` bundles site + DB + manifest for one-command portability |
-| **WP version pinning** | `create --wp-version=6.4|6.5|6.6|latest`; verify with `matrix test` |
-| **Multisite** | `create --multisite=subdirectory|subdomain` out of the box |
-| **Presets** | `create --preset=woocommerce|bbpress|buddypress|elementor|multisite|blank` |
-| **Code quality** | PHPStan Level 9 · WordPress CodeSniffer per-site, `matrix check` |
-| **Health** | `matrix doctor` tells you exactly what's broken before you start |
-| **Dashboard** | Real-time Node.js UI at `:8500` — status, flyouts, WP-CLI, terminal, activity log |
-| **Docker OR Podman** | `$CONTAINER_RUNTIME` abstraction, no docker socket mounted |
-
----
-
-## 🧪 Test status (verified)
-
-Every phase ships red-then-green: failing test committed **before** the implementation.
-
-```bash
-# Offline stub suites — 189 assertions, no Docker daemon needed
-tests/bash/site-state-test.sh  # 34/34
-tests/bash/stubs-test.sh       # 4/4
-tests/bash/ssl-test.sh         # 12/12
-tests/bash/multisite-test.sh   # 16/16
-tests/bash/presets-test.sh     # 14/14
-tests/bash/doctor-test.sh      # 18/18
-tests/bash/export-import-test.sh # 33/33
-tests/bash/wp-version-test.sh  # 21/21
-tests/bash/share-test.sh       # (share provider detection)
-tests/bash/ops-test.sh         # 21/21
-
-# Frontend
-npm --prefix frontend test     # 37 tests
-
-# Release bar (run before every commit)
-bash -n matrix && bash -n scripts/*.sh
-./matrix <cmd> --json | python3 -m json.tool
-```
-
----
-
-## 📦 Quick start
-
-```bash
-git clone https://github.com/barunTayenjam/wordpress-matrix.git wordpress-matrix
 cd wordpress-matrix
 chmod +x matrix
 
-# Core services
+# Check your machine is ready — names every missing piece + the exact fix
+./matrix doctor
+
+# Start core services: MySQL, Redis, phpMyAdmin, dashboard
 ./matrix start
-./matrix status
 
-# First site (PHP 8.3 default)
+# Create your first site (PHP 8.3, port assigned automatically)
 ./matrix create mysite
-open http://localhost:8201          # site
-open http://localhost:8500          # dashboard
-open http://localhost:8200          # phpMyAdmin
 
-# Create with options
-./matrix create legacy --php-version=7.4 --wp-version=6.5
-./matrix create shop --preset=woocommerce
-./matrix create team --multisite=subdomain
+# Browse
+#   Dashboard   → http://localhost:8500
+#   Your site   → http://localhost:8201
+#   phpMyAdmin  → http://localhost:8200
+```
 
-# Done with a site
-./matrix remove mysite
-./matrix clean
+> [!TIP]
+> Not sure where to start? `./matrix doctor` checks the container runtime, compose tool,
+> ports, `.env` perms, disk headroom, and DNS — then prints the exact command to fix each failure.
+
+Real session — what a site creation looks like:
+
+```console
+$ ./matrix create mysite
+✅ Created .env file with generated credentials
+✅ Created docker-compose.yml
+✅ Created default nginx configuration
+✅ Site 'mysite' created successfully with PHP 8.3 (nginx)
+✅ Site 'mysite' started and ready!
+
+$ ./matrix ssl mysite --json
+{"success":true,"site":"mysite","https_port":9201,"url":"https://localhost:9201",
+ "cert_source":"mkcert","fingerprint":"SHA256:9f3c…"}
 ```
 
 ---
 
-## 🔧 Complete command reference
+## ✨ Features
 
-### Environment
+- [x] **One entry point** — every operation is a `./matrix` subcommand; the dashboard only invokes it
+- [x] **Per-site PHP 7.4 → 8.3** — run legacy and modern sites side by side (`--php-version=7.4`)
+- [x] **WP core pinning + compat lab** — `--wp-version=6.4|6.5|6.6|latest`, then `matrix test` sweeps them
+- [x] **Auto-HTTPS** — mkcert (trusted CA) with openssl fallback; TLS on `port+1000`, `<site>.test` domains optional
+- [x] **Multisite at creation** — `--multisite=subdirectory|subdomain`, nginx/Apache rewrites generated
+- [x] **Shareable presets** — drop a `.sh` into `config/presets/`; `--preset=woocommerce` just works
+- [x] **Client-ready tunnels** — `matrix share` wraps cloudflared/ngrok/bore, one command, Ctrl-C to tear down
+- [x] **Portable bundles** — `export`/`import` a site as tar.gz: manifest + files + sha-verified DB dump
+- [x] **Scheduled backups** — `--schedule=daily --retention=7`, marker-block crontab sync
+- [x] **Docker *and* Podman** — runtime abstraction everywhere; no docker socket mounted
+- [x] **Code quality built in** — PHPStan Level 9 + WordPress Coding Standards per site
+- [x] **JSON everywhere** — every command emits parseable `{"success":…}`; the dashboard never scrapes text
+- [x] **Live dashboard** — real-time status, site flyouts, activity log, keyboard shortcuts at `:8500`
+- [x] **Doctor** — bootstrap checks that degrade with a fix-command, never a dead end
+
+<details>
+<summary><b>Why matrix? (vs Local WP, DDEV, Lando, wp-env, XAMPP)</b></summary>
+<br>
+
+Built after auditing 7 competitor tools. The gaps matrix closes on day one:
+
+| Need | matrix | Local/Studio | DDEV/Lando | wp-env |
+|---|---|---|---|---|
+| Multi-site in seconds | ✅ one command | ✅ GUI | ✅ | ⚠️ single-site |
+| Works on Podman | ✅ first-class | ❌ | ⚠️ | ❌ |
+| Zero-daemon offline tests | ✅ 189 stub asserts | ❌ | ❌ | ❌ |
+| Per-site WP core version pinning | ✅ | ⚠️ | ⚠️ | ⚠️ |
+| One-command public tunnel | ✅ | ✅ paid | ⚠️ | ❌ |
+| Portable tar.gz bundle w/ manifest | ✅ | ⚠️ | ❌ | ❌ |
+| No router container, no root daemon | ✅ | ❌ | ❌ | ❌ |
+| JSON CLI for automation | ✅ every cmd | ❌ | ⚠️ | ⚠️ |
+
+Full analysis: [`docs/competitor-analysis.html`](docs/competitor-analysis.html)
+</details>
+
+---
+
+## 📖 Command Reference
+
+<details open>
+<summary><b>Lifecycle</b></summary>
 
 ```bash
-./matrix start              # db · redis · phpMyAdmin · frontend
-./matrix stop               # stop everything + frontend
-./matrix restart            # restart everything
-./matrix status             # one-line overview
-./matrix clean              # drop unused Docker/Podman resources
-./matrix doctor             # bootstrap checks → exact fix commands
+./matrix start [site]      # no arg: core services · with arg: that site
+./matrix stop  [site]      # no arg: everything · with arg: that site
+./matrix restart [site]
+./matrix status            # overview table
+./matrix list              # all sites; --json for machine-readable
+./matrix clean             # prune unused containers/images/volumes
+```
+</details>
+
+<details>
+<summary><b>Create & configure</b></summary>
+
+```bash
+./matrix create shop                                # PHP 8.3 default
+./matrix create legacy --php-version=7.4            # side-by-side PHP
+./matrix create lab    --wp-version=6.4             # pin WP core (6.4|6.5|6.6|latest)
+./matrix create team   --multisite=subdomain        # network at creation
+./matrix create shop   --preset=woocommerce         # presets from config/presets/
+./matrix preset                                     # list available presets
+./matrix edit site --memory=512M --cpu=1            # per-site resource limits
+./matrix clone src dst · ./matrix reset name · ./matrix remove name
+```
+</details>
+
+<details>
+<summary><b>TLS, domains, tunnels</b></summary>
+
+```bash
+./matrix ssl mysite [--force] [--revoke] [--json]   # HTTPS on :9201 (port+1000)
+./matrix domain mysite mysite.test [--yes]          # /etc/hosts entry, sudo-gated
+./matrix share mysite --yes                         # cloudflared → ngrok → bore
+```
+</details>
+
+<details>
+<summary><b>Portability & ops</b></summary>
+
+```bash
+./matrix export mysite --out bundle.tar.gz          # manifest + files + sha'd dump
+./matrix import bundle.tar.gz newsite [--yes]
+./matrix backup mysite --schedule=daily --retention=7
+./matrix cron-install mysite · ./matrix cron-remove mysite
+```
+</details>
+
+<details>
+<summary><b>WP core & quality</b></summary>
+
+```bash
+./matrix wp mysite plugin install query-monitor --activate
+./matrix check [site] [path]                        # phpcs + phpstan level 9
+./matrix test lab --wp-versions=6.4,6.5 [--json]    # compat matrix rows
+./matrix rest mysite                                # REST API metadata
+```
+</details>
+
+<details>
+<summary><b>Introspection</b></summary>
+
+```bash
+./matrix doctor [--json]                            # bootstrap checks
+./matrix info mysite [--json]
+./matrix url mysite
+./matrix logs [site|db|redis|phpmyadmin]
+./matrix shell wp|db|nginx [site]
+scripts/health-check.sh                             # runtime deep-check
+```
+</details>
+
+---
+
+## 🏗️ Architecture
+
+```
+┌────────────────────────────── host ──────────────────────────────┐
+│                                                                  │
+│   matrix (bash) ◄── one entry point; validates, mutates, logs    │
+│      │                                                           │
+│      ├── generated state: docker-compose.yml · config/nginx/*    │
+│      ├── ssl-certs/<site>/ · .cron/<site>.cron · backups/        │
+│      └── frontend (Node/Express :8500) ── shells out to matrix   │
+│                                                                  │
+└──────────────────────────────┬───────────────────────────────────┘
+                               ▼  $CONTAINER_RUNTIME / $DOCKER_COMPOSE
+┌────────────────────────── containers ────────────────────────────┐
+│  wp_<site> (wordpress:phpX.X-fpm) ⇄ nginx_<site> (:8201+/443)    │
+│  wp_db (MySQL :3306) · redis · phpmyadmin (:8200)                │
+│  wp-cli → ephemeral wordpress:cli, joins the live db network     │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### Sites
+> [!NOTE]
+> Generated files are not source. `docker-compose.yml` entries, nginx confs, and certs
+> are produced by `matrix` — `./matrix repair` regenerates them at any time.
+
+---
+
+## 🧪 Testing & TDD
+
+Strict red → green → refactor per phase. **Failing tests are committed before the implementation.**
+Methodology: [`docs/TDD-IMPLEMENTATION.md`](docs/TDD-IMPLEMENTATION.md)
+
+| Suite | Asserts | What it pins |
+|---|---|---|
+| `site-state-test.sh` | 34 | Compose + live-container state seam |
+| `stubs-test.sh` | 4 | docker/compose stub infrastructure |
+| `ssl-test.sh` | 12 | cert generation, port math, domains |
+| `multisite-test.sh` | 16 | multisite-at-creation contract |
+| `presets-test.sh` | 14 | golden-parity preset loader |
+| `doctor-test.sh` | 18 | every check + exit codes |
+| `export-import-test.sh` | 33 | bundle round-trip, sha, name rules |
+| `wp-version-test.sh` | 21 | pinning + compat matrix |
+| `share-test.sh` | — | provider detection, url extraction, cleanup |
+| `ops-test.sh` | 21 | schedules, crontab blocks, auth middleware |
+
+All stub suites run **offline** — no Docker daemon needed. Plus 37 Jest tests for the dashboard API.
 
 ```bash
-./matrix list                                  # all sites
-./matrix create <name> [--php-version=X.X]     # PHP 7.4–8.3
-./matrix create <name> [--wp-version=6.4]      # pin WP core
-./matrix create <name> [--multisite=subdir|subdomain]
-./matrix create <name> [--preset=<preset>]     # woocommerce, bbpress, …
-./matrix start/stop/remove <name>
-./matrix clone <src> <dst>
-./matrix reset <name>                            # fresh install
-./matrix info <name> [--json]
-./matrix url <name>
-./matrix rest <name>                             # WP REST metadata
-```
-
-### TLS & domains
-
-```bash
-./matrix ssl <site> [--force] [--revoke] [--json]
-./matrix domain <site> [--yes]                   # adds <site>.test to /etc/hosts
-```
-
-### Tunneling, export, presets
-
-```bash
-./matrix share <site> --yes                      # public tunnel (cloudflared/ngrok/bore)
-./matrix export <site> --out bundle.tar.gz
-./matrix import bundle.tar.gz newsite --yes
-./matrix preset                                  # list presets
-```
-
-### WP core & quality
-
-```bash
-./matrix wp <site> <wp-cli args…>
-./matrix check [<site> [<path>]]                 # phpcs + phpstan
-./matrix test <site> --wp-versions=6.4,6.5       # compat matrix
-```
-
-### DB, logs, shells
-
-```bash
-./matrix shell wp/db/nginx <site>
-./matrix logs [<site> | db | redis | phpmyadmin]
-./matrix backup <site> --schedule=daily --retention=7
-./matrix cron-install/cron-remove <site>
-```
-
-### Frontend
-
-```bash
-./matrix frontend start/stop/restart/status
+# the release bar — run before every commit
+bash -n matrix && bash -n scripts/*.sh
+for t in tests/bash/*-test.sh; do bash "$t"; done
+npm --prefix frontend test
+./matrix info <site> --json | python3 -m json.tool
 ```
 
 ---
 
-## 🏗 Architecture
+## 🗺️ Roadmap
 
-```
-┌──────────────────────────────────────────────┐
-│  Host                                        │
-│  ┌─────────────────┐  ┌──────────────────┐   │
-│  │ Dashboard       │  │ matrix (CLI)     │   │
-│  │ :8500 (Node)    │◄─┤ single entry pt  │   │
-│  └─────────────────┘  └────────┬─────────┘   │
-│                                │ shelling     │
-└────────────────────────────────┼──────────────┘
-                                 ▼
-        ┌──────────────────────────────────────┐
-        │ Docker/Podman                          │
-        │  wp_<site> (php-fpm) ──┐               │
-        │  nginx_<site> (443 on  │ port+1000)   │
-        │  wp_db (MySQL)         │               │
-        │  redis · phpmyadmin    │               │
-        │  on-demand: wp-cli     │               │
-        └──────────────────────────────────────┘
-```
-
-One entry point (`matrix`) → all mutation. Dashboard is read-only; it only invokes `matrix`. No Traefik router, no docker socket — pure host→container communication.
-
----
-
-## 🛠 Setup & requirements
-
-- **OS:** macOS or Linux (WSL2 supported)
-- **Runtime:** Docker **or** Podman with `docker-compose`/`podman-compose`
-- **Node.js 18+** (for the dashboard at `:8500`)
-- Optional: `mkcert` (trusted certs), `cloudflared` (tunnels)
-
-```bash
-./matrix doctor     # tells you what's missing
-```
-
-Port map: sites start at **8201** (HTTP), **9201** (HTTPS) — phpMyAdmin **8200**, dashboard **8500**.
-
----
-
-## 📝 Conventions you'll see in this repo
-
-- **One script, one entry point.** Everything goes through `./matrix`; the dashboard never mutates state directly.
-- **Generated files aren't source.** Per-site nginx configs, TLS certs, and `docker-compose.yml` service entries are generated by `matrix`; `./matrix repair` regenerates them.
-- **JSON parity.** Every command supports `--json` and emits `{"success": …}` — the dashboard parses JSON, never text.
-- **Runtime abstraction.** `$CONTAINER_RUNTIME` / `$DOCKER_COMPOSE` make Podman first-class.
-- **Degrade, don't abort.** Missing `mkcert`, `cloudflared`, or `sudo` fall back gracefully — no unrelated command breaks.
-- **Destructive ops confirm.** `/etc/hosts`, certs, and site removal take `--yes` and log to `logs/activity.log`.
-- **Secrets stay off the CLI.** Env-var style only (the `MYSQL_PWD` pattern).
-
----
-
-## 🧭 Roadmap
-
-| Phase | Status |
-|---|---|
-| 0. Test infrastructure (offline stubs) | ✅ Done |
-| 1. Auto-HTTPS + optional domains | ✅ Done |
-| 2. Multisite at creation | ✅ Done |
-| 3. Presets as files | ✅ Done |
-| 4. `matrix share` tunneling | ✅ Done |
-| 5. `matrix doctor` | ✅ Done |
-| 6. Export / import bundles | ✅ Done |
-| 7. WP version pinning + compat matrix | ✅ Done |
-| 8. Scheduled backups + dashboard auth | ✅ Done |
-| Upcoming | push/pull hosting, blueprint marketplace, mobile app |
-
-Full methodology: [`docs/TDD-IMPLEMENTATION.md`](./docs/TDD-IMPLEMENTATION.md). Every phase is red → green with the failing test committed first.
+- [x] Phase 0 — offline stub test infrastructure
+- [x] Phase 1 — auto-HTTPS + optional domains
+- [x] Phase 2 — multisite at creation
+- [x] Phase 3 — presets as files
+- [x] Phase 4 — `matrix share` tunnels
+- [x] Phase 5 — `matrix doctor`
+- [x] Phase 6 — export/import bundles
+- [x] Phase 7 — WP version pinning + compat lab
+- [x] Phase 8 — scheduled backups + dashboard token auth
+- [ ] Push/pull hosting sync (WP Engine/Kinsta-style)
+- [ ] Apache-stack TLS parity
+- [ ] Blueprint marketplace
 
 ---
 
 ## 🤝 Contributing
 
-1. `[!INFO-0]` `git checkout -b feature/xxx`
-2. Write the failing test first (`tests/bash/xxx-test.sh`).
-3. Ship the implementation + `README.md` update in the same PR.
-4. Keep the release bar green: `bash -n matrix && bash -n scripts/*.sh && ./matrix <cmd> --json | python3 -m json.tool`.
+```bash
+git checkout -b feat/my-feature
+# 1. failing test first  →  tests/bash/feat-test.sh
+# 2. implementation      →  keep the release bar green
+# 3. docs in same commit →  README.md + AGENTS.md
+```
 
-See [`AGENTS.md`](./AGENTS.md) for the full dev guide.
-
----
-
-## 📜 License
-
-MIT. Built for professional WordPress teams who want one command to rule them all.
+Dev guide: [`AGENTS.md`](AGENTS.md) · Architecture Q&A: [`DFD.md`](DFD.md) · Feature plan: [`FEATURES-PLAN.md`](FEATURES-PLAN.md)
 
 <div align="center">
 
-Made with 💙 by the WordPress Matrix team · Dashboard live at http://localhost:8500
-
-[![GitHub](https://img.shields.io/badge/GitHub-black?style=for-the-badge&logo=github)](https://github.com/barunTayenjam/wordpress-matrix)
-[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord)](https://discord.gg/placeholder)
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0F2B3D,50:1E4E79,100:21759B&height=120&section=footer" width="100%" alt="" />
 
 </div>
