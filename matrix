@@ -76,12 +76,6 @@ log_activity() {
     echo "[$timestamp] $action | $site | $details" >> "$ACTIVITY_LOG"
 }
 
-get_activity_log() {
-    local limit="${1:-50}"
-    if [[ -f "$ACTIVITY_LOG" ]]; then
-        tail -n "$limit" "$ACTIVITY_LOG" | tac
-    fi
-}
 
 # Load environment
 if [[ -f "$PROJECT_ROOT/.env" ]]; then
@@ -648,25 +642,6 @@ list_sites_json() {
 }
 
 # Get port from running container
-get_container_port() {
-    local container_name="${1:-}"
-    local port=""
-
-    if [[ -z "$container_name" ]]; then
-        return 1
-    fi
-
-    # Try nginx container first
-    port=$($CONTAINER_RUNTIME port "$container_name" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ')
-
-    # If empty, try wp container (for apache-based sites)
-    if [[ -z "$port" ]]; then
-        local wp_container="${container_name/nginx_/wp_}"
-        port=$($CONTAINER_RUNTIME port "$wp_container" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ')
-    fi
-
-    echo "$port"
-}
 
 # List all sites and services
 list_sites() {

@@ -2,9 +2,6 @@
 # compose-lib.sh — docker-compose.yml manipulation helpers
 # All mutations are validated and atomic.
 
-get_compose_file() {
-    echo "$COMPOSE_FILE"
-}
 
 # Validate docker-compose.yml syntax
 compose_validate() {
