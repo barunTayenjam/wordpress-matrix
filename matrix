@@ -106,6 +106,7 @@ source "$PROJECT_ROOT/config/validation.sh"
 
 # Load shared helper functions (stack detection, site lifecycle)
 source "$PROJECT_ROOT/scripts/helpers.sh"
+source "$PROJECT_ROOT/scripts/presets-lib.sh"
 source "$PROJECT_ROOT/scripts/ssl-lib.sh"
 
 # Load compose manipulation helpers
@@ -311,7 +312,7 @@ create_site() {
 
     # Apply preset if not blank
     if [[ "$preset" != "blank" ]]; then
-        apply_preset "$site_name" "$preset"
+        apply_preset "$site_name" "$preset" || return 1
     fi
 
     # Create site-specific nginx configuration (nginx stack only)
@@ -2361,56 +2362,8 @@ EOF
     log_success "Child theme '$name' created at $theme_dir"
 }
 
-# Apply preset to a site
-apply_preset() {
-    local site_name="${1:-}"
-    local preset="${2:-}"
-
-    if [[ -z "$site_name" || -z "$preset" ]]; then
-        return 1
-    fi
-
-    local site_dir="$PROJECT_ROOT/wp_$site_name"
-    local plugins_dir="$site_dir/wp-content/plugins"
-    local themes_dir="$site_dir/wp-content/themes"
-
-    mkdir -p "$plugins_dir" "$themes_dir"
-
-    case "$preset" in
-        "blank")
-            log_info "Blank preset — nothing to install"
-            ;;
-        "woocommerce")
-            log_info "Installing WooCommerce preset..."
-            run_wp_cli "$site_name" plugin install woocommerce --activate --allow-root 2>/dev/null || \
-                log_warning "WooCommerce installation may have failed"
-            ;;
-        "elementor")
-            log_info "Installing Elementor preset..."
-            run_wp_cli "$site_name" plugin install elementor --activate --allow-root 2>/dev/null || \
-                log_warning "Elementor installation may have failed"
-            ;;
-        "bbpress")
-            log_info "Installing bbPress preset..."
-            run_wp_cli "$site_name" plugin install bbpress --activate --allow-root 2>/dev/null || \
-                log_warning "bbPress installation may have failed"
-            ;;
-        "buddypress")
-            log_info "Installing BuddyPress preset..."
-            run_wp_cli "$site_name" plugin install buddypress --activate --allow-root 2>/dev/null || \
-                log_warning "BuddyPress installation may have failed"
-            ;;
-        "multisite")
-            apply_multisite "$site_name" "${multisite:-subdirectory}"
-            ;;
-        *)
-            log_warning "Unknown preset: $preset"
-            return 1
-            ;;
-    esac
-
-    log_success "Preset '$preset' applied to '$site_name'"
-}
+# apply_preset / list_presets now live in scripts/presets-lib.sh
+# (presets-as-files: config/presets/<name>.sh defines preset_* hooks).
 
 # Apply multisite conversion to an installed site.
 # Usage: apply_multisite <site> <subdirectory|subdomain>
@@ -2570,20 +2523,8 @@ watch_site() {
     fi
 }
 
-list_presets() {
-    log_info "Available Site Presets:"
-    echo ""
-    printf "%-15s %-40s\n" "Preset" "Description"
-    echo "─────────────────────────────────────────────────────────────────"
-    printf "%-15s %-40s\n" "blank" "Empty WordPress installation"
-    printf "%-15s %-40s\n" "woocommerce" "WooCommerce with starter theme"
-    printf "%-15s %-40s\n" "elementor" "Elementor page builder"
-    printf "%-15s %-40s\n" "bbpress" "bbPress forum plugin"
-    printf "%-15s %-40s\n" "buddypress" "BuddyPress social network"
-    printf "%-15s %-40s\n" "multisite" "WordPress Multisite"
-    echo ""
-    echo "Usage: ./matrix create mysite --preset=woocommerce"
-}
+# list_presets now lives in scripts/presets-lib.sh
+# (iterates config/presets/*.sh and prints each file's description).
 
 # Frontend management
 manage_frontend() {
