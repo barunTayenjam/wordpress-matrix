@@ -186,6 +186,8 @@ Usage: ./matrix <command> [options]
    ./matrix start            # Starts frontend at http://$HOST_IP:8500
    ./matrix status           # Shows frontend status
    ./matrix stop             # Stops frontend with other services
+   ./matrix token            # Print dashboard LAN token (MATRIX_DASHBOARD_TOKEN)
+   ./matrix token --rotate   # Generate a new token (restart to apply)
 
 EOF
 }
