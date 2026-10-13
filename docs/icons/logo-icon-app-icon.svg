@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256"><title>SiteMatrix</title><rect width="256" height="256" rx="57.6" fill="#ffffff"/><g transform="translate(34.82 29.72) scale(0.728)" fill="#ffffff">
+  
+  <!-- Simplified small-size cut: three flat faces, no internal detail.
+       The traced master collapses to mush at 16 px, so the icon is redrawn
+       as a bare isometric cube - the idea survives, the detail does not. -->
+  <style>
+    @media (prefers-color-scheme: dark){
+      [fill="#ffffff"]{fill:#ffffff}
+      [fill="#ffffff"]{fill:#ffffff}
+      [fill="#ffffff"]{fill:#ffffff}
+    }
+  </style>
+  <g id="icon">
+    <!-- top face -->
+    <polygon fill="#ffffff" points="128,26 234,86 128,146 22,86"/>
+    <!-- left face -->
+    <polygon fill="#ffffff" points="22,86 128,146 128,244 22,184"/>
+    <!-- right face -->
+    <polygon fill="#ffffff" points="234,86 128,146 128,244 234,184"/>
+  </g>
+</g></svg>

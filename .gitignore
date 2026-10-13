@@ -77,6 +77,15 @@ apdisk/
 *.pdf
 *.doc
 *.docx
+
+# ...but the brand assets are source, not uploaded media. The blanket
+# patterns above exist to keep WordPress uploads out of git; brand files
+# are hand-maintained masters and must be versioned.
+!docs/logo*.svg
+!docs/icons/*.svg
+!docs/icons/*.png
+!docs/icons/*.ico
+!docs/icons/*.webmanifest
 *.xls
 *.xlsx
 *.ppt
