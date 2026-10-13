@@ -94,11 +94,19 @@ wp-cache/
 sess_*
 
 # SSL certificates (keep config templates, ignore keys/certs)
-ssl-certs/*.key
-ssl-certs/*.crt
-ssl-certs/*.csr
-ssl-certs/*.pem
-ssl-certs/*.p12
+# NOTE: '**' is required - a bare '*' does not cross directory boundaries, so
+# ssl-certs/*.key silently misses per-site certs at ssl-certs/<site>/server.key.
+ssl-certs/**/*.key
+ssl-certs/**/*.crt
+ssl-certs/**/*.csr
+ssl-certs/**/*.pem
+ssl-certs/**/*.p12
+ssl-certs/**/*.jks
+ssl-certs/**/*.keystore
+# Belt-and-braces: any unexpected non-template file under a cert dir.
+# *.conf templates at the top level stay tracked.
+ssl-certs/*/*
+!ssl-certs/*/*.conf
 
 # Test coverage reports
 tests/coverage/

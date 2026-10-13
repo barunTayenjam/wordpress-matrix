@@ -79,7 +79,7 @@ $ ./matrix ssl mysite --json
 - [x] **Doctor** — bootstrap checks that degrade with a fix-command, never a dead end
 
 <details>
-<summary><b>Why matrix? (vs Local WP, DDEV, Lando, wp-env, XAMPP)</b>
+<summary><b>Why matrix? (vs Local WP, DDEV, Lando, wp-env, XAMPP)</b></summary>
 
 Built after auditing 7 competitor tools. The gaps matrix closes on day one:
 
@@ -194,11 +194,11 @@ scripts/health-check.sh                             # runtime deep-check
 │  wp_db (MySQL :3306) · redis · phpmyadmin (:8200)                │
 │  wp-cli → ephemeral wordpress:cli, joins the live db network     │
 └──────────────────────────────────────────────────────────────────┘
+```
 
 > [!NOTE]
 > Generated files are not source. `docker-compose.yml` entries, nginx confs, and certs
 > are produced by `matrix` — `./matrix repair` regenerates them at any time.
-```
 
 ---
 
