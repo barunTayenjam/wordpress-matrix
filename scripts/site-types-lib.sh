@@ -70,3 +70,15 @@ php_at_least() {
     local have="${1:-}" floor="${2:-}"
     [[ "$(printf '%s\n' "$floor" "$have" | sort -V | head -1)" == "$floor" ]]
 }
+
+# build_site_image <php> — build matrix-php:<php> only when not present.
+# Mirrors matrix_site_build_if_apache: image build is idempotent per version.
+build_site_image() {
+    local php="${1:-}"
+    local image="matrix-php:${php}"
+    if [[ -n "$($CONTAINER_RUNTIME images -q "$image" 2>/dev/null)" ]]; then
+        return 0
+    fi
+    $CONTAINER_RUNTIME build --build-arg PHP_VERSION="$php" -t "$image" \
+        "$PROJECT_ROOT/config/docker/php-site"
+}

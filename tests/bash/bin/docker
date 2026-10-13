@@ -95,6 +95,24 @@ case "$cmd" in
     start)
         exit 0
         ;;
+    build)
+        # Record full args (flags included) so tests can assert build args.
+        printf '%s\n' "$@" >> "$STUB_DIR/build.txt"
+        last=""
+        for a in "$@"; do
+            [[ "$last" == "-t" ]] && echo "$a" >> "$STUB_DIR/images.txt"
+            last="$a"
+        done
+        exit 0
+        ;;
+    images)
+        # `images -q <name>`: id when present, empty when absent
+        name="${*: -1:1}"
+        if grep -qx "$name" "$STUB_DIR/images.txt" 2>/dev/null; then
+            echo "stubimageid"
+        fi
+        exit 0
+        ;;
     inspect|image|exec|run|network)
         exit 1
         ;;

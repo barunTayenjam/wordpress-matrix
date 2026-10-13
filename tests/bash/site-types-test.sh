@@ -20,6 +20,18 @@ trap 'rm -rf "$SANDBOX"' EXIT
 export PROJECT_ROOT="$SANDBOX"
 export COMPOSE_FILE="$SANDBOX/docker-compose.yml"
 
+# stub container runtime at PATH boundary (site-state-test.sh pattern)
+mkdir -p "$SANDBOX/bin"
+for f in docker matrix-compose-stub stub-common.sh; do
+    cp "$REPO_ROOT/tests/bash/bin/$f" "$SANDBOX/bin/$f"
+done
+chmod +x "$SANDBOX/bin/"*
+export PATH="$SANDBOX/bin:$PATH"
+export STUB_DIR="$SANDBOX/state"
+export CONTAINER_RUNTIME="docker"
+export DOCKER_COMPOSE="matrix-compose-stub"
+mkdir -p "$STUB_DIR"
+
 # ---- helpers ----
 pass() { PASS=$((PASS + 1)); }
 fail() { FAIL=$((FAIL + 1)); echo "FAIL: $1"; }
@@ -91,6 +103,27 @@ assert_rc "T3.1 below floor" 1 php_at_least 8.1 8.2
 assert_rc "T3.2 at floor" 0 php_at_least 8.3 8.2
 assert_rc "T3.3 equal" 0 php_at_least 7.4 7.4
 assert_rc "T3.4 major bump" 0 php_at_least 8.1 7.4
+
+# ---- T4: build_site_image (Task 2) ----
+# build_site_image <php> builds matrix-php:<php> only when absent.
+assert_contains() {
+    local desc="$1" haystack="$2" needle="$3"
+    if [[ "$haystack" == *"$needle"* ]]; then
+        pass
+    else
+        fail "$desc — missing '$needle'"
+    fi
+}
+rm -f "$STUB_DIR/build.txt" "$STUB_DIR/images.txt"
+build_site_image 8.3
+assert_eq "T4.1 build recorded once" "1" "$(grep -c 'matrix-php:8.3' "$STUB_DIR/build.txt" 2>/dev/null)"
+assert_rc "T4.2 build args carry PHP_VERSION" 0 grep -qx 'PHP_VERSION=8.3' "$STUB_DIR/build.txt"
+assert_rc "T4.3 build tags matrix-php:8.3" 0 grep -qx 'matrix-php:8.3' "$STUB_DIR/build.txt"
+build_site_image 8.3
+assert_eq "T4.4 no rebuild when image exists" "1" "$(grep -c 'matrix-php:8.3' "$STUB_DIR/build.txt" 2>/dev/null)"
+# Dockerfile exists with composer baked in (spec: composer runs in matrix-php, not composer:2)
+assert_contains "T4.5 Dockerfile installs composer" "$(cat "$REPO_ROOT/config/docker/php-site/Dockerfile" 2>/dev/null)" "composer"
+assert_contains "T4.6 Dockerfile has unzip" "$(cat "$REPO_ROOT/config/docker/php-site/Dockerfile" 2>/dev/null)" "unzip"
 
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
