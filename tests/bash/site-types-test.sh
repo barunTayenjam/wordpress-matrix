@@ -376,5 +376,45 @@ write_base_compose
 create_site wppin --skip-download >/dev/null 2>&1
 grep -q 'wp_wppin:' "$COMPOSE_FILE" && pass || fail "T10.4 wp compose entry still added"
 
+# ---- T11: wp-only gating (Task 9) ----
+# T7's run_wp_cli stub shadows the real helpers.sh one — restore real
+# (helpers then lib), then re-stub logging.
+source "$REPO_ROOT/scripts/helpers.sh"
+source "$REPO_ROOT/scripts/site-types-lib.sh"
+log_info() { :; }; log_success() { :; }; log_warning() { :; }
+log_error() { echo "[error] $*" >&2; }
+
+# T11.1 require_site_type semantics
+mkdir -p "$SANDBOX/wp_gate"
+set_site_type gate laravel
+require_site_type gate wp > "$SANDBOX/t11-1.out" 2>&1
+t11_rc=$?
+assert_eq "T11.1a laravel site gated" "1" "$t11_rc"
+grep -q "command not supported for laravel site (requires wp)" "$SANDBOX/t11-1.out" && pass || fail "T11.1b exact gate message"
+set_site_type gate wp
+require_site_type gate wp >/dev/null 2>&1 && pass || fail "T11.1c wp site passes"
+
+# T11.2 run_wp_cli refuses laravel site (fresh — T11.1c flipped gate to wp)
+declare -f run_wp_cli | head -3 > "$SANDBOX/t11-2.def" 2>&1 || true
+rm -f "$STUB_DIR/run.txt"
+mkdir -p "$SANDBOX/wp_gate2"; set_site_type gate2 laravel
+run_wp_cli gate2 plugin list > "$SANDBOX/t11-2.out" 2>&1
+t11_2rc=$?
+assert_eq "T11.2a run_wp_cli rc 1 on laravel" "1" "$t11_2rc"
+grep -q "requires wp" "$SANDBOX/t11-2.out" && pass || fail "T11.2b run_wp_cli gate message"
+[[ ! -s "$STUB_DIR/run.txt" ]] && pass || fail "T11.2c no container run for laravel"
+
+# T11.3 wp site passes the gate (fails LATER on stubbed db network, not on gate)
+set_site_type gate wp
+run_wp_cli gate core version > "$SANDBOX/t11-3.out" 2>&1 || true
+grep -q "requires wp" "$SANDBOX/t11-3.out" && fail "T11.3 wp site wrongly gated" || pass
+
+# T11.4 optimize_site refuses non-wp (fresh site — T11.1 flipped gate to wp)
+mkdir -p "$SANDBOX/wp_ogate"; set_site_type ogate laravel
+optimize_site ogate > "$SANDBOX/t11-4.out" 2>&1
+t11_4rc=$?
+assert_eq "T11.4a optimize rc 1 on laravel" "1" "$t11_4rc"
+grep -q "requires wp" "$SANDBOX/t11-4.out" && pass || fail "T11.4b optimize gate message"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

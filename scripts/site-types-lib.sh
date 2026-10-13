@@ -114,6 +114,19 @@ seed_drupal_settings() {
 PHPEOF
 }
 
+# require_site_type <site> <allowed-type> — gate for wp-only surfaces.
+# Errors with the platform's exact gate message and returns 1 on mismatch.
+require_site_type() {
+    local site="${1:-}" allowed="${2:-wp}"
+    local actual
+    actual=$(get_site_type "$site")
+    if [[ "$actual" != "$allowed" ]]; then
+        log_error "command not supported for ${actual} site (requires ${allowed})"
+        return 1
+    fi
+    return 0
+}
+
 # rollback_site_create <site> — remove a half-provisioned site dir + logs after
 # failed non-wp provisioning. Half-composer sites are useless (unlike WP where
 # failures leave valid sites), so create rolls back instead of best-effort.

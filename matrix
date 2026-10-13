@@ -534,18 +534,24 @@ PHPEOF
 optimize_site() {
     local target="${1:-}"
 
-    if [[ -z "$target" ]]; then
-        log_info "Optimizing all existing sites..."
-        local temp_file
-        temp_file=$(get_sites_array)
-        while IFS= read -r site; do
-            [[ -z "$site" ]] && continue
-            optimize_single_site "$site"
-        done < "$temp_file"
-        rm -f "$temp_file"
-    else
+    if [[ -n "$target" ]]; then
+        require_site_type "$target" wp || return 1
         optimize_single_site "$target"
+        return 0
     fi
+
+    log_info "Optimizing all existing sites..."
+    local temp_file
+    temp_file=$(get_sites_array)
+    while IFS= read -r site; do
+        [[ -z "$site" ]] && continue
+        if require_site_type "$site" wp; then
+            optimize_single_site "$site"
+        else
+            log_info "[$site] skipped (not a wp site)"
+        fi
+    done < "$temp_file"
+    rm -f "$temp_file"
 }
 
 optimize_single_site() {

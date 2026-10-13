@@ -102,6 +102,8 @@ run_wp_cli() {
         log_error "Site '$site' not found"
         return 1
     fi
+    # WP-CLI is wp-only; every wp-only command funnels through here.
+    require_site_type "$site" wp || return 1
     if [[ $# -eq 0 ]]; then
         log_error "Usage: run_wp_cli <site> <wp-cli arguments>"
         return 1

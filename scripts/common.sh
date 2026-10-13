@@ -49,6 +49,8 @@ source "$PROJECT_ROOT/config/validation.sh"
 
 # Load shared helper functions
 source "$PROJECT_ROOT/scripts/helpers.sh"
+# site-types-lib after helpers: run_wp_cli's wp-only gate calls require_site_type
+source "$PROJECT_ROOT/scripts/site-types-lib.sh"
 
 # Load compose manipulation (uses helpers for stack detection)
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
