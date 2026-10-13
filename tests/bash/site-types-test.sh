@@ -178,5 +178,20 @@ write_base_compose; mk_site_conf dsite
 compose_add_site dsite 8.3 8204 "$SANDBOX/dsite.conf" nginx
 assert_eq "T5.4 default type keeps wordpress image" "1" "$(grep -c 'wordpress:php8.3-fpm' "$COMPOSE_FILE")"
 
+# ---- T6: generate_nginx_conf per-type webroot (Task 4) ----
+mkdir -p "$SANDBOX/config/nginx"
+generate_nginx_conf ngsite wp
+wp_conf=$(cat "$SANDBOX/config/nginx/ngsite.conf")
+assert_contains "T6.1 wp root unchanged" "$wp_conf" "root /var/www/html;"
+generate_nginx_conf lsite2 laravel
+l_conf=$(cat "$SANDBOX/config/nginx/lsite2.conf")
+assert_contains "T6.2 laravel root public" "$l_conf" "root /var/www/html/public;"
+assert_contains "T6.3 fpm pass uses container name" "$l_conf" "fastcgi_pass wp_lsite2:9000"
+assert_contains "T6.4 client_max_body_size 25m" "$l_conf" "client_max_body_size 25m;"
+generate_nginx_conf dsite2 drupal
+assert_contains "T6.5 drupal root web" "$(cat "$SANDBOX/config/nginx/dsite2.conf")" "root /var/www/html/web;"
+generate_nginx_conf gsite2 grav
+assert_contains "T6.6 grav root html" "$(cat "$SANDBOX/config/nginx/gsite2.conf")" "root /var/www/html;"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

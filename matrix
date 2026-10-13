@@ -112,6 +112,7 @@ source "$PROJECT_ROOT/scripts/doctor-lib.sh"
 source "$PROJECT_ROOT/scripts/export-import-lib.sh"
 source "$PROJECT_ROOT/scripts/share-lib.sh"
 source "$PROJECT_ROOT/scripts/ops-lib.sh"
+source "$PROJECT_ROOT/scripts/site-types-lib.sh"
 
 # Load compose manipulation helpers
 source "$PROJECT_ROOT/scripts/compose-lib.sh"
@@ -368,39 +369,7 @@ create_site() {
     # Create site-specific nginx configuration (nginx stack only)
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
     if [[ "$stack" == "nginx" ]]; then
-        if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
-            mkdir -p "$PROJECT_ROOT/config/nginx"
-        fi
-
-        cat > "$nginx_conf_path" << EOF
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html;
-    index index.php index.html;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php\$ {
-        fastcgi_pass wp_$site_name:9000;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-        
-        # Increase buffer sizes to handle large headers
-        fastcgi_buffer_size 32k;
-        fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 32k;
-    }
-
-    # Deny access to sensitive files
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
+        generate_nginx_conf "$site_name" "wp"
     fi
 
     if [[ ! -f "$COMPOSE_FILE" ]]; then
@@ -2851,32 +2820,7 @@ ENVEOF
         site_stack=$(get_site_stack "$site")
         if [[ "$site_stack" == "nginx" && ! -f "$nginx_conf" ]]; then
             log_warning "[$site] Missing nginx config"
-            cat > "$nginx_conf" << EOF
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html;
-    index index.php index.html;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php\$ {
-        fastcgi_pass wp_$site:9000;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_buffer_size 32k;
-        fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 32k;
-    }
-
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
+            generate_nginx_conf "$site" "$(get_site_type "$site")"
             log_success "[$site] Created nginx config"
             site_fixed=$((site_fixed + 1))
         fi
@@ -2922,35 +2866,7 @@ EOF
                 log_success "[$site] Added Apache stack to docker-compose.yml (PHP $php_version, port $port)"
             else
                 if [[ ! -f "$nginx_conf" ]]; then
-                    if [[ ! -d "$PROJECT_ROOT/config/nginx" ]]; then
-                        mkdir -p "$PROJECT_ROOT/config/nginx"
-                    fi
-                    cat > "$nginx_conf" << EOF
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html;
-    index index.php index.html;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php\$ {
-        fastcgi_pass wp_$site:9000;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_buffer_size 32k;
-        fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 32k;
-    }
-
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
+                    generate_nginx_conf "$site" "$(get_site_type "$site")"
                 fi
                 compose_add_site "$site" "$php_version" "$port" "$nginx_conf" "nginx"
                 log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port)"

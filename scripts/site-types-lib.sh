@@ -82,3 +82,45 @@ build_site_image() {
     $CONTAINER_RUNTIME build --build-arg PHP_VERSION="$php" -t "$image" \
         "$PROJECT_ROOT/config/docker/php-site"
 }
+
+# generate_nginx_conf <site> <type> — write config/nginx/<site>.conf with the
+# type's webroot. Extracted from create_site's inline heredoc (multi-stack spec).
+generate_nginx_conf() {
+    local site="${1:-}"
+    local type="${2:-wp}"
+    local webroot
+    webroot=$(site_type_webroot "$type")
+    [[ -n "$webroot" ]] && webroot="/${webroot}"
+    local conf_dir="$PROJECT_ROOT/config/nginx"
+    [[ -d "$conf_dir" ]] || mkdir -p "$conf_dir"
+    cat > "$conf_dir/$site.conf" << EOF
+server {
+    listen 80;
+    server_name _;
+    root /var/www/html${webroot};
+    index index.php index.html;
+    client_max_body_size 25m;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        fastcgi_pass wp_$site:9000;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        include fastcgi_params;
+
+        # Increase buffer sizes to handle large headers
+        fastcgi_buffer_size 32k;
+        fastcgi_buffers 16 16k;
+        fastcgi_busy_buffers_size 32k;
+    }
+
+    # Deny access to sensitive files
+    location ~ /\. {
+        deny all;
+    }
+}
+EOF
+}

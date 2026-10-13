@@ -93,30 +93,5 @@ create_nginx_config() {
     local nginx_conf_path="$nginx_dir/$site.conf"
     mkdir -p "$nginx_dir"
 
-    cat > "$nginx_conf_path" << EOF
-server {
-    listen 80;
-    server_name _;
-    root /var/www/html;
-    index index.php index.html;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php\$ {
-        fastcgi_pass wp_$site:9000;
-        fastcgi_index index.php;
-        fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_buffer_size 32k;
-        fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 64k;
-    }
-
-    location ~ /\. {
-        deny all;
-    }
-}
-EOF
+    generate_nginx_conf "$site" "$(get_site_type "$site")"
 }
