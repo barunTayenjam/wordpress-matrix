@@ -193,5 +193,55 @@ assert_contains "T6.5 drupal root web" "$(cat "$SANDBOX/config/nginx/dsite2.conf
 generate_nginx_conf gsite2 grav
 assert_contains "T6.6 grav root html" "$(cat "$SANDBOX/config/nginx/gsite2.conf")" "root /var/www/html;"
 
+# ---- T7: create_site --type parsing (Task 5) ----
+# Loads the full CLI (multisite-test.sh reset pattern), then exercises
+# create_site against stubs. Runs LAST: matrix sourcing resets shell opts.
+source "$REPO_ROOT/config/validation.sh"
+source "$REPO_ROOT/matrix"
+set +e
+set -uo pipefail
+export PROJECT_ROOT="$SANDBOX"
+export COMPOSE_FILE="$SANDBOX/docker-compose.yml"
+export DOCKER_COMPOSE="matrix-compose-stub"
+export CONTAINER_RUNTIME="docker"
+export ACTIVITY_LOG="$SANDBOX/logs/activity.log"
+mkdir -p "$SANDBOX/logs"
+
+log_info() { :; }
+log_success() { :; }
+log_warning() { :; }
+log_error() { echo "[error] $*" >&2; }
+run_wp_cli() { echo "$1 $*" >> "$STUB_DIR/wp-cli-calls.txt"; return 0; }
+# provision_site_type not implemented until Task 7 — stub the seam
+provision_site_type() { echo "$@" >> "$STUB_DIR/provision-calls.txt"; return 0; }
+export -f log_info log_success log_warning log_error run_wp_cli provision_site_type
+
+# T7.1 laravel --skip-download → .matrix-type marker + provision called
+write_base_compose
+rm -f "$STUB_DIR/provision-calls.txt"
+create_site t1 --type=laravel --skip-download >/dev/null 2>&1
+assert_eq "T7.1a laravel marker written" "laravel" "$(cat "$SANDBOX/wp_t1/.matrix-type" 2>/dev/null || echo missing)"
+assert_contains "T7.1b provisioning dispatched" "$(cat "$STUB_DIR/provision-calls.txt" 2>/dev/null)" "t1 laravel"
+
+# T7.2 drupal floor violation → error mentions 8.3, no dir
+create_site t2 --type=drupal --php-version=8.1 > "$SANDBOX/t2.out" 2>&1
+t2_rc=$?
+assert_eq "T7.2a drupal 8.1 rejected" "1" "$t2_rc"
+grep -q "8.3" "$SANDBOX/t2.out" && pass || fail "T7.2b error names floor 8.3"
+[[ ! -d "$SANDBOX/wp_t2" ]] && pass || fail "T7.2c no dir after floor rejection"
+
+# T7.3 wp-only flag rejected for laravel
+create_site t3 --type=laravel --wp-version=6.4 > "$SANDBOX/t3.out" 2>&1 || true
+grep -q "wp" "$SANDBOX/t3.out" && grep -qi "only supported\|requires wp" "$SANDBOX/t3.out" && pass || fail "T7.3 --wp-version rejected for laravel"
+
+# T7.4 invalid type listed
+create_site t4 --type=magento > "$SANDBOX/t4.out" 2>&1 || true
+grep -q "laravel" "$SANDBOX/t4.out" && pass || fail "T7.4 invalid type error lists valid types"
+
+# T7.5 default type = wp
+write_base_compose
+create_site t5 --skip-download >/dev/null 2>&1
+assert_eq "T7.5 default marker wp" "wp" "$(cat "$SANDBOX/wp_t5/.matrix-type" 2>/dev/null || echo missing)"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

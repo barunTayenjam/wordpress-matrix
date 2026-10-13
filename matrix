@@ -206,6 +206,7 @@ create_site() {
     local php_version="$DEFAULT_PHP_VERSION"
     local preset="blank"
     local stack="nginx"
+    local type="wp"
     local multisite=""
     local wp_version=""
     local skip_download=0
@@ -231,6 +232,14 @@ create_site() {
                 ;;
             --stack)
                 stack="$2"
+                shift 2
+                ;;
+            --type=*)
+                type="${1#*=}"
+                shift
+                ;;
+            --type)
+                type="$2"
                 shift 2
                 ;;
             --preset=*)
@@ -259,7 +268,7 @@ create_site() {
                 ;;
             -*)
                 log_error "Unknown option: $1"
-                echo "Usage: ./matrix create <name> [--php-version=X.X] [--wp-version=X.X|latest] [--stack=nginx|apache] [--preset=preset-name] [--multisite=subdirectory|subdomain]"
+                echo "Usage: ./matrix create <name> [--type=wp|laravel|symfony|drupal|joomla|grav] [--php-version=X.X] [--wp-version=X.X|latest] [--stack=nginx|apache] [--preset=preset-name] [--multisite=subdirectory|subdomain]"
                 return 1
                 ;;
             *)
@@ -280,8 +289,41 @@ create_site() {
         return 1
     fi
     validate_site_name "$site_name" || return 1
-    
+
     validate_php_version "$php_version" || return 1
+
+    if ! validate_site_type "$type"; then
+        log_error "Invalid type: $type (use wp, laravel, symfony, drupal, joomla, grav)"
+        return 1
+    fi
+
+    if [[ "$stack" == "apache" && "$type" != "wp" ]]; then
+        log_error "Stack 'apache' is only supported for wp sites (type: $type)"
+        return 1
+    fi
+
+    local min_php
+    min_php=$(site_type_min_php "$type")
+    if ! php_at_least "$php_version" "$min_php"; then
+        log_error "Type '$type' requires PHP >= $min_php (got $php_version)"
+        return 1
+    fi
+
+    # WP-only flags rejected for non-wp types
+    if [[ "$type" != "wp" ]]; then
+        if [[ -n "$wp_version" ]]; then
+            log_error "--wp-version is only supported for wp sites (type: $type)"
+            return 1
+        fi
+        if [[ -n "$multisite" ]]; then
+            log_error "--multisite is only supported for wp sites (type: $type)"
+            return 1
+        fi
+        if [[ "$preset" != "blank" ]]; then
+            log_error "Presets are only supported for wp sites (type: $type)"
+            return 1
+        fi
+    fi
 
     case "$stack" in
         nginx|apache) ;;
@@ -318,7 +360,7 @@ create_site() {
     
     local site_dir="$PROJECT_ROOT/wp_$site_name"
     
-    log_info "Creating WordPress site: $site_name (PHP $php_version, stack: $stack)"
+    log_info "Creating $type site: $site_name (PHP $php_version, stack: $stack)"
 
     # Create directory
     mkdir -p "$site_dir"
@@ -328,7 +370,10 @@ create_site() {
     else
         echo "nginx" > "$site_dir/.matrix-stack"
     fi
+    set_site_type "$site_name" "$type"
 
+    # Provision site files by type
+    if [[ "$type" == "wp" ]]; then
     # Copy WordPress files using Docker/Podman
     if [[ "$skip_download" -eq 0 ]]; then
         log_info "Installing WordPress (PHP $php_version)..."
@@ -352,16 +397,21 @@ create_site() {
     else
         log_info "Skipping WP download (--skip-download: files restored from bundle)"
     fi
+    else
+        # Non-wp types: shared matrix-php runtime image + per-type provisioning
+        build_site_image "$php_version" || return 1
+        provision_site_type "$site_name" "$type" "$php_version" || return 1
+    fi
 
-    # Copy baseline performance optimization files
-    if [[ -d "$PROJECT_ROOT/config/optimizations" ]]; then
+    # Copy baseline performance optimization files (wp only)
+    if [[ "$type" == "wp" && -d "$PROJECT_ROOT/config/optimizations" ]]; then
         log_info "Applying performance optimizations..."
         mkdir -p "$site_dir/wp-content/mu-plugins"
         cp "$PROJECT_ROOT/config/optimizations/perf-mu-plugin.php" "$site_dir/wp-content/mu-plugins/"
         cp "$PROJECT_ROOT/config/optimizations/object-cache.php" "$site_dir/wp-content/object-cache.php"
     fi
 
-    # Apply preset if not blank
+    # Apply preset if not blank (wp only — enforced above)
     if [[ "$preset" != "blank" ]]; then
         apply_preset "$site_name" "$preset" || return 1
     fi
@@ -369,7 +419,7 @@ create_site() {
     # Create site-specific nginx configuration (nginx stack only)
     local nginx_conf_path="$PROJECT_ROOT/config/nginx/$site_name.conf"
     if [[ "$stack" == "nginx" ]]; then
-        generate_nginx_conf "$site_name" "wp"
+        generate_nginx_conf "$site_name" "$type"
     fi
 
     if [[ ! -f "$COMPOSE_FILE" ]]; then
@@ -378,10 +428,10 @@ create_site() {
     fi
 
     port=$(get_next_port)
-    compose_add_site "$site_name" "$php_version" "$port" "$nginx_conf_path" "$stack"
+    compose_add_site "$site_name" "$php_version" "$port" "$nginx_conf_path" "$stack" "$type"
 
-    # Create database and grant permissions
-    if compose_or_container_running "wp_db"; then
+    # Create database and grant permissions (all types except grav)
+    if site_type_uses_db "$type" && compose_or_container_running "wp_db"; then
         $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root \
             -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
@@ -399,7 +449,7 @@ create_site() {
     matrix_site_up "$site_name"
 
     # Apply runtime performance tweaks (wp-config constants, phpredis, etc.)
-    apply_performance_tweaks "$site_name" "$php_version"
+    [[ "$type" == "wp" ]] && apply_performance_tweaks "$site_name" "$php_version"
 
     log_success "Site '$site_name' started and ready!"
     log_activity "START" "$site_name" "Auto-started after creation"
