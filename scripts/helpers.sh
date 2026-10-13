@@ -183,6 +183,7 @@ site_state() {
     echo "port=$port"
     echo "php=$php"
     echo "stack=$stack"
+    echo "type=$(get_site_type "$site")"
 }
 
 compose_site_service_names() {

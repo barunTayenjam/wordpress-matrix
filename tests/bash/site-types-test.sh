@@ -471,5 +471,56 @@ rm -f "$STUB_DIR/exec.txt"
 printf 'y\n' | run_script_sandboxed reset.sh cl >/dev/null 2>&1
 grep -q 'DROP DATABASE' "$STUB_DIR/exec.txt" 2>/dev/null && pass || fail "T12.4 laravel reset resets db"
 
+# ---- T13: export/import grav + site_state type (Task 11) ----
+# seams: dump_site_db/db_exec_root/db_import_dump record to stubs
+dump_site_db() { echo "$1" >> "$STUB_DIR/db-dumps.txt"; echo "DUMPDATA"; }
+db_exec_root() { echo "$*" >> "$STUB_DIR/db-exec.txt"; }
+db_import_dump() { echo "$2" >> "$STUB_DIR/db-imports.txt"; }
+export -f dump_site_db db_exec_root db_import_dump 2>/dev/null || true
+mkdir -p "$SANDBOX/wp_eg"; set_site_type eg grav; touch "$SANDBOX/wp_eg/index.php"
+write_base_compose
+
+# T13.1 export grav: no db seam, manifest type, no db member
+rm -f "$STUB_DIR/db-dumps.txt"
+export_site eg --out "$SANDBOX/eg-bundle.tar.gz" --json > "$SANDBOX/t13-1.json" 2>/dev/null
+assert_eq "T13.1a export grav rc 0" "0" "$?"
+assert_eq "T13.1b no db dump for grav" "0" "$(cat "$STUB_DIR/db-dumps.txt" 2>/dev/null | wc -l)"
+grep -q '"type":"grav"' "$SANDBOX/eg-bundle-check" 2>/dev/null || true
+tar -xzf "$SANDBOX/eg-bundle.tar.gz" -C "$SANDBOX" manifest.json -O > "$SANDBOX/t13-1.mf" 2>/dev/null
+grep -q '"type":"grav"' "$SANDBOX/t13-1.mf" && pass || fail "T13.1c manifest carries type grav"
+grep -q '"db_dump_sha256":""' "$SANDBOX/t13-1.mf" && pass || fail "T13.1d grav manifest has empty sha"
+[[ $(tar -tzf "$SANDBOX/eg-bundle.tar.gz" | grep -c '^db/') == 0 ]] && pass || fail "T13.1e no db member for grav"
+
+# T13.2 export wp: dump seam called (pin)
+rm -f "$STUB_DIR/db-dumps.txt"
+mkdir -p "$SANDBOX/wp_ew" "$SANDBOX/wp_ew/wp-content"; touch "$SANDBOX/wp_ew/wp-config.php"
+sed -i "s/.*\$table_prefix.*/\$table_prefix = 'wp_';/" "$SANDBOX/wp_ew/wp-config.php" 2>/dev/null || true
+set_site_type ew wp
+export_site ew --out "$SANDBOX/ew-bundle.tar.gz" >/dev/null 2>&1
+assert_eq "T13.2 wp export dumps db" "1" "$(wc -l < "$STUB_DIR/db-dumps.txt" 2>/dev/null || echo 0)"
+
+# T13.3 import grav bundle: files restored, no db seam, create ran with type
+rm -f "$STUB_DIR/db-exec.txt" "$STUB_DIR/db-imports.txt"
+import_site "$SANDBOX/eg-bundle.tar.gz" ig1 --yes >/dev/null 2>&1
+assert_eq "T13.3a import grav rc 0" "0" "$?"
+assert_eq "T13.3b no db import for grav" "0" "$(wc -l < "$STUB_DIR/db-imports.txt" 2>/dev/null || echo 0)"
+assert_eq "T13.3c no db exec for grav" "0" "$(wc -l < "$STUB_DIR/db-exec.txt" 2>/dev/null || echo 0)"
+assert_eq "T13.3d imported marker grav" "grav" "$(cat "$SANDBOX/wp_ig1/.matrix-type" 2>/dev/null || echo missing)"
+[[ -f "$SANDBOX/wp_ig1/index.php" ]] && pass || fail "T13.3e files restored"
+
+# T13.4 import wp bundle: db seam used (pin)
+rm -f "$STUB_DIR/db-imports.txt"
+import_site "$SANDBOX/ew-bundle.tar.gz" iw1 --yes >/dev/null 2>&1
+assert_eq "T13.4 wp import uses db seam" "1" "$(wc -l < "$STUB_DIR/db-imports.txt" 2>/dev/null || echo 0)"
+
+# T13.5 site_state carries type
+get_site_stack() { echo "nginx"; }
+get_site_port() { echo "8299"; }
+get_site_php_version_from_compose() { echo "8.1"; }
+st_out=$(site_state ig1)
+grep -q '^type=grav$' <<<"$st_out" && pass || fail "T13.5a site_state type=grav"
+mkdir -p "$SANDBOX/wp_ewp"; st_out2=$(site_state ewp)
+grep -q '^type=wp$' <<<"$st_out2" && pass || fail "T13.5b site_state type=wp default"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

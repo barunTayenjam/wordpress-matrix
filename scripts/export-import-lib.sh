@@ -37,10 +37,17 @@ bundle_manifest_bool() {
 bundle_manifest_validate() {
     local mf="$1"
     [[ -s "$mf" ]] || return 1
-    local required site sha
-    for required in site db_dump_sha256; do
+    local required site
+    # db_dump_sha256 required only for db-backed types (grav carries none)
+    for required in site; do
         [[ -n "$(bundle_manifest_field "$mf" "$required")" ]] || return 1
     done
+    local type
+    type=$(bundle_manifest_field "$mf" type)
+    [[ -z "$type" ]] && type="wp"
+    if site_type_uses_db "$type"; then
+        [[ -n "$(bundle_manifest_field "$mf" db_dump_sha256)" ]] || return 1
+    fi
     return 0
 }
 
@@ -87,13 +94,16 @@ export_site() {
     cp -a "$PROJECT_ROOT/wp_$site/." "$tmp/files/" 2>/dev/null || true
     rm -rf "$tmp/files/logs" "$tmp/files/.git"
 
-    # db/: dump + gzip + sha
-    mkdir -p "$tmp/db"
-    dump_site_db "$site" > "$tmp/db/site.sql" 2>/dev/null || \
-        log_warning "DB dump empty or failed — bundle carries schema only"
-    gzip -f "$tmp/db/site.sql"
-    local sha
-    sha=$(sha256sum "$tmp/db/site.sql.gz" | cut -d' ' -f1)
+    # db/: dump + gzip + sha (db-backed types only — grav exports files only)
+    local sha="" type
+    type=$(get_site_type "$site")
+    if site_type_uses_db "$type"; then
+        mkdir -p "$tmp/db"
+        dump_site_db "$site" > "$tmp/db/site.sql" 2>/dev/null || \
+            log_warning "DB dump empty or failed — bundle carries schema only"
+        gzip -f "$tmp/db/site.sql"
+        sha=$(sha256sum "$tmp/db/site.sql.gz" | cut -d' ' -f1)
+    fi
 
     # manifest.json (written last into tar: deterministic member order)
     local wp_ver php_ver port
@@ -102,10 +112,14 @@ export_site() {
     [[ -z "$php_ver" ]] && php_ver="$DEFAULT_PHP_VERSION"
     port=$(get_site_port "$site")
     cat > "$tmp/manifest.json" << EOF
-{"site":"$site","php_version":"$php_ver","stack":"$(_site_stack "$site")","ports":"${port:-}","wp_version":"${wp_ver:-}","db_dump_sha256":"$sha","table_prefix":"$(_site_table_prefix "$site")","multisite":$(site_is_multisite "$site" && echo true || echo false),"created_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","matrix_version":"$(_matrix_version)"}
+{"site":"$site","type":"$type","php_version":"$php_ver","stack":"$(_site_stack "$site")","ports":"${port:-}","wp_version":"${wp_ver:-}","db_dump_sha256":"$sha","table_prefix":"$(_site_table_prefix "$site")","multisite":$(site_is_multisite "$site" && echo true || echo false),"created_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","matrix_version":"$(_matrix_version)"}
 EOF
 
-    tar -czf "$out" -C "$tmp" files db manifest.json
+    if site_type_uses_db "$type"; then
+        tar -czf "$out" -C "$tmp" files db manifest.json
+    else
+        tar -czf "$out" -C "$tmp" files manifest.json
+    fi
 
     if [[ "$json" == true ]]; then
         output_json "{\"success\":true,\"site\":\"$site\",\"bundle\":\"$out\",\"db_dump_sha256\":\"$sha\"}"
@@ -154,8 +168,10 @@ import_site() {
         error_json "IMPORT_MANIFEST_INVALID" "Missing or invalid manifest.json in bundle"
         return 1
     }
-    local old_site sha php_ver stack
+    local old_site sha php_ver stack type
     old_site=$(bundle_manifest_field "$mf" site)
+    type=$(bundle_manifest_field "$mf" type)
+    [[ -z "$type" ]] && type="wp"
     sha=$(bundle_manifest_field "$mf" db_dump_sha256)
     php_ver=$(bundle_manifest_field "$mf" php_version)
     stack=$(bundle_manifest_field "$mf" stack)
@@ -164,7 +180,7 @@ import_site() {
 
     local actual_sha
     actual_sha=$(sha256sum "$tmp/db/site.sql.gz" 2>/dev/null | cut -d' ' -f1)
-    if [[ "$actual_sha" != "$sha" ]]; then
+    if site_type_uses_db "$type" && [[ "$actual_sha" != "$sha" ]]; then
         error_json "IMPORT_SHA_MISMATCH" "DB dump sha mismatch (manifest $sha, actual ${actual_sha:-none})"
         return 1
     fi
@@ -172,15 +188,17 @@ import_site() {
     # Skeleton (compose+nginx+db grant) via existing create path, minus download.
     # --yes overwrite: files restored over existing site; skeleton steps are
     # idempotent (CREATE IF NOT EXISTS, conf regenerated).
-    create_site "$new_site" --php-version="$php_ver" --stack="$stack" --skip-download >/dev/null 2>&1
+    create_site "$new_site" --type="$type" --php-version="$php_ver" --stack="$stack" --skip-download >/dev/null 2>&1
 
     # Restore files (overwrites generated wp-config; preserves table_prefix)
     mkdir -p "$PROJECT_ROOT/wp_$new_site"
     cp -a "$tmp/files/." "$PROJECT_ROOT/wp_$new_site/"
 
-    # DB: create + import
-    db_exec_root "CREATE DATABASE IF NOT EXISTS \`${new_site}_db\`; GRANT ALL PRIVILEGES ON \`${new_site}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;"
-    db_import_dump "$tmp/db/site.sql.gz" "${new_site}_db"
+    # DB: create + import (db-backed types only)
+    if site_type_uses_db "$type"; then
+        db_exec_root "CREATE DATABASE IF NOT EXISTS \`${new_site}_db\`; GRANT ALL PRIVILEGES ON \`${new_site}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;"
+        db_import_dump "$tmp/db/site.sql.gz" "${new_site}_db"
+    fi
 
     # URL remap: dry-run print (no mutation, per Phase 6 scope)
     local old_port new_port
