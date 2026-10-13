@@ -1,6 +1,7 @@
 let currentData = { sites: [], services: [] };
 let socket = null;
 let flyoutSite = null;
+let flyoutReturnFocus = null;
 let doctorLoaded = false;
 let scrollRevealObserver = null;
 let autoRefreshTimer = null;
@@ -79,10 +80,29 @@ function loadTheme() {
 
 document.addEventListener('DOMContentLoaded', loadTheme);
 
+function setConnectionState(online, label) {
+  const wrap = document.getElementById('connectionStatus');
+  if (!wrap) return;
+  const dot = wrap.querySelector('.status-dot');
+  const text = wrap.querySelector('.status-label');
+  if (dot) {
+    dot.classList.toggle('online', online);
+    dot.classList.toggle('offline', !online);
+  }
+  if (text) text.textContent = label || (online ? 'Connected' : 'Offline');
+}
+
 function initWebSocket() {
+  if (typeof io === 'undefined') {
+    setConnectionState(false, 'Live updates unavailable');
+    return;
+  }
   const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
   socket = io(`${protocol}//${window.location.host}`);
-  socket.on('connect', () => console.log('[WS] Connected'));
+  socket.on('connect', () => {
+    console.log('[WS] Connected');
+    setConnectionState(true);
+  });
   socket.on('status.changed', (data) => {
     updateStatusFromWebSocket(data);
   });
@@ -91,7 +111,8 @@ function initWebSocket() {
   });
   socket.on('disconnect', () => {
     console.log('[WS] Disconnected');
-    setTimeout(initWebSocket, 5000);
+    setConnectionState(false, 'Reconnecting...');
+    // socket.io retries automatically with backoff; no manual re-init.
   });
 }
 
@@ -129,7 +150,7 @@ function showOperationLoading(operation, site) {
   // Scope to the one site card the operation targets. The server broadcasts
   // site.operation to every client; matching by operation string alone spun
   // the same-named button on EVERY card (and 'restart' matched 'start').
-  const card = site ? document.querySelector(`.site-card[data-site-name="${site}"]`) : null;
+  const card = site ? document.querySelector(`.site-card[data-site-name="${CSS.escape(site)}"]`) : null;
   const scope = card
     ? card.querySelectorAll('.toolbar-btn, .dropdown-menu button')
     : document.querySelectorAll('.action-btn');   // env-wide ops: header quick actions only
@@ -145,7 +166,7 @@ function showOperationLoading(operation, site) {
 }
 
 function hideOperationLoading(operation, site) {
-  const card = site ? document.querySelector(`.site-card[data-site-name="${site}"]`) : null;
+  const card = site ? document.querySelector(`.site-card[data-site-name="${CSS.escape(site)}"]`) : null;
   const root = card || document;
   root.querySelectorAll('[data-original-text]').forEach(btn => {
     btn.innerHTML = btn.dataset.originalText;
@@ -189,26 +210,52 @@ function initScrollReveal() {
 }
 
 function initTabs() {
-  document.querySelectorAll('.tab-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-      const tab = pill.dataset.tab;
-      document.querySelectorAll('.tab-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      const panel = document.getElementById(`panel-${tab}`);
-      if (panel) panel.classList.add('active');
-      if (tab === 'activity') loadActivity();
-      if (tab === 'services') loadDoctor(); // auto-run once, cached in-memory
-      panel?.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  const pills = Array.from(document.querySelectorAll('.tab-pill'));
+  const activate = (pill) => {
+    const tab = pill.dataset.tab;
+    pills.forEach(p => {
+      const on = p === pill;
+      p.classList.toggle('active', on);
+      p.setAttribute('aria-selected', on ? 'true' : 'false');
+      p.setAttribute('tabindex', on ? '0' : '-1');
     });
+    pill.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    const panel = document.getElementById(`panel-${tab}`);
+    if (!panel) return;
+    panel.classList.add('active');
+    if (tab === 'activity') loadActivity();
+    if (tab === 'services') loadDoctor(); // auto-run once, cached in-memory
+    panel.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  };
+  pills.forEach((pill, i) => {
+    pill.setAttribute('tabindex', pill.classList.contains('active') ? '0' : '-1');
+    pill.addEventListener('click', () => activate(pill));
+    pill.addEventListener('keydown', (e) => {
+      let next = null;
+      if (e.key === 'ArrowRight') next = (i + 1) % pills.length;
+      else if (e.key === 'ArrowLeft') next = (i - 1 + pills.length) % pills.length;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = pills.length - 1;
+      if (next === null) return;
+      e.preventDefault();
+      pills[next].focus();
+      activate(pills[next]);
+    });
+  });
+}
+
+function closeAllDropdowns() {
+  document.querySelectorAll('.dropdown-menu.open').forEach(m => {
+    m.classList.remove('open');
+    const btn = m.parentElement && m.parentElement.querySelector('[aria-expanded]');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
   });
 }
 
 function initDropdownDismiss() {
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.dropdown-container')) {
-      document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
-    }
+    if (!e.target.closest('.dropdown-container')) closeAllDropdowns();
   });
 }
 
@@ -217,19 +264,89 @@ function toggleDropdown(event, name) {
   const menu = document.getElementById(`dropdown-${name}`);
   if (!menu) return;
   const isOpen = menu.classList.contains('open');
-  document.querySelectorAll('.dropdown-menu.open').forEach(m => m.classList.remove('open'));
-  if (!isOpen) menu.classList.add('open');
+  closeAllDropdowns();
+  if (!isOpen) {
+    menu.classList.add('open');
+    const btn = menu.parentElement && menu.parentElement.querySelector('[aria-expanded]');
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+  }
+}
+
+// ---- Modal management: dialog semantics, focus trap, Escape ---------------
+const FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let activeModal = null;
+let modalReturnFocus = null;
+
+function focusableIn(root) {
+  return Array.from(root.querySelectorAll(FOCUSABLE_SEL)).filter(el => el.offsetParent !== null);
+}
+
+function activateModal(el, closeFn) {
+  if (!el) return;
+  modalReturnFocus = document.activeElement;
+  activeModal = el;
+  el._modalClose = closeFn;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  const title = el.querySelector('.modal-header h3');
+  if (title) {
+    if (!title.id) title.id = `modal-title-${el.id}`;
+    el.setAttribute('aria-labelledby', title.id);
+  }
+  const first = focusableIn(el)[0];
+  if (first) first.focus();
+  else { el.setAttribute('tabindex', '-1'); el.focus(); }
+}
+
+function releaseModal() {
+  const back = modalReturnFocus;
+  activeModal = null;
+  modalReturnFocus = null;
+  if (back && document.contains(back)) back.focus();
+  else document.getElementById('mainContent')?.focus();
 }
 
 function openModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.add('open');
+  if (!el) return;
+  el.classList.add('open');
+  activateModal(el, () => closeModal(id));
 }
 
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
+  if (!el || !el.classList.contains('open')) return;
+  el.classList.remove('open');
+  if (activeModal === el) {
+    el._modalClose = null;
+    releaseModal();
+  }
 }
+
+// Escape: modal > dropdown > flyout. Tab cycles inside the open modal.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (activeModal && activeModal._modalClose) { e.preventDefault(); activeModal._modalClose(); return; }
+    if (document.querySelector('.dropdown-menu.open')) { closeAllDropdowns(); return; }
+    closeSiteFlyout();
+    return;
+  }
+  if (e.key !== 'Tab' || !activeModal) return;
+  const items = focusableIn(activeModal);
+  if (!items.length) { e.preventDefault(); return; }
+  const first = items[0];
+  const last = items[items.length - 1];
+  const cur = document.activeElement;
+  if (!activeModal.contains(cur)) { e.preventDefault(); first.focus(); return; }
+  if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
+});
+
+// Clicking the backdrop (the overlay itself) dismisses an open modal.
+document.addEventListener('click', (e) => {
+  const overlay = e.target.closest ? e.target.closest('.modal-overlay.open') : null;
+  if (overlay && e.target === overlay && overlay._modalClose) overlay._modalClose();
+});
 
 async function loadDashboard() {
   try {
@@ -313,7 +430,7 @@ async function loadActivity() {
     if (data.success && data.activities && data.activities.length > 0) {
       tbody.innerHTML = data.activities.map(a => `<tr>
         <td class="muted" style="font-size:0.8125rem">${escapeHtml(a.timestamp)}</td>
-        <td><span class="type-badge" style="background:${getActionColor(a.action)};color:white">${escapeHtml(a.action)}</span></td>
+        <td><span class="type-badge${getActionColor(a.action) ? ' solid' : ''}"${getActionColor(a.action) ? ` style="background:${getActionColor(a.action)}"` : ''}>${escapeHtml(a.action)}</span></td>
         <td><strong>${escapeHtml(a.site)}</strong></td>
         <td style="font-size:0.8125rem;color:var(--text-secondary)">${escapeHtml(a.details)}</td>
       </tr>`).join('');
@@ -327,8 +444,8 @@ async function loadActivity() {
 }
 
 function getActionColor(action) {
-  const colors = { 'CREATE': 'var(--success)', 'START': 'var(--accent)', 'STOP': 'var(--warning)', 'EDIT': '#0ea5e9', 'REMOVE': 'var(--danger)', 'BACKUP': 'var(--text-dim)', 'RESTORE': 'var(--text-dim)' };
-  return colors[action] || 'var(--text-dim)';
+  const colors = { 'CREATE': 'var(--fill-success)', 'START': 'var(--fill-accent)', 'STOP': 'var(--fill-warning)', 'EDIT': 'var(--fill-accent)', 'REMOVE': 'var(--fill-danger)' };
+  return colors[action] || null;
 }
 
 function updateDashboard() {
@@ -432,7 +549,7 @@ function renderSiteCard(site) {
               <a href="${localUrl}" target="_blank" rel="noopener" class="action-chip small">
                 <i class="ph-light ph-arrow-square-out"></i> Open
               </a>
-              <button class="action-chip small" onclick="checkSiteHealth('${name}')">
+              <button class="action-chip small" onclick="checkSiteHealth(this.closest('.site-card').dataset.siteName)">
                 <i class="ph-light ph-heartbeat"></i> Health
               </button>
             </div>
@@ -457,45 +574,45 @@ function renderSiteCard(site) {
             ${urlMarkup}
             <div class="site-toolbar">
               <div class="toolbar-group">
-                <button class="toolbar-btn" onclick="siteAction('start','${name}')" title="Start ${name}">
+                <button class="toolbar-btn" onclick="siteAction('start', this.closest('.site-card').dataset.siteName)" title="Start ${name}">
                   <i class="ph-light ph-play"></i>
                   <span>Start</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('stop','${name}')" title="Stop ${name}">
+                <button class="toolbar-btn" onclick="siteAction('stop', this.closest('.site-card').dataset.siteName)" title="Stop ${name}">
                   <i class="ph-light ph-stop"></i>
                   <span>Stop</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('restart','${name}')" title="Restart ${name}">
+                <button class="toolbar-btn" onclick="siteAction('restart', this.closest('.site-card').dataset.siteName)" title="Restart ${name}">
                   <i class="ph-light ph-arrows-clockwise"></i>
                   <span>Restart</span>
                 </button>
-                <button class="toolbar-btn" onclick="runChecksForSite('${name}')" title="Run checks on ${name}">
+                <button class="toolbar-btn" onclick="runChecksForSite(this.closest('.site-card').dataset.siteName)" title="Run checks on ${name}">
                   <i class="ph-light ph-clipboard-text"></i>
                   <span>Check</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('backup','${name}')" title="Backup ${name}">
+                <button class="toolbar-btn" onclick="siteAction('backup', this.closest('.site-card').dataset.siteName)" title="Backup ${name}">
                   <i class="ph-light ph-download"></i>
                   <span>Backup</span>
                 </button>
               </div>
               <div class="dropdown-container">
-                <button class="toolbar-btn" onclick="toggleDropdown(event, '${name}')" title="More actions for ${name}">
+                <button class="toolbar-btn" onclick="toggleDropdown(event, this.closest('.site-card').dataset.siteName)" title="More actions for ${name}" aria-expanded="false" aria-controls="dropdown-${name}">
                   <i class="ph-light ph-dots-three-vertical"></i>
                   <span>More</span>
                 </button>
                 <div class="dropdown-menu" id="dropdown-${name}">
-                  <button onclick="siteAction('info','${name}')"><i class="ph-light ph-info"></i>Info</button>
-                  <button onclick="siteAction('url','${name}')"><i class="ph-light ph-link"></i>URL</button>
-                  <button onclick="siteAction('logs','${name}')"><i class="ph-light ph-terminal"></i>Logs</button>
-                  <button onclick="siteAction('edit','${name}')"><i class="ph-light ph-pencil"></i>Edit</button>
+                  <button onclick="siteAction('info', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-info"></i>Info</button>
+                  <button onclick="siteAction('url', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-link"></i>URL</button>
+                  <button onclick="siteAction('logs', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-terminal"></i>Logs</button>
+                  <button onclick="siteAction('edit', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-pencil"></i>Edit</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('export-db','${name}')"><i class="ph-light ph-export"></i>Export DB</button>
-                  <button onclick="siteAction('import-db','${name}')"><i class="ph-light ph-download-simple"></i>Import DB</button>
-                  <button onclick="siteAction('restore','${name}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
+                  <button onclick="siteAction('export-db', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-download-simple"></i>Import DB</button>
+                  <button onclick="siteAction('restore', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('clone','${name}')"><i class="ph-light ph-copy"></i>Clone</button>
-                  <button class="warning" onclick="siteAction('reset','${name}')"><i class="ph-light ph-warning"></i>Reset</button>
-                  <button class="danger" onclick="siteAction('remove','${name}')"><i class="ph-light ph-trash"></i>Delete</button>
+                  <button onclick="siteAction('clone', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-copy"></i>Clone</button>
+                  <button class="warning" onclick="siteAction('reset', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-warning"></i>Reset</button>
+                  <button class="danger" onclick="siteAction('remove', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-trash"></i>Delete</button>
                 </div>
               </div>
             </div>
@@ -511,7 +628,7 @@ async function refreshSite(siteName) {
   currentData = data;
   const site = currentData.sites.find(s => s.name === siteName);
   if (!site) return;
-  const oldCard = document.querySelector(`.site-card[data-site-name="${siteName}"]`);
+  const oldCard = document.querySelector(`.site-card[data-site-name="${CSS.escape(siteName)}"]`);
   if (!oldCard) return;
   const newCardHtml = renderSiteCard(site);
   const wrapper = document.createElement('div');
@@ -550,8 +667,7 @@ async function quickAction(action) {
     } else {
       showNotification(`"${action}" failed: ${data.error?.message || data.error || 'Unknown'}`, 'danger');
     }
-    await refreshSite(siteName);
-    hideLoading();
+    await loadDashboard();
   } catch (error) {
     showNotification('Network error', 'danger');
     hideLoading();
@@ -565,7 +681,7 @@ async function quickAction(action) {
 const busySites = new Set();
 
 function setSiteBusy(siteName, busy) {
-  const card = document.querySelector(`.site-card[data-site-name="${siteName}"]`);
+  const card = document.querySelector(`.site-card[data-site-name="${CSS.escape(siteName)}"]`);
   if (card) {
     card.classList.toggle('busy', busy);
     card.querySelectorAll('button').forEach(b => { b.disabled = busy; });
@@ -691,7 +807,7 @@ function openSiteWorkflowModal(action, siteName) {
         </div>
         <div class="modal-footer">
           <button class="action-btn outline" onclick="closeWorkflowModal()"><span class="btn-inner">Cancel</span></button>
-          <button class="action-btn primary" onclick="submitWorkflow('${action}','${siteName}')">
+          <button class="action-btn primary" data-wf-action="${escapeHtml(action)}" data-wf-site="${escapeHtml(siteName)}" onclick="submitWorkflow(this.dataset.wfAction, this.dataset.wfSite)">
             <span class="btn-inner"><span>Run</span><span class="btn-icon-wrap"><i class="ph-light ph-arrow-right"></i></span></span>
           </button>
         </div>
@@ -702,11 +818,15 @@ function openSiteWorkflowModal(action, siteName) {
   const existing = document.getElementById('workflowModal');
   if (existing) existing.remove();
   document.body.insertAdjacentHTML('beforeend', html);
+  activateModal(document.getElementById('workflowModal'), closeWorkflowModal);
 }
 
 function closeWorkflowModal() {
   const el = document.getElementById('workflowModal');
-  if (el) el.remove();
+  if (!el) return;
+  const wasActive = activeModal === el;
+  el.remove();
+  if (wasActive) releaseModal();
 }
 
 function validateWorkflowValues(action, values) {
@@ -907,6 +1027,8 @@ async function executeCommand() {
     const parts = command.split(' ');
     const action = parts[0];
     const args = parts.slice(1);
+    const siteActions = ['start','stop','restart','remove','delete','rm','info','url','logs','backup','restore','edit','clone','reset','export-db','import-db','create','check','rest','xdebug','repair','scaffold','preset','watch','optimize','mail'];
+    const envActions = ['start','stop','restart','status','logs','clean','check','health','cache','cache-clear','search-replace','update','update-core','install','scaffold','preset','watch','optimize','mail','fix','test'];
     if (action === 'help') {
       const d = document.createElement('div');
       d.className = 'terminal-line dim';
@@ -918,8 +1040,6 @@ Usage: <action> <site-name> [args]`;
       output.scrollTop = output.scrollHeight;
       return;
     }
-    const siteActions = ['start','stop','restart','remove','delete','rm','info','url','logs','backup','restore','edit','clone','reset','export-db','import-db','create','check','rest','xdebug','repair','scaffold','preset','watch','optimize','mail'];
-    const envActions = ['start','stop','restart','status','logs','clean','check','health','cache','cache-clear','search-replace','update','update-core','install','scaffold','preset','watch','optimize','mail','fix','test'];
     let endpoint, body;
     if (args.length > 0 && siteActions.includes(action)) {
       endpoint = '/api/sites/' + action;
@@ -965,15 +1085,18 @@ Usage: <action> <site-name> [args]`;
 }
 
 function escapeHtml(text) {
-  const d = document.createElement('div');
-  d.textContent = text;
-  return d.innerHTML;
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function showLoading() {
   const btn = document.getElementById('refreshBtn');
   if (!btn) return;
-  btn.dataset.originalContent = btn.innerHTML;
+  if (!btn.dataset.originalContent) btn.dataset.originalContent = btn.innerHTML;
   btn.classList.add('loading');
   btn.innerHTML = '<i class="ph-light ph-arrows-clockwise"></i>';
 }
@@ -995,6 +1118,7 @@ function showNotification(message, type = 'info') {
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.className = `notification-toast ${type}`;
+  toast.setAttribute('role', type === 'danger' ? 'alert' : 'status');
   toast.innerHTML = `
     <span>${escapeHtml(message)}</span>
     <button class="toast-close" onclick="this.parentElement.remove()"><i class="ph-light ph-x"></i></button>
@@ -1024,11 +1148,15 @@ function showActionOutput(action, siteName, output) {
   const existing = document.getElementById('actionOutputModal');
   if (existing) existing.remove();
   document.body.insertAdjacentHTML('beforeend', html);
+  activateModal(document.getElementById('actionOutputModal'), closeActionOutputModal);
 }
 
 function closeActionOutputModal() {
   const el = document.getElementById('actionOutputModal');
-  if (el) el.remove();
+  if (!el) return;
+  const wasActive = activeModal === el;
+  el.remove();
+  if (wasActive) releaseModal();
 }
 
 function showError(message) {
@@ -1119,6 +1247,8 @@ function displayCheckResults(results, siteName) {
 function initParticles() {
   const canvas = document.getElementById('particlesCanvas');
   if (!canvas) return;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  if (reducedMotion.matches) return;
   const ctx = canvas.getContext('2d');
   let particles = [];
   let mouse = { x: -1000, y: -1000 };
@@ -1157,7 +1287,7 @@ function initParticles() {
 
   function getAccent() {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    return isLight ? '0, 148, 255' : '0, 229, 255';
+    return isLight ? '0, 104, 115' : '0, 183, 196';
   }
 
   function animate() {
@@ -1215,12 +1345,18 @@ function initParticles() {
 }
 
 function initCounters() {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const el = entry.target;
         const target = parseInt(el.textContent, 10);
         if (isNaN(target) || target === 0) {
+          observer.unobserve(el);
+          return;
+        }
+        if (reducedMotion) {
+          el.textContent = target;
           observer.unobserve(el);
           return;
         }
@@ -1260,10 +1396,6 @@ function initSiteFlyout() {
     openSiteFlyout(card.dataset.siteName);
   });
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeSiteFlyout();
-  });
-
   // Close flyout when clicking outside of it
   document.addEventListener('click', (e) => {
     const flyout = document.getElementById('siteFlyout');
@@ -1275,6 +1407,8 @@ function initSiteFlyout() {
     
     // If click is inside the flyout, do nothing
     if (flyout.contains(e.target)) return;
+    // A click on a site card is the flyout's open gesture, not an outside click
+    if (e.target.closest('.site-card')) return;
     
     // If click is on the overlay, close the flyout
     if (e.target === overlay) {
@@ -1320,12 +1454,25 @@ function openSiteFlyout(siteName) {
   document.getElementById('siteFlyoutOverlay').classList.add('open');
   document.getElementById('siteFlyout').classList.add('open');
   document.body.style.overflow = 'hidden';
+  flyoutReturnFocus = document.activeElement;
+  const closeBtn = document.querySelector('#siteFlyout .flyout-close');
+  if (closeBtn) closeBtn.focus();
 }
 
 function closeSiteFlyout() {
+  const flyout = document.getElementById('siteFlyout');
+  const wasOpen = flyout.classList.contains('open');
+  flyout.classList.remove('open');
   document.getElementById('siteFlyoutOverlay').classList.remove('open');
-  document.getElementById('siteFlyout').classList.remove('open');
   document.body.style.overflow = '';
+  // Restore focus only if it would otherwise be lost or hidden with the
+  // flyout — never steal it back from a control the user just clicked.
+  const ae = document.activeElement;
+  const focusLost = !ae || ae === document.body || flyout.contains(ae);
+  if (wasOpen && focusLost && flyoutReturnFocus && document.contains(flyoutReturnFocus)) {
+    flyoutReturnFocus.focus();
+  }
+  flyoutReturnFocus = null;
 }
 
 async function flyoutHealthCheck() {
@@ -1671,9 +1818,9 @@ async function loadDoctor(force = false) {
     if (data.success && Array.isArray(data.checks)) {
       tbody.innerHTML = data.checks.map(c => `
         <tr>
-          <td class="service-name">${c.check}</td>
-          <td><span class="status-tag ${c.status === 'ok' ? 'live' : 'down'}"><span class="status-tag-dot"></span>${c.status}</span></td>
-          <td class="muted">${c.detail || '—'}</td>
+          <td class="service-name">${escapeHtml(c.check)}</td>
+          <td><span class="status-tag ${c.status === 'ok' ? 'live' : 'down'}"><span class="status-tag-dot"></span>${escapeHtml(c.status)}</span></td>
+          <td class="muted">${escapeHtml(c.detail || '—')}</td>
         </tr>`).join('');
       section.style.display = '';
       doctorLoaded = true;

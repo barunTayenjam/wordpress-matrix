@@ -1,6 +1,6 @@
 <div class="tab-panels">
   <!-- Dashboard Panel -->
-  <div class="tab-panel active" id="panel-dashboard">
+  <div class="tab-panel active" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
     <!-- Live Status Bar -->
     <div class="status-bar-live" id="liveStatusBar">
       <div class="pill running">
@@ -126,7 +126,7 @@
   </div>
 
   <!-- Sites Panel -->
-  <div class="tab-panel" id="panel-sites">
+  <div class="tab-panel" id="panel-sites" role="tabpanel" aria-labelledby="tab-sites">
     <div class="panel-header between">
       <div class="panel-title">
         <i class="ph-light ph-hard-drives"></i>
@@ -152,17 +152,17 @@
           <div class="filter-strip">
             <div class="filter-field">
               <i class="ph-light ph-magnifying-glass"></i>
-              <input type="search" id="siteSearch" placeholder="Search sites..." class="filter-input">
+              <input type="search" id="siteSearch" placeholder="Search sites..." class="filter-input" aria-label="Search sites">
             </div>
             <div class="filter-select">
-              <select id="siteStatusFilter">
+              <select id="siteStatusFilter" aria-label="Filter sites by status">
                 <option value="all">All statuses</option>
                 <option value="running">Running</option>
                 <option value="stopped">Stopped</option>
               </select>
             </div>
             <div class="filter-select">
-              <select id="siteSort">
+              <select id="siteSort" aria-label="Sort sites">
                 <option value="name-asc">Name A-Z</option>
                 <option value="name-desc">Name Z-A</option>
                 <option value="status">Status</option>
@@ -198,7 +198,7 @@
               <a href="{{localUrl}}" target="_blank" rel="noopener" class="action-chip small">
                 <i class="ph-light ph-arrow-square-out"></i> Open
               </a>
-              <button class="action-chip small" onclick="checkSiteHealth('{{name}}')">
+              <button class="action-chip small" onclick="checkSiteHealth(this.closest('.site-card').dataset.siteName)">
                 <i class="ph-light ph-heartbeat"></i> Health
               </button>
             </div>
@@ -213,45 +213,45 @@
             {{/if}}
             <div class="site-toolbar">
               <div class="toolbar-group">
-                <button class="toolbar-btn" onclick="siteAction('start','{{name}}')" title="Start {{name}}">
+                <button class="toolbar-btn" onclick="siteAction('start', this.closest('.site-card').dataset.siteName)" title="Start {{name}}">
                   <i class="ph-light ph-play"></i>
                   <span>Start</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('stop','{{name}}')" title="Stop {{name}}">
+                <button class="toolbar-btn" onclick="siteAction('stop', this.closest('.site-card').dataset.siteName)" title="Stop {{name}}">
                   <i class="ph-light ph-stop"></i>
                   <span>Stop</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('restart','{{name}}')" title="Restart {{name}}">
+                <button class="toolbar-btn" onclick="siteAction('restart', this.closest('.site-card').dataset.siteName)" title="Restart {{name}}">
                   <i class="ph-light ph-arrows-clockwise"></i>
                   <span>Restart</span>
                 </button>
-                <button class="toolbar-btn" onclick="runChecksForSite('{{name}}')" title="Run checks on {{name}}">
+                <button class="toolbar-btn" onclick="runChecksForSite(this.closest('.site-card').dataset.siteName)" title="Run checks on {{name}}">
                   <i class="ph-light ph-clipboard-text"></i>
                   <span>Check</span>
                 </button>
-                <button class="toolbar-btn" onclick="siteAction('backup','{{name}}')" title="Backup {{name}}">
+                <button class="toolbar-btn" onclick="siteAction('backup', this.closest('.site-card').dataset.siteName)" title="Backup {{name}}">
                   <i class="ph-light ph-download"></i>
                   <span>Backup</span>
                 </button>
               </div>
               <div class="dropdown-container">
-                <button class="toolbar-btn" onclick="toggleDropdown(event, '{{name}}')" title="More actions for {{name}}">
+                <button class="toolbar-btn" onclick="toggleDropdown(event, this.closest('.site-card').dataset.siteName)" title="More actions for {{name}}" aria-expanded="false" aria-controls="dropdown-{{name}}">
                   <i class="ph-light ph-dots-three-vertical"></i>
                   <span>More</span>
                 </button>
                 <div class="dropdown-menu" id="dropdown-{{name}}">
-                  <button onclick="siteAction('info','{{name}}')"><i class="ph-light ph-info"></i>Info</button>
-                  <button onclick="siteAction('url','{{name}}')"><i class="ph-light ph-link"></i>URL</button>
-                  <button onclick="siteAction('logs','{{name}}')"><i class="ph-light ph-terminal"></i>Logs</button>
-                  <button onclick="siteAction('edit','{{name}}')"><i class="ph-light ph-pencil"></i>Edit</button>
+                  <button onclick="siteAction('info', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-info"></i>Info</button>
+                  <button onclick="siteAction('url', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-link"></i>URL</button>
+                  <button onclick="siteAction('logs', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-terminal"></i>Logs</button>
+                  <button onclick="siteAction('edit', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-pencil"></i>Edit</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('export-db','{{name}}')"><i class="ph-light ph-export"></i>Export DB</button>
-                  <button onclick="siteAction('import-db','{{name}}')"><i class="ph-light ph-download-simple"></i>Import DB</button>
-                  <button onclick="siteAction('restore','{{name}}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
+                  <button onclick="siteAction('export-db', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-download-simple"></i>Import DB</button>
+                  <button onclick="siteAction('restore', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('clone','{{name}}')"><i class="ph-light ph-copy"></i>Clone</button>
-                  <button class="warning" onclick="siteAction('reset','{{name}}')"><i class="ph-light ph-warning"></i>Reset</button>
-                  <button class="danger" onclick="siteAction('remove','{{name}}')"><i class="ph-light ph-trash"></i>Delete</button>
+                  <button onclick="siteAction('clone', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-copy"></i>Clone</button>
+                  <button class="warning" onclick="siteAction('reset', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-warning"></i>Reset</button>
+                  <button class="danger" onclick="siteAction('remove', this.closest('.site-card').dataset.siteName)"><i class="ph-light ph-trash"></i>Delete</button>
                 </div>
               </div>
             </div>
@@ -271,7 +271,7 @@
   </div>
 
   <!-- Services Panel -->
-  <div class="tab-panel" id="panel-services">
+  <div class="tab-panel" id="panel-services" role="tabpanel" aria-labelledby="tab-services">
     <div class="panel-header">
       <div class="panel-title">
         <i class="ph-light ph-stack"></i>
@@ -341,7 +341,7 @@
   </div>
 
   <!-- Frontend Panel -->
-  <div class="tab-panel" id="panel-frontend">
+  <div class="tab-panel" id="panel-frontend" role="tabpanel" aria-labelledby="tab-frontend">
     <div class="panel-header">
       <div class="panel-title">
         <i class="ph-light ph-browsers"></i>
@@ -394,7 +394,7 @@
   </div>
 
   <!-- Terminal Panel -->
-  <div class="tab-panel" id="panel-terminal">
+  <div class="tab-panel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal">
     <div class="panel-header">
       <div class="panel-title">
         <i class="ph-light ph-terminal"></i>
@@ -411,15 +411,15 @@
               <span class="terminal-dot"></span>
               <span class="terminal-title">matrix CLI</span>
             </div>
-            <div class="terminal-body" id="terminalOutput">
+            <div class="terminal-body" id="terminalOutput" aria-live="polite" aria-relevant="additions">
               <div class="terminal-line info">WordPress Matrix Terminal</div>
               <div class="terminal-line dim">Type 'help' for available commands</div>
               <div class="terminal-line dim sep">- - - - - - - - - - - - - -</div>
             </div>
             <div class="terminal-input-row">
               <span class="terminal-prompt">$</span>
-              <input type="text" id="terminalInput" class="terminal-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeCommand()" autocomplete="off" spellcheck="false">
-              <button class="terminal-exec-btn" onclick="executeCommand()">
+              <input type="text" id="terminalInput" class="terminal-input" placeholder="Enter command..." onkeydown="if(event.key==='Enter')executeCommand()" autocomplete="off" spellcheck="false" aria-label="Terminal command">
+              <button class="terminal-exec-btn" onclick="executeCommand()" aria-label="Run command">
                 <i class="ph-light ph-arrow-right"></i>
               </button>
             </div>
@@ -430,7 +430,7 @@
   </div>
 
   <!-- Activity Panel -->
-  <div class="tab-panel" id="panel-activity">
+  <div class="tab-panel" id="panel-activity" role="tabpanel" aria-labelledby="tab-activity">
     <div class="panel-header between">
       <div class="panel-title">
         <i class="ph-light ph-activity"></i>
@@ -588,7 +588,7 @@
 
 <!-- Site Detail Flyout -->
 <div class="flyout-overlay" id="siteFlyoutOverlay" onclick="closeSiteFlyout()"></div>
-<div class="site-flyout" id="siteFlyout">
+<div class="site-flyout" id="siteFlyout" role="dialog" aria-modal="true" aria-labelledby="flyoutSiteName">
   <div class="flyout-header">
     <div class="flyout-header-info">
       <span class="flyout-site-name" id="flyoutSiteName">--</span>
@@ -724,8 +724,8 @@
       <div class="flyout-wpcli" style="margin-top:0.5rem">
         <div class="flyout-wpcli-row">
           <span class="flyout-wpcli-prompt">$</span>
-          <input type="text" id="flyoutWpcliInput" class="flyout-wpcli-input" placeholder="wp plugin list --status=active" autocomplete="off" spellcheck="false">
-          <button class="action-chip small" onclick="flyoutWpcli()"><i class="ph-light ph-arrow-right"></i></button>
+          <input type="text" id="flyoutWpcliInput" class="flyout-wpcli-input" placeholder="wp plugin list --status=active" autocomplete="off" spellcheck="false" aria-label="WP-CLI command">
+          <button class="action-chip small" onclick="flyoutWpcli()" aria-label="Run WP-CLI command"><i class="ph-light ph-arrow-right"></i></button>
         </div>
       </div>
     </div>
