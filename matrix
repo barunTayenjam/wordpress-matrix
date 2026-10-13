@@ -440,10 +440,14 @@ create_site() {
             -e "CREATE DATABASE IF NOT EXISTS \`${site_name}_db\`; GRANT ALL PRIVILEGES ON \`${site_name}_db\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;" 2>/dev/null || true
     fi
 
-    log_success "Site '$site_name' created successfully with PHP $php_version ($stack)"
-    log_activity "CREATE" "$site_name" "Created with PHP $php_version, stack $stack, port $port"
+    log_success "Site '$site_name' created successfully with PHP $php_version ($stack, type: $type)"
+    log_activity "CREATE" "$site_name" "Created with PHP $php_version, stack $stack, port $port, type $type"
     echo "Direct: http://$HOST_IP:$port"
     echo "Database: http://$HOST_IP:8200"
+    if [[ "$type" == "joomla" ]]; then
+        # Joomla's first-visit wizard asks for DB creds — print them for easy copy
+        echo "Joomla wizard DB: ${site_name}_db / user: ${MYSQL_USER:-wp_user} / password: ${MYSQL_PASSWORD:-wp_password}"
+    fi
 
     # Auto-start the site after creation
     log_info "Starting site '$site_name'..."

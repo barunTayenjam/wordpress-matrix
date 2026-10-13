@@ -118,7 +118,12 @@ case "$cmd" in
         printf '%s\n' "$@" >> "$STUB_DIR/run.txt"
         exit 0
         ;;
-    inspect|image|exec|network)
+    exec)
+        # Record exec calls (DB create/dump assertions); succeed silently.
+        printf '%s\n' "$@" >> "$STUB_DIR/exec.txt"
+        exit 0
+        ;;
+    inspect|image|network)
         exit 1
         ;;
     *)

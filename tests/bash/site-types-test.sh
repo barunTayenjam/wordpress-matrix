@@ -212,7 +212,8 @@ log_success() { :; }
 log_warning() { :; }
 log_error() { echo "[error] $*" >&2; }
 run_wp_cli() { echo "$1 $*" >> "$STUB_DIR/wp-cli-calls.txt"; return 0; }
-# provision_site_type not implemented until Task 7 — stub the seam
+# provision_site_type now ships in the lib (Task 7); T9 needs the real one.
+# T7 re-stubs it here for create_site flow tests.
 provision_site_type() { echo "$@" >> "$STUB_DIR/provision-calls.txt"; return 0; }
 export -f log_info log_success log_warning log_error run_wp_cli provision_site_type
 
@@ -291,6 +292,66 @@ senv_env=$(cat "$SANDBOX/wp_senv/.env")
 assert_contains "T8.4a symfony DATABASE_URL rewritten" "$senv_env" 'DATABASE_URL="mysql://wp_user:wp_password@db:3306/senv_db"'
 seed_symfony_env senv
 assert_eq "T8.4b idempotent DATABASE_URL" "1" "$(grep -c '^DATABASE_URL=' "$SANDBOX/wp_senv/.env")"
+
+# ---- T9: dispatcher + joomla + grav + drupal (Task 7) ----
+# Re-source to restore real lib functions — T7's create_site stub shadows
+# provision_site_type in this shell; T9 tests the real dispatcher.
+source "$REPO_ROOT/scripts/site-types-lib.sh"
+log_info() { :; }; log_success() { :; }; log_warning() { :; }
+log_error() { echo "[error] $*" >&2; }
+# T9.1 dispatcher routes laravel
+rm -f "$STUB_DIR/run.txt"; mkdir -p "$SANDBOX/wp_disp"
+provision_site_type disp laravel 8.2
+assert_contains "T9.1 dispatcher laravel create-project" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "laravel/laravel"
+
+# T9.2 joomla zip via dispatcher, URL overridable
+rm -f "$STUB_DIR/run.txt"; mkdir -p "$SANDBOX/wp_joom"
+provision_site_type joom joomla 8.1
+joom_run=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
+assert_contains "T9.2a joomla downloads zip" "$joom_run" "downloads.joomla.org"
+assert_contains "T9.2b joomla unzips into webroot" "$joom_run" "unzip"
+export MATRIX_JOOMLA_URL="https://example.test/joomla.zip"
+rm -f "$STUB_DIR/run.txt"
+provision_site_type joom2 joomla 8.1
+assert_contains "T9.2c JOOMLA url override honored" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "example.test"
+unset MATRIX_JOOMLA_URL
+
+# T9.3 drupal settings seeded with creds + salt
+mkdir -p "$SANDBOX/wp_dru/web/sites/default"
+seed_drupal_settings dru
+dru_php=$(cat "$SANDBOX/wp_dru/web/sites/default/settings.php" 2>/dev/null || echo missing)
+assert_contains "T9.3a drupal db name" "$dru_php" "dru_db"
+assert_contains "T9.3b drupal db user" "$dru_php" "wp_user"
+assert_contains "T9.3c drupal host db" "$dru_php" "'db'"
+assert_contains "T9.3d drupal hash_salt set" "$dru_php" "hash_salt"
+rm -f "$STUB_DIR/run.txt"
+provision_site_type dru2 drupal 8.3
+dru_run=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
+assert_contains "T9.3e drupal recommended-project" "$dru_run" "drupal/recommended-project"
+
+# T9.4 grav via dispatcher, no env file expected
+rm -f "$STUB_DIR/run.txt"; mkdir -p "$SANDBOX/wp_grav"
+provision_site_type grav grav 8.1
+assert_contains "T9.4 grav create-project" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "getgrav/grav"
+[[ ! -f "$SANDBOX/wp_grav/.env" ]] && pass || fail "T9.4b grav writes no .env"
+
+# T9.5 grav create skips DB; laravel create hits it (db guard, matrix-level)
+echo "wp_db" >> "$STUB_DIR/running.txt"
+rm -f "$STUB_DIR/exec.txt" "$STUB_DIR/build.txt"
+write_base_compose
+create_site gsite5 --type=grav --skip-download >/dev/null 2>&1
+grav_execs=$(cat "$STUB_DIR/exec.txt" 2>/dev/null)
+assert_eq "T9.5a grav create: no mysql exec" "0" "$(grep -c 'mysql' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
+assert_eq "T9.5b grav marker" "grav" "$(cat "$SANDBOX/wp_gsite5/.matrix-type" 2>/dev/null || echo missing)"
+rm -f "$STUB_DIR/exec.txt"
+write_base_compose
+create_site lsite5 --type=laravel --skip-download >/dev/null 2>&1
+assert_eq "T9.5c laravel create: db created" "1" "$(grep -c 'mysql' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
+
+# T9.6 joomla create output prints wizard DB creds
+write_base_compose
+create_site jsite6 --type=joomla --skip-download > "$SANDBOX/t9-6.out" 2>&1
+grep -q "jsite6_db" "$SANDBOX/t9-6.out" && pass || fail "T9.6 joomla creds printed"
 
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
