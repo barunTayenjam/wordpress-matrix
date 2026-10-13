@@ -3,6 +3,11 @@
 # Sourced by both matrix and common.sh.
 # All functions depend on $PROJECT_ROOT, $COMPOSE_FILE, $CONTAINER_RUNTIME being set.
 
+# helpers depends on the site-type registry (site_state's type= line and
+# run_wp_cli's wp-only gate call into it). Pure functions; re-source is safe.
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/site-types-lib.sh"
+
 # Detect host LAN IP for user-facing URLs so other devices on the network can
 # connect. Sourced by both `matrix` and the scripts/*.sh subprocess scripts via
 # common.sh, so HOST_IP is available everywhere.

@@ -73,7 +73,10 @@ share_site() {
         error_json "SHARE_SITE_NOT_RUNNING" "Site name required"
         return 1
     fi
-    if ! site_state "$site" | grep -q '^running=1'; then
+    # Capture full output instead of `| grep -q` — grep's early exit can
+    # SIGPIPE site_state (extra lines after running=) and pipefail flips this
+    # check even when the site IS running.
+    if [[ "$(site_state "$site" 2>/dev/null)" != *$'\n'running=1* ]]; then
         error_json "SHARE_SITE_NOT_RUNNING" "Site '$site' is not running"
         return 1
     fi
