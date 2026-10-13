@@ -981,6 +981,16 @@ body::before {
   transform: scale(0.96);
 }
 
+/* busy site: buttons visually + functionally dead while an action runs */
+.site-card.busy .toolbar-btn,
+.toolbar-btn:disabled,
+.action-chip:disabled,
+.dropdown-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* --- Dropdown --- */
 .dropdown-container {
   position: relative;

@@ -446,8 +446,8 @@ function renderSiteCard(site) {
                   <button onclick="siteAction('logs','${name}')"><i class="ph-light ph-terminal"></i>Logs</button>
                   <button onclick="siteAction('edit','${name}')"><i class="ph-light ph-pencil"></i>Edit</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('export-db','${name}')"><i class="ph-light ph-database-export"></i>Export DB</button>
-                  <button onclick="siteAction('import-db','${name}')"><i class="ph-light ph-database-import"></i>Import DB</button>
+                  <button onclick="siteAction('export-db','${name}')"><i class="ph-light ph-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db','${name}')"><i class="ph-light ph-download-simple"></i>Import DB</button>
                   <button onclick="siteAction('restore','${name}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
                   <div class="dropdown-divider"></div>
                   <button onclick="siteAction('clone','${name}')"><i class="ph-light ph-copy"></i>Clone</button>
@@ -515,9 +515,32 @@ async function quickAction(action) {
   }
 }
 
+// ---- per-site busy state ----------------------------------------------------
+// A site action can take minutes (check, backup, clone). Without a guard the
+// button looks idle, users fire the same action repeatedly and clicking the
+// same button on another site makes results look cross-wired.
+const busySites = new Set();
+
+function setSiteBusy(siteName, busy) {
+  const card = document.querySelector(`.site-card[data-site-name="${siteName}"]`);
+  if (card) {
+    card.classList.toggle('busy', busy);
+    card.querySelectorAll('button').forEach(b => { b.disabled = busy; });
+  }
+}
+
 async function siteAction(action, siteName) {
   if ((action === 'remove' || action === 'delete') && !confirm(`Delete "${siteName}"? Cannot undo.`)) return;
   if (action === 'reset' && !confirm(`Reset "${siteName}" to fresh install? All data lost.`)) return;
+  const opensModal = ['restore', 'import-db', 'edit', 'clone'].includes(action);
+  if (!opensModal) {
+    if (busySites.has(siteName)) {
+      showNotification(`"${siteName}" is busy — wait for the current action to finish`, 'warning');
+      return;
+    }
+    busySites.add(siteName);
+    setSiteBusy(siteName, true);
+  }
 
   let endpoint, body;
   switch (action) {
@@ -557,6 +580,11 @@ async function siteAction(action, siteName) {
   } catch (error) {
     showNotification('Network error', 'danger');
     hideLoading();
+  } finally {
+    if (!opensModal) {
+      busySites.delete(siteName);
+      setSiteBusy(siteName, false);
+    }
   }
 }
 
@@ -966,6 +994,12 @@ function showError(message) {
 }
 
 async function runChecksForSite(siteName) {
+  if (busySites.has(siteName)) {
+    showNotification(`"${siteName}" is busy — wait for the current action to finish`, 'warning');
+    return;
+  }
+  busySites.add(siteName);
+  setSiteBusy(siteName, true);
   try {
     showLoading();
     const response = await fetch('/api/sites/check', {
@@ -983,6 +1017,9 @@ async function runChecksForSite(siteName) {
   } catch (error) {
     hideLoading();
     showNotification('Network error', 'danger');
+  } finally {
+    busySites.delete(siteName);
+    setSiteBusy(siteName, false);
   }
 }
 
@@ -1008,6 +1045,13 @@ async function runAllChecks() {
 
 function displayCheckResults(results, siteName) {
   openModal('checkResultsModal');
+  // label which site (or "All Sites") this run belongs to - without it every
+  // result looks like it came from every site at once
+  const title = document.querySelector('#checkResultsModal .modal-header h3');
+  if (title) {
+    const icon = title.querySelector('i') ? '<i class="ph-light ph-clipboard-text"></i> ' : '';
+    title.innerHTML = `${icon}Code Quality Results — ${escapeHtml(siteName || 'All Sites')}`;
+  }
   const progress = document.getElementById('checkProgress');
   const output = document.getElementById('checkOutput');
   progress.style.display = 'none';

@@ -1,6 +1,11 @@
 const EventEmitter = require('events');
 const request = require('supertest');
 
+// Hermetic: the developer's local frontend/.env may set MATRIX_DASHBOARD_TOKEN,
+// which would flip the app into guarded mode and 401 every request here.
+// Set BEFORE requiring app.js; dotenv never overrides existing env vars.
+process.env.MATRIX_DASHBOARD_TOKEN = '';
+
 const mockSpawn = jest.fn();
 
 jest.mock('child_process', () => ({

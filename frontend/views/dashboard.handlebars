@@ -62,7 +62,7 @@
           <div class="inner">
             <div class="stat-header">
               <div class="stat-icon-box accent">
-                <i class="ph-light ph-server"></i>
+                <i class="ph-light ph-stack"></i>
               </div>
               <span class="stat-badge">active</span>
             </div>
@@ -245,8 +245,8 @@
                   <button onclick="siteAction('logs','{{name}}')"><i class="ph-light ph-terminal"></i>Logs</button>
                   <button onclick="siteAction('edit','{{name}}')"><i class="ph-light ph-pencil"></i>Edit</button>
                   <div class="dropdown-divider"></div>
-                  <button onclick="siteAction('export-db','{{name}}')"><i class="ph-light ph-database-export"></i>Export DB</button>
-                  <button onclick="siteAction('import-db','{{name}}')"><i class="ph-light ph-database-import"></i>Import DB</button>
+                  <button onclick="siteAction('export-db','{{name}}')"><i class="ph-light ph-export"></i>Export DB</button>
+                  <button onclick="siteAction('import-db','{{name}}')"><i class="ph-light ph-download-simple"></i>Import DB</button>
                   <button onclick="siteAction('restore','{{name}}')"><i class="ph-light ph-arrow-counter-clockwise"></i>Restore</button>
                   <div class="dropdown-divider"></div>
                   <button onclick="siteAction('clone','{{name}}')"><i class="ph-light ph-copy"></i>Clone</button>
@@ -274,7 +274,7 @@
   <div class="tab-panel" id="panel-services">
     <div class="panel-header">
       <div class="panel-title">
-        <i class="ph-light ph-server"></i>
+        <i class="ph-light ph-stack"></i>
         <span>Services</span>
       </div>
       <button class="action-btn primary" onclick="loadDoctor(true)">
@@ -685,8 +685,8 @@
     <div class="flyout-section">
       <div class="flyout-section-title">Database</div>
       <div class="flyout-action-grid cols-3">
-        <button class="action-chip" onclick="flyoutAction('export-db')"><i class="ph-light ph-database-export"></i> Export</button>
-        <button class="action-chip" onclick="flyoutAction('import-db')"><i class="ph-light ph-database-import"></i> Import</button>
+        <button class="action-chip" onclick="flyoutAction('export-db')"><i class="ph-light ph-export"></i> Export</button>
+        <button class="action-chip" onclick="flyoutAction('import-db')"><i class="ph-light ph-download-simple"></i> Import</button>
         <button class="action-chip" onclick="flyoutSearchReplace()"><i class="ph-light ph-arrows-left-right"></i> Search/Replace</button>
       </div>
     </div>
@@ -705,11 +705,11 @@
       <div class="flyout-action-grid cols-3" style="margin-top:0.5rem">
         <button class="action-chip" onclick="flyoutExportBundle()"><i class="ph-light ph-package"></i> Export Bundle</button>
         <button class="action-chip" onclick="flyoutCompat()"><i class="ph-light ph-flask"></i> Test Compat</button>
-        <button class="action-chip" onclick="flyoutScheduleBackup()"><i class="ph-light ph-calendar-clock"></i> Schedule</button>
+        <button class="action-chip" onclick="flyoutScheduleBackup()"><i class="ph-light ph-calendar-plus"></i> Schedule</button>
       </div>
       <div class="flyout-action-grid cols-2" style="margin-top:0.5rem">
-        <button class="action-chip" onclick="flyoutCron('install')"><i class="ph-light ph-clock-plus"></i> Cron Install</button>
-        <button class="action-chip" onclick="flyoutCron('remove')"><i class="ph-light ph-clock-minus"></i> Cron Remove</button>
+        <button class="action-chip" onclick="flyoutCron('install')"><i class="ph-light ph-clock-clockwise"></i> Cron Install</button>
+        <button class="action-chip" onclick="flyoutCron('remove')"><i class="ph-light ph-clock-counter-clockwise"></i> Cron Remove</button>
       </div>
     </div>
 

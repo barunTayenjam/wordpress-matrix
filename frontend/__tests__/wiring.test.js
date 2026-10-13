@@ -5,6 +5,10 @@
 const EventEmitter = require('events');
 const request = require('supertest');
 
+// Hermetic: keep the app in open mode even if the developer's local
+// frontend/.env sets a dashboard token (see app.test.js).
+process.env.MATRIX_DASHBOARD_TOKEN = '';
+
 const mockSpawn = jest.fn();
 
 jest.mock('child_process', () => ({
