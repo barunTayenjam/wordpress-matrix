@@ -2584,6 +2584,24 @@ watch_site() {
 # (iterates config/presets/*.sh and prints each file's description).
 
 # Frontend management
+
+# PIDs holding port 8500, plus any `node app.js` from our frontend dir.
+# lsof is not installed on every host (Manjaro base) and silently returned
+# empty, so port detection never fired and start crashed with EADDRINUSE.
+# ss -tlnp reports pid= only for our own sockets, which is all we need -
+# the frontend runs as the same user. pgrep covers the npm->node wrapper
+# mismatch: $! records npm's PID while the listener is its node child.
+frontend_port_pids() {
+    local pids=""
+    if command -v lsof > /dev/null 2>&1; then
+        pids=$(lsof -ti:8500 2>/dev/null)
+    elif command -v ss > /dev/null 2>&1; then
+        pids=$(ss -tlnp 2>/dev/null | grep ':8500 ' | grep -oE 'pid=[0-9]+' | cut -d= -f2)
+    fi
+    pids="$pids $(pgrep -f "node app.js" 2>/dev/null | tr '\n' ' ')"
+    echo "$pids" | tr ' ' '\n' | sed '/^$/d' | sort -u | tr '\n' ' '
+}
+
 manage_frontend() {
     local action="${1:-}"
 
@@ -2602,15 +2620,7 @@ manage_frontend() {
     case "$action" in
         "start")
             # Check if port 8500 is already in use
-            # ss first: lsof is not installed on every host (e.g. Manjaro
-            # base) and silently returned empty, so the "already running"
-            # detection never fired and `start` crashed with EADDRINUSE.
-            local port_pids=""
-            if command -v lsof > /dev/null 2>&1; then
-                port_pids=$(lsof -ti:8500 2>/dev/null | tr '\n' ' ')
-            elif command -v ss > /dev/null 2>&1; then
-                port_pids=$(ss -tlnp 2>/dev/null | awk '/:8500 /{print $NF}' | grep -oE 'pid=[0-9]+' | cut -d= -f2 | sort -u | tr '\n' ' ')
-            fi
+            local port_pids=$(frontend_port_pids)
             if [[ -n "$port_pids" ]]; then
                 # Check if it's already our frontend
                 if [[ -f "$pid_file" ]]; then
@@ -2644,7 +2654,12 @@ manage_frontend() {
             log_info "Starting frontend..."
             cd "$frontend_dir" || return 1
 
-            MATRIX_LAN_IP="$HOST_IP" PORT=8500 npm start > "$log_file" 2>&1 &
+            # node directly, not `npm start`: $! is then the actual
+            # listener PID, so the pidfile matches what port detection
+            # (frontend_port_pids) finds and "already running" detection
+            # works. Via npm, the pidfile held npm's PID while the socket
+            # belonged to npm's node child - they never matched.
+            MATRIX_LAN_IP="$HOST_IP" PORT=8500 node app.js > "$log_file" 2>&1 &
             local pid=$!
             echo $pid > "$pid_file"
 
@@ -2671,7 +2686,7 @@ manage_frontend() {
             fi
 
             # Kill ALL processes on port 8500 (handle stale/leftover processes)
-            local port_pids=$(lsof -ti:8500 2>/dev/null | tr '\n' ' ')
+            local port_pids=$(frontend_port_pids)
             if [[ -n "$port_pids" ]]; then
                 is_running=true
                 if [[ -z "$current_pid" ]]; then
@@ -2718,9 +2733,13 @@ manage_frontend() {
                 fi
             fi
 
-            # Also check by port
+            # Also check by port (fallback to ss if lsof missing)
             if ! $is_running; then
-                local port_pid=$(lsof -ti:8500 2>/dev/null)
+                if command -v lsof > /dev/null 2>&1; then
+                    local port_pid=$(lsof -ti:8500 2>/dev/null)
+                elif command -v ss > /dev/null 2>&1; then
+                    local port_pid=$(ss -tlnp 2>/dev/null | awk '/:8500 /{print $NF}' | grep -oE 'pid=[0-9]+' | cut -d= -f2)
+                fi
                 if [[ -n "$port_pid" ]]; then
                     is_running=true
                     pid=$port_pid
@@ -3107,6 +3126,40 @@ main() {
         # --- Setup ---
         "setup")
             setup_env "$@"
+            ;;
+        # --- Dashboard token ---
+        "token")
+            local env_file="$PROJECT_ROOT/frontend/.env"
+            if [[ "${1:-}" == "--rotate" ]]; then
+                if [[ ! -d "$PROJECT_ROOT/frontend" ]]; then
+                    log_error "Frontend directory not found"
+                    exit 1
+                fi
+                local new_token
+                new_token=$(openssl rand -hex 16 2>/dev/null) || {
+                    log_error "openssl not available"
+                    exit 1
+                }
+                if [[ -f "$env_file" ]] && grep -q '^MATRIX_DASHBOARD_TOKEN=' "$env_file"; then
+                    sed -i "s/^MATRIX_DASHBOARD_TOKEN=.*/MATRIX_DASHBOARD_TOKEN=$new_token/" "$env_file"
+                else
+                    echo "MATRIX_DASHBOARD_TOKEN=$new_token" >> "$env_file"
+                fi
+                log_success "New token generated. Restart the frontend to apply:"
+                log_info "  ./matrix frontend restart"
+            fi
+            if [[ ! -f "$env_file" ]]; then
+                log_error "No frontend/.env — dashboard is loopback-only (no token)"
+                exit 1
+            fi
+            local token
+            token=$(grep '^MATRIX_DASHBOARD_TOKEN=' "$env_file" | cut -d= -f2)
+            if [[ -z "$token" ]]; then
+                log_error "MATRIX_DASHBOARD_TOKEN not set — dashboard is loopback-only"
+                log_info "Generate one: ./matrix token --rotate"
+                exit 1
+            fi
+            echo "MATRIX_DASHBOARD_TOKEN=$token"
             ;;
         # --- Site + environment management ---
         "start")
