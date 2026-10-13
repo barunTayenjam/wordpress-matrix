@@ -125,5 +125,58 @@ assert_eq "T4.4 no rebuild when image exists" "1" "$(grep -c 'matrix-php:8.3' "$
 assert_contains "T4.5 Dockerfile installs composer" "$(cat "$REPO_ROOT/config/docker/php-site/Dockerfile" 2>/dev/null)" "composer"
 assert_contains "T4.6 Dockerfile has unzip" "$(cat "$REPO_ROOT/config/docker/php-site/Dockerfile" 2>/dev/null)" "unzip"
 
+# ---- T5: compose_add_site type-aware (Task 3) ----
+source "$REPO_ROOT/scripts/helpers.sh"
+source "$REPO_ROOT/scripts/compose-lib.sh"
+# helpers.sh may define real log_* — keep tests quiet + offline
+log_info() { :; }
+log_success() { :; }
+log_warning() { :; }
+log_error() { :; }
+export -f log_info log_success log_warning log_error 2>/dev/null || true
+
+write_base_compose() {
+    cat > "$COMPOSE_FILE" <<'YAML'
+services:
+  db:
+    image: mysql:8.0
+volumes:
+  db_data:
+YAML
+}
+
+mk_site_conf() {  # nginx conf path placeholder (only the path is embedded)
+    echo "$SANDBOX/$1.conf" > "$SANDBOX/$1.conf"
+}
+
+# T5.1 wp unchanged: wordpress image + WORDPRESS_DB_* + depends_on db
+write_base_compose; mk_site_conf wpsite
+compose_add_site wpsite 8.3 8201 "$SANDBOX/wpsite.conf" nginx wp
+svc_block=$(sed -n '/^  wp_wpsite:/,/^  nginx_wpsite:/p' "$COMPOSE_FILE")
+assert_contains "T5.1a wp keeps wordpress fpm image" "$svc_block" "wordpress:php8.3-fpm"
+assert_eq   "T5.1b wp keeps DB env" "1" "$(grep -c 'WORDPRESS_DB_HOST' "$COMPOSE_FILE")"
+assert_contains "T5.1c wp depends_on db" "$svc_block" "depends_on"
+
+# T5.2 laravel: matrix-php image, no WORDPRESS env, depends_on kept
+write_base_compose; mk_site_conf lsite
+compose_add_site lsite 8.2 8202 "$SANDBOX/lsite.conf" nginx laravel
+l_block=$(sed -n '/^  wp_lsite:/,/^  nginx_lsite:/p' "$COMPOSE_FILE")
+assert_contains "T5.2a laravel uses matrix-php image" "$l_block" "matrix-php:8.2"
+assert_eq "T5.2b no WORDPRESS_DB_HOST for laravel" "0" "$(grep -c 'WORDPRESS_DB_HOST' "$COMPOSE_FILE")"
+assert_contains "T5.2c laravel keeps depends_on db" "$l_block" "depends_on"
+
+# T5.3 grav: matrix-php image, no WORDPRESS env, NO depends_on
+write_base_compose; mk_site_conf gsite
+compose_add_site gsite 8.1 8203 "$SANDBOX/gsite.conf" nginx grav
+g_block=$(sed -n '/^  wp_gsite:/,/^  nginx_gsite:/p' "$COMPOSE_FILE")
+assert_contains "T5.3a grav uses matrix-php image" "$g_block" "matrix-php:8.1"
+assert_eq "T5.3b no WORDPRESS_DB_HOST for grav" "0" "$(grep -c 'WORDPRESS_DB_HOST' "$COMPOSE_FILE")"
+assert_eq "T5.3c grav has no depends_on" "0" "$(sed -n '/wp_gsite:/,/nginx_gsite:/p' "$COMPOSE_FILE" | grep -c 'depends_on')"
+
+# T5.4 default (6th arg omitted) = wp behavior
+write_base_compose; mk_site_conf dsite
+compose_add_site dsite 8.3 8204 "$SANDBOX/dsite.conf" nginx
+assert_eq "T5.4 default type keeps wordpress image" "1" "$(grep -c 'wordpress:php8.3-fpm' "$COMPOSE_FILE")"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

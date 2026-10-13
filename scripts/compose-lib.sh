@@ -39,16 +39,36 @@ compose_atomic_write() {
 
 # Add a site's service definitions to docker-compose.yml
 # stack: nginx (default) or apache
+# type: wp (default) | laravel | symfony | drupal | joomla | grav — selects
+# runtime image and DB wiring (see scripts/site-types-lib.sh)
 compose_add_site() {
     local site_name="$1"
     local php_version="$2"
     local port="$3"
     local nginx_conf_path="$4"
     local stack="${5:-nginx}"
+    local type="${6:-wp}"
 
     if site_in_compose "$site_name"; then
         log_warning "Site '$site_name' already in docker-compose.yml"
         return 0
+    fi
+
+    local runtime_image
+    runtime_image=$(site_type_runtime_image "$type" "$php_version")
+    local db_env=""
+    if [[ "$type" == "wp" ]]; then
+        db_env="      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
+      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
+      WORDPRESS_DB_NAME: ${site_name}_db
+      WORDPRESS_DEBUG: \${WP_DEBUG:-true}"
+    fi
+    local depends_on=""
+    if site_type_uses_db "$type"; then
+        depends_on="    depends_on:
+      db:
+        condition: service_healthy"
     fi
 
     local tmp
@@ -57,6 +77,11 @@ compose_add_site() {
     awk '/^volumes:/ {exit} {print}' "$COMPOSE_FILE" > "$tmp"
 
     if [[ "$stack" == "apache" ]]; then
+        if [[ "$type" != "wp" ]]; then
+            log_error "Stack 'apache' is only supported for wp sites (type: $type)"
+            rm -f "$tmp"
+            return 1
+        fi
         cat >> "$tmp" << EOF
 
   # WordPress site: $site_name (Apache — .htaccess parity with production)
@@ -90,24 +115,17 @@ EOF
     else
         cat >> "$tmp" << EOF
 
-  # WordPress site: $site_name
+  # Site: $site_name (type: $type)
   wp_$site_name:
-    image: wordpress:php${php_version}-fpm
+    image: $runtime_image
     container_name: wp_$site_name
     restart: unless-stopped
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
-      WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
-      WORDPRESS_DB_NAME: ${site_name}_db
-      WORDPRESS_DEBUG: \${WP_DEBUG:-true}
+$db_env
     volumes:
       - ./wp_$site_name:/var/www/html
     networks:
       - wp-net
-    depends_on:
-      db:
-        condition: service_healthy
+$depends_on
     mem_limit: 512m
     cpus: 0.5
 
