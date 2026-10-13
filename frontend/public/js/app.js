@@ -112,11 +112,11 @@ function updateStatusFromWebSocket(data) {
 }
 
 function handleOperationEvent(data) {
-  const { type, operation } = data;
+  const { type, operation, site } = data;
   if (type === 'start') {
-    showOperationLoading(operation);
+    showOperationLoading(operation, site);
   } else if (type === 'success' || type === 'failure') {
-    hideOperationLoading(operation);
+    hideOperationLoading(operation, site);
     const msg = type === 'success'
       ? `"${operation}" completed`
       : `"${operation}" failed`;
@@ -125,9 +125,18 @@ function handleOperationEvent(data) {
   }
 }
 
-function showOperationLoading(operation) {
-  document.querySelectorAll('.action-btn, .action-chip, .toolbar-btn').forEach(btn => {
-    if (btn.onclick && btn.onclick.toString().includes(operation)) {
+function showOperationLoading(operation, site) {
+  // Scope to the one site card the operation targets. The server broadcasts
+  // site.operation to every client; matching by operation string alone spun
+  // the same-named button on EVERY card (and 'restart' matched 'start').
+  const card = site ? document.querySelector(`.site-card[data-site-name="${site}"]`) : null;
+  const scope = card
+    ? card.querySelectorAll('.toolbar-btn, .dropdown-menu button')
+    : document.querySelectorAll('.action-btn');   // env-wide ops: header quick actions only
+  scope.forEach(btn => {
+    const oc = btn.getAttribute('onclick') || '';
+    if (oc.includes(`'${operation}',`) || oc.includes(`'${operation}')`)) {
+      if (btn.dataset.originalText) return;
       btn.disabled = true;
       btn.dataset.originalText = btn.innerHTML;
       btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0"></div>';
@@ -135,13 +144,13 @@ function showOperationLoading(operation) {
   });
 }
 
-function hideOperationLoading() {
-  document.querySelectorAll('[disabled]').forEach(btn => {
-    if (btn.dataset.originalText) {
-      btn.innerHTML = btn.dataset.originalText;
-      btn.disabled = false;
-      delete btn.dataset.originalText;
-    }
+function hideOperationLoading(operation, site) {
+  const card = site ? document.querySelector(`.site-card[data-site-name="${site}"]`) : null;
+  const root = card || document;
+  root.querySelectorAll('[data-original-text]').forEach(btn => {
+    btn.innerHTML = btn.dataset.originalText;
+    btn.disabled = false;
+    delete btn.dataset.originalText;
   });
 }
 
