@@ -5,6 +5,46 @@ let doctorLoaded = false;
 let scrollRevealObserver = null;
 let autoRefreshTimer = null;
 
+// ---- LAN auth (Phase 8) -----------------------------------------------------
+// With MATRIX_DASHBOARD_TOKEN set the server binds 0.0.0.0 and guards /api/*.
+// The browser keeps the token in localStorage and sends it on every /api call;
+// a 401 prompts once, stores the token, and retries. Loopback deployments
+// never see a 401, so the prompt never fires there.
+const _fetch = window.fetch.bind(window);
+let _tokenPrompt = null;
+
+function matrixToken() {
+  return localStorage.getItem('matrixToken') || '';
+}
+
+function promptForToken() {
+  if (!_tokenPrompt) {
+    _tokenPrompt = new Promise(resolve => {
+      const t = window.prompt('Dashboard token required (LAN mode):');
+      if (t && t.trim()) {
+        localStorage.setItem('matrixToken', t.trim());
+        resolve(t.trim());
+      } else {
+        resolve(null);
+      }
+    }).finally(() => { _tokenPrompt = null; });
+  }
+  return _tokenPrompt;
+}
+
+window.fetch = async (input, init = {}) => {
+  const url = typeof input === 'string' ? input : (input && input.url) || '';
+  if (!url.includes('/api/')) return _fetch(input, init);
+  const headers = new Headers(init.headers || (input instanceof Request ? input.headers : {}));
+  if (matrixToken()) headers.set('x-matrix-token', matrixToken());
+  const res = await _fetch(input, { ...init, headers });
+  if (res.status !== 401) return res;
+  const token = await promptForToken();
+  if (!token) return res;
+  headers.set('x-matrix-token', token);
+  return _fetch(input, { ...init, headers });
+};
+
 function toggleTheme() {
   const html = document.documentElement;
   const icon = document.getElementById('theme-icon');
