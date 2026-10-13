@@ -375,10 +375,44 @@ function sortSites(sites) {
   return sorted;
 }
 
+// last template output per site - compare against THIS, not live DOM
+// outerHTML, because reveal/filter code mutates the live card (classes,
+// inline styles) and would make every reconcile look like a change.
+const renderedSiteHtml = new Map();
+
 function renderSites() {
   const grid = document.getElementById('sitesGrid');
   if (!grid || !Array.isArray(currentData.sites)) return;
-  grid.innerHTML = sortSites(currentData.sites).map(renderSiteCard).join('');
+  const sorted = sortSites(currentData.sites);
+
+  // Reconcile in place instead of innerHTML-swapping the whole grid.
+  // The old swap destroyed every card (each template starts at opacity:0
+  // under .reveal), so every action and every 30s auto-refresh made ALL
+  // cards vanish and fade back in - the reported flicker. Now untouched
+  // cards keep their DOM node (spinners, open dropdowns, scroll state).
+  const wantOrder = sorted.map(s => s.name).join('|');
+  const haveOrder = Array.from(grid.querySelectorAll('.site-card'))
+    .map(c => c.getAttribute('data-site-name')).join('|');
+
+  if (wantOrder !== haveOrder) {
+    // first render or the sort/order actually changed - full paint
+    grid.innerHTML = sorted.map(renderSiteCard).join('');
+    renderedSiteHtml.clear();
+    sorted.forEach(s => renderedSiteHtml.set(s.name, renderSiteCard(s)));
+  } else {
+    sorted.forEach(site => {
+      const html = renderSiteCard(site);
+      const existing = grid.querySelector(`.site-card[data-site-name="${CSS.escape(site.name)}"]`);
+      if (!existing) {
+        grid.insertAdjacentHTML('beforeend', html);
+      } else if (renderedSiteHtml.get(site.name) !== html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        existing.replaceWith(tmp.firstElementChild);
+      }
+      renderedSiteHtml.set(site.name, html);
+    });
+  }
   applySiteFilters();
 }
 
