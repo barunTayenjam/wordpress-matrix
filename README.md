@@ -1,32 +1,23 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:21759B,50:1E4E79,100:0F2B3D&height=180&section=header&text=WordPress%20Matrix&fontSize=48&fontAlignY=32&desc=One%20command.%20Every%20WordPress%20site.&descAlignY=55&descSize=18&animation=fadeIn&fontColor=ffffff" width="100%" alt="WordPress Matrix banner" />
+  <!-- Header & Capsule -->
+  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:21759B,50:1E4E79,100:0F2B3D&height=180&section=header&text=WordPress%20Matrix&fontSize=48&fontAlignY=32&desc=One%20command.%20Every%20WordPress%20site.&descAlignY=55&descSize=18&animation=fadeIn&fontColor=ffffff" width="100%" alt="WordPress Matrix banner" />
 
-<!-- Badge wall — live repo metrics first, then stack badges -->
-[![Stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=flat-square&logo=github&label=stars)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
-[![Forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=flat-square&logo=github&label=forks)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
-[![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/wordpress-matrix/feature/dev-choice-roadmap?style=flat-square&logo=git&label=last%20commit)](https://github.com/barunTayenjam/wordpress-matrix/commits/feature/dev-choice-roadmap)
+  <!-- Badge Wall — live repo metrics + project health -->
+  <!-- Stars, Forks, Last Commit -->
+  [![Stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=for-the-badge&logo=github&label=Stars)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
+  [![Forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=for-the-badge&logo=github&label=Forks)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
+  [![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/wordpress-matrix/main?style=for-the-badge&logo=git&label=Last%20Commit)](https://github.com/barunTayenjam/wordpress-matrix/commits/main)
 
-[![Bash](https://img.shields.io/badge/CLI-Bash-4EAA25?style=flat-square&logo=gnu-bash&logoColor=white)](https://www.gnu.org/software/bash/)
-[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com)
-[![Podman](https://img.shields.io/badge/Podman-892CA0?style=flat-square&logo=podman&logoColor=white)](https://podman.io)
-[![WordPress](https://img.shields.io/badge/WordPress%207.4–8.3-21759B?style=flat-square&logo=wordpress&logoColor=white)](https://wordpress.org)
-[![Node](https://img.shields.io/badge/Dashboard-Node%2018+-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
-
-[![Tests](https://img.shields.io/badge/tests-189%20bash%20%2B%2037%20jest-brightgreen?style=flat-square&logo=checkmarx&logoColor=white)](tests/bash)
-[![TDD](https://img.shields.io/badge/method-red%20→%20green%20→%20refactor-orange?style=flat-square)](docs/TDD-IMPLEMENTATION.md)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=flat-square)](https://github.com/barunTayenjam/wordpress-matrix/pulls)
-
-**A self-hosted, one-script WordPress development platform — Docker or Podman, your choice.**
-
-`matrix` creates sites, generates TLS certs, tunnels for client demos, exports portable
-bundles, runs WP core compat matrices — and a real-time dashboard supervises it all.
-
-[Getting Started](#-getting-started) ·
-[Features](#-features) ·
-[Command Reference](#-command-reference) ·
-[Architecture](#%EF%B8%8F-architecture) ·
-[Testing](#-testing--tdd)
+  <!-- Project Health & Quality Badges -->
+  [![Tests](https://img.shields.io/badge/tests-189%20bash%20%2B%2037%20jest-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/bash)
+  [![TDD](https://img.shields.io/badge/method-red%20→%20green%20→%20refactor-orange?style=for-the-badge)](docs/TDD-IMPLEMENTATION.md)
+  [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-Level%209-84CC16?style=for-the-badge&logo=php&logoColor=white)](https://phpstan.org)
+  [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
+  [![Podman](https://img.shields.io/badge/Podman-892CA0?style=for-the-badge&logo=podman&logoColor=white)](https://podman.io)
+  [![WordPress](https://img.shields.io/badge/WordPress%207.4–8.3-21759B?style=for-the-badge&logo=wordpress&logoColor=white)](https://wordpress.org)
+  [![Node](https://img.shields.io/badge/Dashboard-Node%2018+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
+  [![License](https://img.shields.io/badge/license-MIT- blue?style=for-the-badge)](LICENSE)
 
 </div>
 
@@ -47,11 +38,6 @@ chmod +x matrix
 
 # Create your first site (PHP 8.3, port assigned automatically)
 ./matrix create mysite
-
-# Browse
-#   Dashboard   → http://localhost:8500
-#   Your site   → http://localhost:8201
-#   phpMyAdmin  → http://localhost:8200
 ```
 
 > [!TIP]
@@ -93,8 +79,7 @@ $ ./matrix ssl mysite --json
 - [x] **Doctor** — bootstrap checks that degrade with a fix-command, never a dead end
 
 <details>
-<summary><b>Why matrix? (vs Local WP, DDEV, Lando, wp-env, XAMPP)</b></summary>
-<br>
+<summary><b>Why matrix? (vs Local WP, DDEV, Lando, wp-env, XAMPP)</b>
 
 Built after auditing 7 competitor tools. The gaps matrix closes on day one:
 
@@ -209,17 +194,18 @@ scripts/health-check.sh                             # runtime deep-check
 │  wp_db (MySQL :3306) · redis · phpmyadmin (:8200)                │
 │  wp-cli → ephemeral wordpress:cli, joins the live db network     │
 └──────────────────────────────────────────────────────────────────┘
-```
 
 > [!NOTE]
 > Generated files are not source. `docker-compose.yml` entries, nginx confs, and certs
 > are produced by `matrix` — `./matrix repair` regenerates them at any time.
+```
 
 ---
 
 ## 🧪 Testing & TDD
 
 Strict red → green → refactor per phase. **Failing tests are committed before the implementation.**
+
 Methodology: [`docs/TDD-IMPLEMENTATION.md`](docs/TDD-IMPLEMENTATION.md)
 
 | Suite | Asserts | What it pins |
@@ -280,3 +266,52 @@ Dev guide: [`AGENTS.md`](AGENTS.md) · Architecture Q&A: [`DFD.md`](DFD.md) · F
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0F2B3D,50:1E4E79,100:21759B&height=120&section=footer" width="100%" alt="" />
 
 </div>
+
+---
+
+## 📦 Project Tokens & Inspo
+
+This project draws inspiration from the curated excellence of the [awesome-github-profile-readme](https://github.com/abhisheknaiidu/awesome-github-profile-readme) repository — specifically its badge patterns, category organization, and tool integrations. The project aims to bring similar polish and developer experience to the WordPress Matrix platform.
+
+**Key inspirations:**
+- Shields.io badge styling and layering
+- Category-based organization patterns
+- Tool integration references (GitHub Readme Stats, Simple Icons, etc.)
+- Modern README structure with collapsible sections and status badges
+
+---
+
+## 📦 Quick Stats (generated badges)
+
+| Metric | Value |
+|---|---|
+| **Stars** | `GitHub stars` |
+| **Forks** | `GitHub forks` |
+| **Last commit** | `Main branch` |
+| **Test suites** | 10 bash + 3 Jest |
+| **TDD method** | red → green → refactor |
+| **PHPStan** | Level 9 (strict) |
+| **PHP vers.** | 7.4 – 8.3 |
+| **Docker** | Compose + Podman |
+| **Node** | Node 18+ |
+
+---
+
+## 🔧 Tools & Integrations (inspired by the community)
+
+This project leverages patterns from the GitHub profile README ecosystem:
+
+- **Shields.io** — badge generation for all status metrics
+- **GitHub Readme Stats** — dynamic repo stats pattern
+- **Simple Icons** — consistent logo rendering
+- **GitHub Actions** — CI/CD and test automation
+- **PHPStan** — static analysis at Level 9
+- **Jest** — frontend test suite
+- **mkcert** — trusted TLS certificate generation
+- **cloudflared/ngrok/bore** — public tunnel providers
+
+---
+
+## 📜 License
+
+MIT License — see [LICENSE](LICENSE) for details.
