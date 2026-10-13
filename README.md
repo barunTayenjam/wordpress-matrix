@@ -3,6 +3,11 @@
   <!-- Header & Capsule -->
   <img src="https://capsule-render.vercel.app/api?type=waving&color=0:21759B,50:1E4E79,100:0F2B3D&height=180&section=header&text=WordPress%20Matrix&fontSize=48&fontAlignY=32&desc=One%20command.%20Every%20WordPress%20site.&descAlignY=55&descSize=18&animation=fadeIn&fontColor=ffffff" width="100%" alt="WordPress Matrix banner" />
 
+  <!-- SiteMatrix logo (brand) -->
+  <p align="center">
+    <img src="docs/logo.svg" alt="SiteMatrix logo" width="220" />
+  </p>
+
   <!-- Badge Wall — live repo metrics + project health -->
   <!-- Stars, Forks, Last Commit -->
   [![Stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=for-the-badge&logo=github&label=Stars)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
@@ -266,49 +271,6 @@ Dev guide: [`AGENTS.md`](AGENTS.md) · Architecture Q&A: [`DFD.md`](DFD.md) · F
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0F2B3D,50:1E4E79,100:21759B&height=120&section=footer" width="100%" alt="" />
 
 </div>
-
----
-
-## 📦 Project Tokens & Inspo
-
-This project draws inspiration from the curated excellence of the [awesome-github-profile-readme](https://github.com/abhisheknaiidu/awesome-github-profile-readme) repository — specifically its badge patterns, category organization, and tool integrations. The project aims to bring similar polish and developer experience to the WordPress Matrix platform.
-
-**Key inspirations:**
-- Shields.io badge styling and layering
-- Category-based organization patterns
-- Tool integration references (GitHub Readme Stats, Simple Icons, etc.)
-- Modern README structure with collapsible sections and status badges
-
----
-
-## 📦 Quick Stats (generated badges)
-
-| Metric | Value |
-|---|---|
-| **Stars** | `GitHub stars` |
-| **Forks** | `GitHub forks` |
-| **Last commit** | `Main branch` |
-| **Test suites** | 10 bash + 3 Jest |
-| **TDD method** | red → green → refactor |
-| **PHPStan** | Level 9 (strict) |
-| **PHP vers.** | 7.4 – 8.3 |
-| **Docker** | Compose + Podman |
-| **Node** | Node 18+ |
-
----
-
-## 🔧 Tools & Integrations (inspired by the community)
-
-This project leverages patterns from the GitHub profile README ecosystem:
-
-- **Shields.io** — badge generation for all status metrics
-- **GitHub Readme Stats** — dynamic repo stats pattern
-- **Simple Icons** — consistent logo rendering
-- **GitHub Actions** — CI/CD and test automation
-- **PHPStan** — static analysis at Level 9
-- **Jest** — frontend test suite
-- **mkcert** — trusted TLS certificate generation
-- **cloudflared/ngrok/bore** — public tunnel providers
 
 ---
 
