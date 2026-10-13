@@ -243,5 +243,54 @@ write_base_compose
 create_site t5 --skip-download >/dev/null 2>&1
 assert_eq "T7.5 default marker wp" "wp" "$(cat "$SANDBOX/wp_t5/.matrix-type" 2>/dev/null || echo missing)"
 
+# ---- T8: composer provisioning + env seeding (Task 6) ----
+# NOTE: these run before the matrix-sourcing section (T7) so shell stays clean.
+rm -f "$STUB_DIR/run.txt"
+mkdir -p "$SANDBOX/wp_larv"
+provision_composer larv laravel 8.2
+run_log=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
+assert_contains "T8.1a laravel create-project" "$run_log" "composer"
+assert_contains "T8.1b laravel package" "$run_log" "laravel/laravel"
+assert_contains "T8.1c runs in matrix-php image" "$run_log" "matrix-php:8.2"
+assert_contains "T8.1d mounts site dir" "$run_log" "/var/www/html"
+
+rm -f "$STUB_DIR/run.txt"
+mkdir -p "$SANDBOX/wp_symf"
+provision_composer symf symfony 8.2
+assert_contains "T8.2 symfony skeleton" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "symfony/skeleton"
+
+# T8.3 laravel .env patch (fixture mimics create-project output)
+mkdir -p "$SANDBOX/wp_lenv"
+cat > "$SANDBOX/wp_lenv/.env" <<'ENVFIX'
+APP_NAME=Laravel
+APP_KEY=base64:EXISTINGKEYKEEPME
+APP_ENV=local
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=laravel
+DB_USERNAME=root
+DB_PASSWORD=
+ENVFIX
+export MYSQL_USER=wp_user MYSQL_PASSWORD=wp_password
+seed_laravel_env lenv
+lenv_env=$(cat "$SANDBOX/wp_lenv/.env")
+assert_contains "T8.3a DB_HOST patched" "$lenv_env" "DB_HOST=db"
+assert_contains "T8.3b DB_DATABASE patched" "$lenv_env" "DB_DATABASE=lenv_db"
+assert_contains "T8.3c DB_USERNAME patched" "$lenv_env" "DB_USERNAME=wp_user"
+assert_contains "T8.3d DB_PASSWORD patched" "$lenv_env" "DB_PASSWORD=wp_password"
+assert_contains "T8.3e APP_KEY untouched" "$lenv_env" "EXISTINGKEYKEEPME"
+seed_laravel_env lenv
+assert_eq "T8.3f idempotent DB_HOST" "1" "$(grep -c '^DB_HOST=' "$SANDBOX/wp_lenv/.env")"
+
+# T8.4 symfony DATABASE_URL
+mkdir -p "$SANDBOX/wp_senv"
+printf 'APP_ENV=dev\nDATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=8.0.32"\n' > "$SANDBOX/wp_senv/.env"
+seed_symfony_env senv
+senv_env=$(cat "$SANDBOX/wp_senv/.env")
+assert_contains "T8.4a symfony DATABASE_URL rewritten" "$senv_env" 'DATABASE_URL="mysql://wp_user:wp_password@db:3306/senv_db"'
+seed_symfony_env senv
+assert_eq "T8.4b idempotent DATABASE_URL" "1" "$(grep -c '^DATABASE_URL=' "$SANDBOX/wp_senv/.env")"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

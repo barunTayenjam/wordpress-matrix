@@ -113,7 +113,12 @@ case "$cmd" in
         fi
         exit 0
         ;;
-    inspect|image|exec|run|network)
+    run)
+        # Record full args; provisioning tests assert composer commands here.
+        printf '%s\n' "$@" >> "$STUB_DIR/run.txt"
+        exit 0
+        ;;
+    inspect|image|exec|network)
         exit 1
         ;;
     *)

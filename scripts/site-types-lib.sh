@@ -71,6 +71,58 @@ php_at_least() {
     [[ "$(printf '%s\n' "$floor" "$have" | sort -V | head -1)" == "$floor" ]]
 }
 
+# provision_composer <site> <type> <php> — one-shot matrix-php container runs
+# composer create-project into the site dir. Site markers (.matrix-stack,
+# .matrix-type) are written AFTER provisioning (create-project needs an empty
+# target). Caller handles failure/rollback.
+provision_composer() {
+    local site="${1:-}" type="${2:-}" php="${3:-}"
+    local dir="$PROJECT_ROOT/wp_${site}"
+    local pkg
+    case "$type" in
+        laravel) pkg="laravel/laravel" ;;
+        symfony) pkg="symfony/skeleton" ;;
+        drupal)  pkg="drupal/recommended-project" ;;
+        grav)    pkg="getgrav/grav" ;;
+        *) log_error "provision_composer: unsupported type $type"; return 1 ;;
+    esac
+    $CONTAINER_RUNTIME run --rm -v "$dir":/var/www/html "matrix-php:${php}" \
+        composer create-project "$pkg" /var/www/html --no-interaction --prefer-dist \
+        || return 1
+    $CONTAINER_RUNTIME run --rm -v "$dir":/var/www/html "matrix-php:${php}" \
+        chown -R www-data:www-data /var/www/html
+}
+
+# seed_laravel_env <site> — patch the create-project generated .env with the
+# platform DB creds. Replace-in-place; missing lines are laravel's defaults.
+seed_laravel_env() {
+    local site="${1:-}"
+    local env="$PROJECT_ROOT/wp_${site}/.env"
+    [[ -f "$env" ]] || return 0
+    sed -i \
+        -e 's|^DB_HOST=.*|DB_HOST=db|' \
+        -e 's|^DB_PORT=.*|DB_PORT=3306|' \
+        -e "s|^DB_DATABASE=.*|DB_DATABASE=${site}_db|" \
+        -e "s|^DB_USERNAME=.*|DB_USERNAME=${MYSQL_USER:-wp_user}|" \
+        -e "s|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}|" \
+        "$env"
+}
+
+# seed_symfony_env <site> — point DATABASE_URL at the platform DB.
+# ponytail: creds with | or & break sed — fine for local .env defaults; switch
+# to a temp-file rewrite when a user sets exotic passwords.
+seed_symfony_env() {
+    local site="${1:-}"
+    local env="$PROJECT_ROOT/wp_${site}/.env"
+    [[ -f "$env" ]] || return 0
+    local url="DATABASE_URL=\"mysql://${MYSQL_USER:-wp_user}:${MYSQL_PASSWORD:-wp_password}@db:3306/${site}_db\""
+    if grep -q '^DATABASE_URL=' "$env"; then
+        sed -i "s|^DATABASE_URL=.*|$url|" "$env"
+    else
+        printf '%s\n' "$url" >> "$env"
+    fi
+}
+
 # build_site_image <php> — build matrix-php:<php> only when not present.
 # Mirrors matrix_site_build_if_apache: image build is idempotent per version.
 build_site_image() {

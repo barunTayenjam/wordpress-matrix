@@ -365,14 +365,10 @@ create_site() {
     # Create directory
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
-    if [[ "$stack" == "apache" ]]; then
-        echo "apache" > "$site_dir/.matrix-stack"
-    else
-        echo "nginx" > "$site_dir/.matrix-stack"
-    fi
-    set_site_type "$site_name" "$type"
 
-    # Provision site files by type
+    # Provision site files by type. Markers (.matrix-stack/.matrix-type) are
+    # written AFTER provisioning: composer create-project requires an empty
+    # target directory.
     if [[ "$type" == "wp" ]]; then
     # Copy WordPress files using Docker/Podman
     if [[ "$skip_download" -eq 0 ]]; then
@@ -402,6 +398,14 @@ create_site() {
         build_site_image "$php_version" || return 1
         provision_site_type "$site_name" "$type" "$php_version" || return 1
     fi
+
+    # Site markers, after provisioning (see note above)
+    if [[ "$stack" == "apache" ]]; then
+        echo "apache" > "$site_dir/.matrix-stack"
+    else
+        echo "nginx" > "$site_dir/.matrix-stack"
+    fi
+    set_site_type "$site_name" "$type"
 
     # Copy baseline performance optimization files (wp only)
     if [[ "$type" == "wp" && -d "$PROJECT_ROOT/config/optimizations" ]]; then
