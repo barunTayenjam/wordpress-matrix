@@ -73,12 +73,17 @@ BACKUP_DIR="$PROJECT_ROOT/backups/reset_$(date +%Y%m%d_%H%M%S)_$SITE_NAME"
 mkdir -p "$BACKUP_DIR"
 log_info "Backing up to: $BACKUP_DIR"
 
-# Export database
+# Export database (db-backed types only — grav has no database)
 DB_NAME="${SITE_NAME}_db"
-if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "$DB_NAME" \
-        > "$BACKUP_DIR/database.sql"; then
-    log_error "Failed to export database for '$SITE_NAME'"
-    exit 1
+SITE_TYPE=$(get_site_type "$SITE_NAME")
+if site_type_uses_db "$SITE_TYPE"; then
+    if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "$DB_NAME" \
+            > "$BACKUP_DIR/database.sql"; then
+        log_error "Failed to export database for '$SITE_NAME'"
+        exit 1
+    fi
+else
+    log_info "Type '$SITE_TYPE' has no database — skipping database backup/reset"
 fi
 
 # Backup wp-content
@@ -93,9 +98,11 @@ if [[ "$KEEP_PLUGINS" == true ]] || [[ "$KEEP_THEMES" == true ]] || [[ "$KEEP_UP
 fi
 
 # Drop and recreate database
-log_info "Resetting database..."
-$CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e \
-    "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;"
+if site_type_uses_db "$SITE_TYPE"; then
+    log_info "Resetting database..."
+    $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e \
+        "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '${MYSQL_USER:-wp_user}'@'%'; FLUSH PRIVILEGES;"
+fi
 
 # Restore wp-content if needed
 if [[ "$KEEP_PLUGINS" == true ]] || [[ "$KEEP_THEMES" == true ]] || [[ "$KEEP_UPLOADS" == true ]]; then

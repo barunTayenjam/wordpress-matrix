@@ -416,5 +416,60 @@ t11_4rc=$?
 assert_eq "T11.4a optimize rc 1 on laravel" "1" "$t11_4rc"
 grep -q "requires wp" "$SANDBOX/t11-4.out" && pass || fail "T11.4b optimize gate message"
 
+# ---- T12: clone + reset type-aware (Task 10) ----
+# Harness: run real scripts against a sandbox copy tree (scripts re-point
+# PROJECT_ROOT to the sandbox; stubs on PATH fake docker/compose).
+setup_script_sandbox() {
+    cp -R "$REPO_ROOT/scripts" "$SANDBOX/scripts"
+    cp -R "$REPO_ROOT/config" "$SANDBOX/config"
+    mkdir -p "$SANDBOX/bin"
+    for f in docker matrix-compose-stub stub-common.sh; do
+        cp "$REPO_ROOT/tests/bash/bin/$f" "$SANDBOX/bin/$f"
+    done
+    chmod +x "$SANDBOX/bin/"*
+}
+
+run_script_sandboxed() {  # <script-name> <args...>  (stdin piped by caller)
+    local script="$1"; shift
+    sed -e "s|^PROJECT_ROOT=\"\$SCRIPT_DIR/..\"|PROJECT_ROOT=\"$SANDBOX\"|" \
+        -e "s|source \"\$SCRIPT_DIR/common.sh\"|source \"$REPO_ROOT/scripts/common.sh\"; PROJECT_ROOT=\"$SANDBOX\"; COMPOSE_FILE=\"$SANDBOX/docker-compose.yml\"; DOCKER_COMPOSE=matrix-compose-stub; CONTAINER_RUNTIME=docker|" \
+        "$REPO_ROOT/scripts/$script" > "$SANDBOX/$script"
+    PATH="$SANDBOX/bin:$PATH" bash "$SANDBOX/$script" "$@"
+}
+
+setup_script_sandbox
+mkdir -p "$SANDBOX/wp_cgrav"; set_site_type cgrav grav; touch "$SANDBOX/wp_cgrav/index.php"
+write_base_compose
+
+# T12.1 grav clone: no db touch at all
+rm -f "$STUB_DIR/exec.txt"
+run_script_sandboxed clone.sh cgrav cgrav2 >/dev/null 2>&1
+t12_1rc=$?
+assert_eq "T12.1a grav clone rc 0" "0" "$t12_1rc"
+assert_eq "T12.1b grav clone: no db ops" "0" "$(grep -c 'mysqldump\|mysql' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
+[[ -f "$SANDBOX/wp_cgrav2/index.php" ]] && pass || fail "T12.1c grav files cloned"
+
+# T12.2 laravel clone: db created, no wp-cli search-replace
+mkdir -p "$SANDBOX/wp_cl"; set_site_type cl laravel; touch "$SANDBOX/wp_cl/artisan"
+write_base_compose
+rm -f "$STUB_DIR/exec.txt" "$STUB_DIR/wp-cli-calls.txt"
+run_script_sandboxed clone.sh cl cl2 >/dev/null 2>&1
+t12_2rc=$?
+assert_eq "T12.2a laravel clone rc 0" "0" "$t12_2rc"
+grep -q 'CREATE DATABASE' "$STUB_DIR/exec.txt" 2>/dev/null && pass || fail "T12.2b laravel clone creates db"
+[[ ! -s "$STUB_DIR/wp-cli-calls.txt" ]] && pass || fail "T12.2c laravel clone skips wp-cli"
+
+# T12.3 grav reset: db steps skipped
+rm -f "$STUB_DIR/exec.txt"
+printf 'y\n' | run_script_sandboxed reset.sh cgrav >/dev/null 2>&1
+t12_3rc=$?
+assert_eq "T12.3a grav reset rc 0" "0" "$t12_3rc"
+assert_eq "T12.3b grav reset: no dump/drop" "0" "$(grep -c 'mysqldump\|DROP DATABASE' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
+
+# T12.4 laravel reset: db reset still happens
+rm -f "$STUB_DIR/exec.txt"
+printf 'y\n' | run_script_sandboxed reset.sh cl >/dev/null 2>&1
+grep -q 'DROP DATABASE' "$STUB_DIR/exec.txt" 2>/dev/null && pass || fail "T12.4 laravel reset resets db"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

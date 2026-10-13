@@ -84,7 +84,7 @@ update_compose_file() {
     fi
 
     local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
-    compose_add_site "$site" "${DEFAULT_PHP_VERSION:-8.3}" "$port" "$nginx_conf" "nginx"
+    compose_add_site "$site" "${DEFAULT_PHP_VERSION:-8.3}" "$port" "$nginx_conf" "nginx" "$(get_site_type "$site")"
     log_success "Added $site to docker-compose.yml on port $port"
 }
 

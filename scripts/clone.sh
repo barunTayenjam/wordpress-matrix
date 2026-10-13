@@ -37,6 +37,9 @@ if site_exists "$NEW_SITE"; then
     exit 1
 fi
 
+# Type-aware cloning: db steps only for db-backed types, wp-cli only for wp
+SOURCE_TYPE=$(get_site_type "$SOURCE_SITE")
+
 log_info "Cloning '$SOURCE_SITE' to '$NEW_SITE'..."
 
 # Create new site directory
@@ -67,30 +70,35 @@ if [[ -f "$NEW_DIR/wp-config.php" ]]; then
 fi
 
 # Create database
-log_info "Creating database..."
-if ! create_database "$NEW_SITE"; then
-    log_error "Failed to create database for '$NEW_SITE'"
-    exit 1
-fi
+if site_type_uses_db "$SOURCE_TYPE"; then
+    log_info "Creating database..."
+    if ! create_database "$NEW_SITE"; then
+        log_error "Failed to create database for '$NEW_SITE'"
+        exit 1
+    fi
 
-# Import database
-log_info "Importing database..."
-DB_DUMP=$(mktemp)
-if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "${SOURCE_SITE}_db" > "$DB_DUMP"; then
+    # Import database
+    log_info "Importing database..."
+    DB_DUMP=$(mktemp)
+    if ! $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysqldump --no-tablespaces -u"${MYSQL_USER:-wp_user}" "${SOURCE_SITE}_db" > "$DB_DUMP"; then
+        rm -f "$DB_DUMP"
+        log_error "Failed to export source database"
+        exit 1
+    fi
+    if ! $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u"${MYSQL_USER:-wp_user}" "${NEW_SITE}_db" < "$DB_DUMP"; then
+        rm -f "$DB_DUMP"
+        log_error "Failed to import target database"
+        exit 1
+    fi
     rm -f "$DB_DUMP"
-    log_error "Failed to export source database"
-    exit 1
+else
+    log_info "Source is a '$SOURCE_TYPE' site — skipping database clone (type has no database)"
 fi
-if ! $CONTAINER_RUNTIME exec -i -e MYSQL_PWD="${MYSQL_PASSWORD:-wp_password}" wp_db mysql -u"${MYSQL_USER:-wp_user}" "${NEW_SITE}_db" < "$DB_DUMP"; then
-    rm -f "$DB_DUMP"
-    log_error "Failed to import target database"
-    exit 1
-fi
-rm -f "$DB_DUMP"
 
 # Search and replace URLs in database (use HOST_IP so LAN devices resolve correctly)
-SOURCE_PORT="$(get_site_port "$SOURCE_SITE")"
 NEW_PORT="$(get_next_port)"
+if [[ "$SOURCE_TYPE" == "wp" ]]; then
+SOURCE_PORT="$(get_site_port "$SOURCE_SITE")"
 NEW_URL="http://${HOST_IP}:$NEW_PORT"
 
 log_info "Updating URLs in database..."
@@ -102,6 +110,9 @@ for old in "http://${HOST_IP}:${SOURCE_PORT}" "http://localhost:${SOURCE_PORT}" 
         exit 1
     fi
 done
+else
+    log_info "Non-wp source ('$SOURCE_TYPE') — skipping wp-cli URL search-replace"
+fi
 
 # Update docker-compose.yml (inherit stack from source)
 log_info "Updating docker-compose configuration..."
@@ -119,4 +130,4 @@ log_info "Starting cloned site..."
 matrix_site_up "$NEW_SITE"
 
 log_success "Site cloned successfully!"
-log_info "Access: $NEW_URL"
+log_info "Access: ${NEW_URL:-http://${HOST_IP}:${NEW_PORT}}"
