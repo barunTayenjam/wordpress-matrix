@@ -114,6 +114,15 @@ seed_drupal_settings() {
 PHPEOF
 }
 
+# rollback_site_create <site> — remove a half-provisioned site dir + logs after
+# failed non-wp provisioning. Half-composer sites are useless (unlike WP where
+# failures leave valid sites), so create rolls back instead of best-effort.
+rollback_site_create() {
+    local site="${1:-}"
+    log_error "Provisioning failed for '$site' — rolling back"
+    rm -rf "$PROJECT_ROOT/wp_${site}" "$PROJECT_ROOT/logs/wp_${site}"
+}
+
 # provision_site_type <site> <type> <php> — dispatcher for non-wp provisioning.
 # wp is handled inline by create_site.
 provision_site_type() {

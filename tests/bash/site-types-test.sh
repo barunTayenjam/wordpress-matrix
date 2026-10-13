@@ -353,5 +353,28 @@ write_base_compose
 create_site jsite6 --type=joomla --skip-download > "$SANDBOX/t9-6.out" 2>&1
 grep -q "jsite6_db" "$SANDBOX/t9-6.out" && pass || fail "T9.6 joomla creds printed"
 
+# ---- T10: rollback on non-wp provisioning failure (Task 8) ----
+# Shadow docker in this shell: laravel create-project fails when FAIL_LARAVEL set.
+docker() {
+    if [[ -n "${FAIL_LARAVEL:-}" && "$*" == *"composer create-project laravel/laravel"* ]]; then
+        return 1
+    fi
+    command docker "$@"
+}
+rm -f "$STUB_DIR/run.txt"
+FAIL_LARAVEL=1 write_base_compose 2>/dev/null
+write_base_compose
+FAIL_LARAVEL=1 create_site rbsite --type=laravel > "$SANDBOX/t10.out" 2>&1
+t10_rc=$?
+assert_eq "T10.1 failed provision → rc 1" "1" "$t10_rc"
+[[ ! -d "$SANDBOX/wp_rbsite" ]] && pass || fail "T10.2 site dir rolled back"
+assert_eq "T10.3 no compose entry after rollback" "0" "$(grep -c 'wp_rbsite:' "$COMPOSE_FILE" 2>/dev/null)"
+unset FAIL_LARAVEL
+
+# T10.4 wp path pin: skip-download create still adds compose entry (best-effort kept)
+write_base_compose
+create_site wppin --skip-download >/dev/null 2>&1
+grep -q 'wp_wppin:' "$COMPOSE_FILE" && pass || fail "T10.4 wp compose entry still added"
+
 echo "site-types: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]

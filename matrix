@@ -395,8 +395,9 @@ create_site() {
     fi
     else
         # Non-wp types: shared matrix-php runtime image + per-type provisioning
-        build_site_image "$php_version" || return 1
-        provision_site_type "$site_name" "$type" "$php_version" || return 1
+        build_site_image "$php_version" || { rollback_site_create "$site_name"; return 1; }
+        provision_site_type "$site_name" "$type" "$php_version" \
+            || { rollback_site_create "$site_name"; return 1; }
     fi
 
     # Site markers, after provisioning (see note above)
