@@ -1,8 +1,5 @@
 <div align="center">
 
-  <!-- Header & Capsule -->
-  <img src="docs/banner-header.svg" width="100%" alt="SiteMatrix banner" />
-
   <!-- SiteMatrix logo (brand) -->
   <p align="center">
     <img src="docs/logo.svg" alt="SiteMatrix logo" width="220" />
@@ -282,12 +279,6 @@ git checkout -b feat/my-feature
 ```
 
 Dev guide: [`AGENTS.md`](AGENTS.md)
-
-<div align="center">
-
-<img src="docs/banner-footer.svg" width="100%" alt="" />
-
-</div>
 
 ---
 
