@@ -149,3 +149,8 @@ graphify-out/
 
 # Static files (su-static)
 su-static/
+
+# tool session artifacts
+.playwright-mcp/
+.qwen/
+.cursor/

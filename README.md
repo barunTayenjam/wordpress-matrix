@@ -12,7 +12,7 @@
   [![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/sitematrix/main?style=for-the-badge&logo=git&label=Last%20Commit)](https://github.com/barunTayenjam/sitematrix/commits/main)
 
   <!-- Project Health & Quality Badges -->
-  [![Tests](https://img.shields.io/badge/tests-189%20bash%20%2B%2037%20jest-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/bash)
+  [![Tests](https://img.shields.io/badge/tests-365%20bash%20%2B%2062%20jest-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/bash)
   [![TDD](https://img.shields.io/badge/method-red%20→%20green%20→%20refactor-orange?style=for-the-badge)](docs/TDD-IMPLEMENTATION.md)
   [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-Level%209-84CC16?style=for-the-badge&logo=php&logoColor=white)](https://phpstan.org)
   [![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com)
@@ -89,7 +89,7 @@ Built after auditing 7 competitor tools. The gaps matrix closes on day one:
 |---|---|---|---|---|
 | Multi-site in seconds | ✅ one command | ✅ GUI | ✅ | ⚠️ single-site |
 | Works on Podman | ✅ first-class | ❌ | ⚠️ | ❌ |
-| Zero-daemon offline tests | ✅ 189 stub asserts | ❌ | ❌ | ❌ |
+| Zero-daemon offline tests | ✅ 365 stub asserts | ❌ | ❌ | ❌ |
 | Per-site WP core version pinning | ✅ | ⚠️ | ⚠️ | ⚠️ |
 | One-command public tunnel | ✅ | ✅ paid | ⚠️ | ❌ |
 | Portable tar.gz bundle w/ manifest | ✅ | ⚠️ | ❌ | ❌ |
@@ -227,7 +227,7 @@ Methodology: [`docs/TDD-IMPLEMENTATION.md`](docs/TDD-IMPLEMENTATION.md)
 
 | Suite | Asserts | What it pins |
 |---|---|---|
-| `site-types-test.sh` | 139 | 6-stack registry, provisioning, compose/nginx/repair type-awareness |
+| `site-types-test.sh` | 169 | 6-stack registry, provisioning, compose/nginx/repair type-awareness |
 | `site-state-test.sh` | 34 | Compose + live-container state seam |
 | `stubs-test.sh` | 4 | docker/compose stub infrastructure |
 | `ssl-test.sh` | 12 | cert generation, port math, domains |
