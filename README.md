@@ -10,9 +10,9 @@
 
   <!-- Badge Wall — live repo metrics + project health -->
   <!-- Stars, Forks, Last Commit -->
-  [![Stars](https://img.shields.io/github/stars/barunTayenjam/wordpress-matrix?style=for-the-badge&logo=github&label=Stars)](https://github.com/barunTayenjam/wordpress-matrix/stargazers)
-  [![Forks](https://img.shields.io/github/forks/barunTayenjam/wordpress-matrix?style=for-the-badge&logo=github&label=Forks)](https://github.com/barunTayenjam/wordpress-matrix/network/members)
-  [![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/wordpress-matrix/main?style=for-the-badge&logo=git&label=Last%20Commit)](https://github.com/barunTayenjam/wordpress-matrix/commits/main)
+  [![Stars](https://img.shields.io/github/stars/barunTayenjam/sitematrix?style=for-the-badge&logo=github&label=Stars)](https://github.com/barunTayenjam/sitematrix/stargazers)
+  [![Forks](https://img.shields.io/github/forks/barunTayenjam/sitematrix?style=for-the-badge&logo=github&label=Forks)](https://github.com/barunTayenjam/sitematrix/network/members)
+  [![Last Commit](https://img.shields.io/github/last-commit/barunTayenjam/sitematrix/main?style=for-the-badge&logo=git&label=Last%20Commit)](https://github.com/barunTayenjam/sitematrix/commits/main)
 
   <!-- Project Health & Quality Badges -->
   [![Tests](https://img.shields.io/badge/tests-189%20bash%20%2B%2037%20jest-brightgreen?style=for-the-badge&logo=checkmarx&logoColor=white)](tests/bash)
@@ -31,7 +31,7 @@
 ## 🚀 Getting Started
 
 ```bash
-git clone https://github.com/barunTayenjam/wordpress-matrix.git
+git clone https://github.com/barunTayenjam/sitematrix.git
 cd wordpress-matrix
 chmod +x matrix
 
