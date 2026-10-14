@@ -73,6 +73,8 @@ apdisk/
 *.gif
 *.bmp
 *.svg
+!docs/*.svg
+!frontend/public/icons/*.svg
 *.webp
 *.pdf
 *.doc
