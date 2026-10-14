@@ -539,6 +539,10 @@ function renderSiteCard(site) {
   const statusClass = String(site.status || '').toLowerCase() === 'running' ? 'live' : 'down';
   const localUrl = site.localUrl ? escapeHtml(site.localUrl) : '';
   const phpVersion = escapeHtml(site.phpVersion || '');
+  const siteType = String(site.type || 'wp');
+  const siteTypeLabel = escapeHtml(siteType);
+  const siteTypeMarkup = siteType === 'wp' ? '' : `
+              <span class="stack-tag" title="Stack: ${siteTypeLabel}">${siteTypeLabel}</span>`;
 
   const urlMarkup = localUrl ? `
             <div class="site-meta">
@@ -561,15 +565,18 @@ function renderSiteCard(site) {
               <span>Not configured</span>
             </div>`;
 
-  return `<div class="site-card double-bezel reveal" data-site-name="${name}" data-site-status="${status}" data-site-php="${phpVersion}" data-site-url="${localUrl}">
+  return `<div class="site-card double-bezel reveal" data-site-name="${name}" data-site-status="${status}" data-site-php="${phpVersion}" data-site-type="${escapeHtml(siteType)}" data-site-url="${localUrl}">
         <div class="shell">
           <div class="inner">
             <div class="site-card-top">
               <h3 class="site-name">${name}</h3>
+              <div class="card-tags">
+              ${siteTypeMarkup}
               <span class="status-tag ${statusClass}">
                 <span class="status-tag-dot"></span>
                 ${status}
               </span>
+              </div>
             </div>
             ${urlMarkup}
             <div class="site-toolbar">
@@ -875,6 +882,7 @@ async function submitWorkflow(action, siteName) {
 
 async function createSite() {
   const siteName = document.getElementById('siteName').value.trim();
+  const siteType = document.getElementById('siteType')?.value || 'wp';
   const phpVersion = document.getElementById('phpVersion')?.value || '8.3';
   const multisite = document.getElementById('multisiteVersion')?.value || '';
   const wpVersion = document.getElementById('wpVersionSelect')?.value || '';
@@ -889,7 +897,10 @@ async function createSite() {
     const response = await fetch('/api/sites/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ siteName, phpVersion, multisite, wpVersion, preset })
+      // wp-only options are dropped for other stacks — matrix rejects them
+      body: JSON.stringify(siteType === 'wp'
+        ? { siteName, type: siteType, phpVersion, multisite, wpVersion, preset }
+        : { siteName, type: siteType, phpVersion })
     });
     const data = await response.json();
     if (data.success && (!data.exitCode || data.exitCode === 0)) {
@@ -1431,6 +1442,7 @@ function openSiteFlyout(siteName) {
   const statusTextEl = document.getElementById('flyoutSiteStatusText');
   const urlEl = document.getElementById('flyoutSiteUrl');
   const phpEl = document.getElementById('flyoutSitePhp');
+  const typeEl = document.getElementById('flyoutSiteType');
   const portEl = document.getElementById('flyoutSitePort');
 
   if (nameEl) nameEl.textContent = site.name;
@@ -1447,6 +1459,7 @@ function openSiteFlyout(siteName) {
     urlEl.textContent = url !== '#' ? url : 'Not configured';
   }
   if (phpEl) phpEl.textContent = site.phpVersion || '--';
+  if (typeEl) typeEl.textContent = site.type || 'wp';
   if (portEl) portEl.textContent = site.port || '--';
 
   flyoutHealthCheck();

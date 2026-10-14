@@ -481,6 +481,18 @@
           <span class="field-hint">Alphanumeric, hyphens, underscores only</span>
         </div>
         <div class="field-group">
+          <label for="siteType">Stack</label>
+          <select id="siteType" class="glass-select">
+            <option value="wp">WordPress (default)</option>
+            <option value="laravel">Laravel (PHP 8.2+)</option>
+            <option value="symfony">Symfony (PHP 8.2+)</option>
+            <option value="drupal">Drupal 11 (PHP 8.3+)</option>
+            <option value="joomla">Joomla 5 (PHP 8.1+)</option>
+            <option value="grav">Grav (PHP 8.1+, no database)</option>
+          </select>
+          <span class="field-hint">Laravel/Symfony/WordPress presets and multisite apply to WordPress only</span>
+        </div>
+        <div class="field-group">
           <label for="phpVersion">PHP Version</label>
           <select id="phpVersion" class="glass-select">
             <option value="8.3">PHP 8.3 (default)</option>
@@ -619,8 +631,8 @@
           <span class="flyout-meta-value" id="flyoutSitePort">--</span>
         </div>
         <div class="flyout-meta-item">
-          <span class="flyout-meta-label">Type</span>
-          <span class="flyout-meta-value" id="flyoutSiteType">dynamic</span>
+          <span class="flyout-meta-label">Stack</span>
+          <span class="flyout-meta-value" id="flyoutSiteType">wp</span>
         </div>
       </div>
     </div>

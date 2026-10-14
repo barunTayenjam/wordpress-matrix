@@ -893,6 +893,28 @@ body {
   background: currentColor;
 }
 
+/* Card tag row: optional stack badge + status tag */
+.card-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.stack-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  background: var(--bg-elevated);
+}
+
 .site-meta {
   display: flex;
   align-items: center;

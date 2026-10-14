@@ -52,6 +52,9 @@ const RESERVED_SITE_NAMES = new Set(
 const SUPPORTED_PHP_VERSIONS = new Set(
   (VALIDATION_CONFIG && VALIDATION_CONFIG.supportedPhpVersions) || ['7.4', '8.0', '8.1', '8.2', '8.3']
 );
+// Kept in sync with SITE_TYPES in scripts/site-types-lib.sh. 'wp' is the
+// default; omitting type from the create body means wp.
+const SUPPORTED_SITE_TYPES = new Set(['wp', 'laravel', 'symfony', 'drupal', 'joomla', 'grav']);
 const DEFAULT_PHP_VERSION = (VALIDATION_CONFIG && VALIDATION_CONFIG.defaultPhpVersion) || '8.3';
 const SITE_ACTIONS_REQUIRING_NAME = new Set(['create', 'start', 'stop', 'restart', 'remove', 'delete', 'rm', 'info', 'url', 'logs', 'backup', 'restore', 'edit', 'clone', 'reset', 'export-db', 'import-db', 'check', 'rest', 'xdebug', 'repair', 'scaffold', 'preset', 'watch', 'optimize', 'mail', 'ssl', 'domain', 'share', 'share-stop', 'export-bundle', 'import-bundle', 'compat', 'cron']);
 const ALLOWED_SITE_ACTIONS = new Set([...SITE_ACTIONS_REQUIRING_NAME]);
@@ -146,6 +149,14 @@ const validatePhpVersion = (version) => {
   return { valid: true };
 };
 
+const validateSiteType = (type) => {
+  if (!type) return { valid: true };
+  if (typeof type !== 'string' || !SUPPORTED_SITE_TYPES.has(type)) {
+    return { valid: false, code: 'INVALID_INPUT', message: 'Unsupported site type' };
+  }
+  return { valid: true };
+};
+
 const validateMultisiteMode = (mode) => {
   if (!mode) return { valid: true };
   if (!SUPPORTED_MULTISITE_MODES.has(String(mode))) {
@@ -189,6 +200,7 @@ const validateRetention = (retention) => {
 // Build matrix create args from the validated create-modal body.
 const buildCreateArgs = (siteName, phpVersion, body) => {
   const args = [siteName, `--php-version=${phpVersion}`];
+  if (body.type) args.push(`--type=${body.type}`);
   if (body.multisite) args.push(`--multisite=${body.multisite}`);
   if (body.wpVersion) args.push(`--wp-version=${body.wpVersion}`);
   if (body.preset) args.push(`--preset=${body.preset}`);
@@ -1090,6 +1102,10 @@ app.post('/api/sites/:action', async (req, res) => {
     if (!presetValidation.valid) {
       return sendError(res, presetValidation.code, presetValidation.message);
     }
+    const typeValidation = validateSiteType(req.body.type);
+    if (!typeValidation.valid) {
+      return sendError(res, typeValidation.code, typeValidation.message);
+    }
   }
 
   try {
@@ -1419,6 +1435,7 @@ module.exports = {
   parseJsonOutput,
   validateSiteName,
   validatePhpVersion,
+  validateSiteType,
   validateRelativeFilePath,
   validateCommandArgs,
   validateMultisiteMode,
@@ -1432,6 +1449,7 @@ module.exports = {
     ALLOWED_ENV_ACTIONS,
     ALLOWED_FRONTEND_ACTIONS,
     SUPPORTED_PHP_VERSIONS,
+    SUPPORTED_SITE_TYPES,
     SUPPORTED_WP_VERSIONS,
     SUPPORTED_MULTISITE_MODES,
     SUPPORTED_BACKUP_SCHEDULES,

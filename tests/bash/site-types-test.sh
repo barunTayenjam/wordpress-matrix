@@ -513,6 +513,17 @@ rm -f "$STUB_DIR/db-imports.txt"
 import_site "$SANDBOX/ew-bundle.tar.gz" iw1 --yes >/dev/null 2>&1
 assert_eq "T13.4 wp import uses db seam" "1" "$(wc -l < "$STUB_DIR/db-imports.txt" 2>/dev/null || echo 0)"
 
+# T13.6 list_sites_json exposes type for the dashboard
+mkdir -p "$SANDBOX/wp_lj"; set_site_type lj grav
+get_site_stack() { echo "nginx"; }
+get_site_port() { echo "8299"; }
+get_site_php_version_from_compose() { echo "8.1"; }
+lj_json=$(list_sites_json)
+assert_contains "T13.6a list json carries type=grav" "$lj_json" '"name":"lj","status":"stopped","stack":"nginx","type":"grav"'
+mkdir -p "$SANDBOX/wp_lj2"
+lj2_json=$(list_sites_json)
+assert_contains "T13.6b list json defaults type=wp" "$lj2_json" '"name":"lj2","status":"stopped","stack":"nginx","type":"wp"'
+
 # T13.5 site_state carries type
 get_site_stack() { echo "nginx"; }
 get_site_port() { echo "8299"; }

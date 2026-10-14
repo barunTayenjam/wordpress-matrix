@@ -675,6 +675,9 @@ list_sites_json() {
         local stack
         stack=$(get_site_stack "$site")
 
+        local site_type
+        site_type=$(get_site_type "$site")
+
         local container_id=""
         if [[ "$status" == "running" ]]; then
             container_id=$($CONTAINER_RUNTIME ps -q -f "name=^/wp_${site}\$" 2>/dev/null | head -1)
@@ -701,7 +704,7 @@ list_sites_json() {
             container_id_json="\"$container_id\""
         fi
 
-        local site_entry="{\"name\":\"$site\",\"status\":\"$status\",\"stack\":\"$stack\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"diskUsage\":$disk_usage}"
+        local site_entry="{\"name\":\"$site\",\"status\":\"$status\",\"stack\":\"$stack\",\"type\":\"$site_type\",\"port\":${port:-null},\"phpVersion\":$php_version_json,\"containerId\":$container_id_json,\"localUrl\":$local_url,\"diskUsage\":$disk_usage}"
 
         if [[ "$first_site" == true ]]; then
             sites_json="$site_entry"

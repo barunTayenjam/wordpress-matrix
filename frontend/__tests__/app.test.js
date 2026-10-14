@@ -32,6 +32,7 @@ const {
   server,
   validateSiteName,
   validatePhpVersion,
+  validateSiteType,
   validateRelativeFilePath,
   parseJsonOutput,
   constants: { ALLOWED_SITE_ACTIONS, ALLOWED_ENV_ACTIONS },
@@ -308,6 +309,50 @@ describe('real API routes', () => {
 
     expect(response.body.error.code).toBe('INVALID_INPUT');
     expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it('passes --type through on create for non-wp stacks', async () => {
+    mockMatrixResponse({ stdout: 'Site created\n' });
+
+    await request(app)
+      .post('/api/sites/create')
+      .send({ siteName: 'shop', phpVersion: '8.2', type: 'laravel' })
+      .expect(200);
+
+    expect(mockSpawn).toHaveBeenCalledWith(
+      expect.stringContaining('/matrix'),
+      ['create', 'shop', '--php-version=8.2', '--type=laravel'],
+      expect.any(Object)
+    );
+  });
+
+  it('omits --type when create body carries none (wp default)', async () => {
+    mockMatrixResponse({ stdout: 'Site created\n' });
+
+    await request(app)
+      .post('/api/sites/create')
+      .send({ siteName: 'blog', phpVersion: '8.3' })
+      .expect(200);
+
+    const args = mockSpawn.mock.calls[0][1];
+    expect(args.some((a) => a.startsWith('--type='))).toBe(false);
+  });
+
+  it('rejects unknown site types before spawning matrix', async () => {
+    const response = await request(app)
+      .post('/api/sites/create')
+      .send({ siteName: 'shop', phpVersion: '8.3', type: 'magento' })
+      .expect(400);
+
+    expect(response.body.error.code).toBe('INVALID_INPUT');
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it('validates site types against the supported stack list', () => {
+    expect(validateSiteType('laravel').valid).toBe(true);
+    expect(validateSiteType('drupal').valid).toBe(true);
+    expect(validateSiteType('magento').valid).toBe(false);
+    expect(validateSiteType('wp; rm -rf /').valid).toBe(false);
   });
 
   it('normalizes command failures into structured errors', async () => {
