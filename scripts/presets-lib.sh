@@ -1,5 +1,5 @@
 #!/bin/bash
-# Presets library for wordpress-matrix.
+# Presets library for sitematrix.
 # Loads preset definitions from config/presets/*.sh files.
 # Each preset file must define preset_description() and may define:
 #   preset_plugins(), preset_theme(), preset_wp_config(), preset_post_install()

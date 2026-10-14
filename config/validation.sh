@@ -1,5 +1,5 @@
 #!/bin/bash
-# config/validation.sh — Shared validation rules for wordpress-matrix
+# config/validation.sh — Shared validation rules for sitematrix
 # Single source of truth for site naming, PHP versions, and reserved names.
 
 RESERVED_NAMES=" frontend matrix db redis phpmyadmin nginx content mailpit mail "

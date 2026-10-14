@@ -442,7 +442,7 @@ app.get('/', async (req, res) => {
     
     const runningSitesCount = sites.filter(s => s.status && s.status.toLowerCase() === 'running').length;
     res.render('dashboard', {
-      title: 'WordPress Matrix Dashboard',
+      title: 'SiteMatrix Dashboard',
       sites,
       services,
       runningSitesCount,
@@ -1415,7 +1415,7 @@ const startServer = (port = PORT) => {
     console.warn('[SECURITY] No MATRIX_DASHBOARD_TOKEN — binding to 127.0.0.1 only. Set MATRIX_DASHBOARD_TOKEN to enable LAN access.');
   }
   return server.listen(port, bindHost, () => {
-    console.log(`WordPress Matrix Frontend listening on ${bindHost}:${port}`);
+    console.log(`SiteMatrix Frontend listening on ${bindHost}:${port}`);
     console.log(`Dashboard:   http://localhost:${port}`);
     if (lanIp && DASHBOARD_TOKEN) console.log(`Dashboard:   http://${lanIp}:${port}  (LAN)`);
     console.log(`API Endpoint: http://localhost:${port}/api`);

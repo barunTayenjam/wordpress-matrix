@@ -1,5 +1,5 @@
 #!/bin/bash
-# SSL library for wordpress-matrix.
+# SSL library for sitematrix.
 # Generates per-site TLS certificates and configures nginx to use them.
 # Falls back from mkcert to openssl when mkcert is not installed.
 # Design: additive (no existing certs removed), idempotent, --force for overwrite.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# helpers.sh — Shared helper functions for wordpress-matrix
+# helpers.sh — Shared helper functions for sitematrix
 # Sourced by both matrix and common.sh.
 # All functions depend on $PROJECT_ROOT, $COMPOSE_FILE, $CONTAINER_RUNTIME being set.
 

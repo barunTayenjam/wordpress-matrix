@@ -1,5 +1,5 @@
 #!/bin/bash
-# Doctor library for wordpress-matrix.
+# Doctor library for sitematrix.
 # Environment/bootstrap checks on top of ./matrix health (FEATURES-PLAN.md Phase 5).
 # Contract: each check_<name> echoes "status=ok|warn|fail" plus "detail=...".
 # cmd_doctor [--json] runs the ordered registry, renders a table or a JSON

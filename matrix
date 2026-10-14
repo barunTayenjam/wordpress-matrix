@@ -2354,7 +2354,7 @@ scaffold_theme() {
 /*
 Theme Name: $name
 Theme URI: http://example.com/$name
-Description: Custom theme created with WordPress Matrix
+Description: Custom theme created with SiteMatrix
 Author: Developer
 Version: 1.0.0
 Text Domain: $name
@@ -2447,7 +2447,7 @@ scaffold_plugin() {
 <?php
 /**
  * Plugin Name: $name
- * Description: Custom plugin created with WordPress Matrix.
+ * Description: Custom plugin created with SiteMatrix.
  * Version: 1.0.0
  * Author: Developer
  * Text Domain: $name
@@ -2493,7 +2493,7 @@ scaffold_child_theme() {
 /*
 Theme Name: $name
 Template: parent-theme
-Description: Child theme created with WordPress Matrix
+Description: Child theme created with SiteMatrix
 Version: 1.0.0
 Text Domain: $name
 */

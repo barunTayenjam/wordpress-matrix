@@ -1,4 +1,4 @@
-# WordPress Matrix — Dev Tools Guide
+# SiteMatrix — Dev Tools Guide
 
 ## WP-CLI
 

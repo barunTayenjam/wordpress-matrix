@@ -1,6 +1,6 @@
-# AGENTS.md - WordPress Development Platform Guide
+# AGENTS.md - SiteMatrix Guide
 
-This document serves as a comprehensive guide for agents working with the WordPress Development Platform repository.
+This document serves as a comprehensive guide for agents working with the SiteMatrix repository (formerly wordpress-matrix — a multi-stack PHP platform: WordPress, Laravel, Symfony, Drupal, Joomla, Grav).
 
 ## Project Overview
 

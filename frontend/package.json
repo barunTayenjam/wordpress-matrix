@@ -1,5 +1,5 @@
 {
-  "name": "wordpress-matrix-frontend",
+  "name": "sitematrix-frontend",
   "version": "1.0.0",
   "description": "Web frontend for WordPress Development Platform",
   "main": "app.js",
@@ -16,7 +16,7 @@
     "development",
     "express"
   ],
-  "author": "WordPress Matrix Team",
+  "author": "SiteMatrix Team",
   "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
