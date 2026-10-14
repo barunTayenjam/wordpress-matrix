@@ -369,10 +369,25 @@ create_site() {
     mkdir -p "$site_dir"
     mkdir -p "$PROJECT_ROOT/logs/wp_$site_name"
 
-    # Provision site files by type. Markers (.matrix-stack/.matrix-type) are
-    # written AFTER provisioning: composer create-project requires an empty
-    # target directory.
+    # Provision site files by type.
+    #
+    # Marker placement differs per type, and the reason is filesystem
+    # ownership, not taste:
+    #   wp      — markers are written HERE, before the container chowns the tree
+    #             to www-data. After that the host user cannot write into the
+    #             directory at all (that bug shipped once already).
+    #   non-wp  — composer create-project requires an EMPTY target, so markers
+    #             must wait until provisioning finishes; by then the tree is
+    #             www-data-owned, so provision_site_type writes them from inside
+    #             a root container instead (write_markers_in_container).
     if [[ "$type" == "wp" ]]; then
+        if [[ "$stack" == "apache" ]]; then
+            echo "apache" > "$site_dir/.matrix-stack"
+        else
+            echo "nginx" > "$site_dir/.matrix-stack"
+        fi
+        set_site_type "$site_name" "wp"
+
     # Copy WordPress files using Docker/Podman
     if [[ "$skip_download" -eq 0 ]]; then
         log_info "Installing WordPress (PHP $php_version)..."
@@ -402,19 +417,16 @@ create_site() {
         # overwrites every file it just wrote.
         log_info "Skipping provisioning (--skip-download: files restored from bundle)"
     else
-        # Non-wp types: shared matrix-php runtime image + per-type provisioning
+        # Non-wp types: shared matrix-php runtime image + per-type provisioning.
+        # provision_site_type also writes .matrix-stack/.matrix-type from inside
+        # a root container (see the marker-placement note above).
         build_site_image "$php_version" || { rollback_site_create "$site_name"; return 1; }
-        provision_site_type "$site_name" "$type" "$php_version" \
+        provision_site_type "$site_name" "$type" "$php_version" "$stack" \
             || { rollback_site_create "$site_name"; return 1; }
     fi
 
-    # Site markers, after provisioning (see note above)
-    if [[ "$stack" == "apache" ]]; then
-        echo "apache" > "$site_dir/.matrix-stack"
-    else
-        echo "nginx" > "$site_dir/.matrix-stack"
-    fi
-    set_site_type "$site_name" "$type"
+    # wp with --skip-download: no container chowns the tree, so the markers
+    # written above are all that is needed.
 
     # Copy baseline performance optimization files (wp only)
     if [[ "$type" == "wp" && -d "$PROJECT_ROOT/config/optimizations" ]]; then
@@ -467,6 +479,19 @@ create_site() {
 
     # Apply runtime performance tweaks (wp-config constants, phpredis, etc.)
     [[ "$type" == "wp" ]] && apply_performance_tweaks "$site_name" "$php_version"
+
+    # Laravel: stock create-project runs migrations against the default .env
+    # (sqlite), which we then repoint at MySQL — the tables would be missing
+    # and first visit 500s. Migrate after start, when the DB exists.
+    # --skip-download (import) skips this: the bundle restore brings its own db.
+    if [[ "$type" == "laravel" && "$skip_download" -eq 0 ]] && compose_or_container_running "wp_db"; then
+        log_info "Running Laravel migrations..."
+        if $CONTAINER_RUNTIME exec -w /var/www/html "wp_$site_name" php artisan migrate --force >/dev/null 2>&1; then
+            log_success "Laravel migrations applied"
+        else
+            log_warning "Migrations not applied — run: $CONTAINER_RUNTIME exec wp_$site_name php artisan migrate"
+        fi
+    fi
 
     log_success "Site '$site_name' started and ready!"
     log_activity "START" "$site_name" "Auto-started after creation"
@@ -630,8 +655,8 @@ restore_site() {
     # Stop the site if running
     matrix_site_stop "$site_name"
     
-    # Remove existing site files
-    rm -rf "$PROJECT_ROOT/wp_$site_name" 2>/dev/null || true
+    # Remove existing site files (ownership-safe for www-data-owned trees)
+    remove_site_dir "$PROJECT_ROOT/wp_$site_name" "$site_name" || return 1
     
     # Extract backup
     if ! tar -xzf "$backup_file" -C "$PROJECT_ROOT"; then
@@ -1127,8 +1152,9 @@ remove_site() {
         $CONTAINER_RUNTIME rm -f "$c" 2>/dev/null || true
     done
 
-    # Remove files
-    rm -rf "$PROJECT_ROOT/wp_$site_name"
+    # Remove files (ownership-safe: provisioned trees are www-data-owned,
+    # remove_site_dir reclaims them first when plain rm fails)
+    remove_site_dir "$PROJECT_ROOT/wp_$site_name" "$site_name" || return 1
     rm -rf "$PROJECT_ROOT/logs/wp_$site_name"
 
     # Remove database and user
@@ -1535,7 +1561,7 @@ rename_site() {
     # Optionally delete old site files
     if $delete_old; then
         log_info "Deleting old site data (--delete-old)..."
-        rm -rf "$PROJECT_ROOT/wp_$old_name" 2>/dev/null || true
+        remove_site_dir "$PROJECT_ROOT/wp_$old_name" "$old_name" || return 1
         rm -rf "$PROJECT_ROOT/logs/wp_$old_name" 2>/dev/null || true
         rm -f "$PROJECT_ROOT/config/nginx/$old_name.conf" 2>/dev/null || true
     fi

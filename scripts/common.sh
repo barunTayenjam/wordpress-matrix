@@ -69,6 +69,7 @@ create_database() {
 update_compose_file() {
     local site="$1"
     local port="${2:-}"
+    local php_version="${3:-${DEFAULT_PHP_VERSION:-8.3}}"
     validate_site_name "$site" || return 1
 
     if [[ ! -f "$COMPOSE_FILE" ]]; then
@@ -84,7 +85,7 @@ update_compose_file() {
     fi
 
     local nginx_conf="$PROJECT_ROOT/config/nginx/$site.conf"
-    compose_add_site "$site" "${DEFAULT_PHP_VERSION:-8.3}" "$port" "$nginx_conf" "nginx" "$(get_site_type "$site")"
+    compose_add_site "$site" "$php_version" "$port" "$nginx_conf" "nginx" "$(get_site_type "$site")"
     log_success "Added $site to docker-compose.yml on port $port"
 }
 

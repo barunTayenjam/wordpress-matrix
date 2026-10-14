@@ -69,6 +69,11 @@ if [[ -f "$NEW_DIR/wp-config.php" ]]; then
     rm "$NEW_DIR/wp-config.php.bak"
 fi
 
+# Point non-wp config at the clone's own database (see repoint_clone_env).
+if [[ "$SOURCE_TYPE" != "wp" ]]; then
+    repoint_clone_env "$NEW_DIR" "$SOURCE_SITE" "$NEW_SITE"
+fi
+
 # Create database
 if site_type_uses_db "$SOURCE_TYPE"; then
     log_info "Creating database..."
@@ -114,16 +119,17 @@ else
     log_info "Non-wp source ('$SOURCE_TYPE') — skipping wp-cli URL search-replace"
 fi
 
-# Update docker-compose.yml (inherit stack from source)
+# Update docker-compose.yml (inherit stack + PHP version from source, so the
+# clone uses an image that already exists locally instead of a default one)
 log_info "Updating docker-compose configuration..."
+source_php=$(get_site_php_version_from_compose "$SOURCE_SITE")
+[[ -z "$source_php" ]] && source_php="${DEFAULT_PHP_VERSION:-8.3}"
 if [[ "$local_stack" == "apache" ]]; then
-    apache_php_version=$(get_site_php_version_from_compose "$SOURCE_SITE")
-    [[ -z "$apache_php_version" ]] && apache_php_version="${DEFAULT_PHP_VERSION:-8.3}"
-    compose_add_site "$NEW_SITE" "$apache_php_version" "$NEW_PORT" "" "apache"
+    compose_add_site "$NEW_SITE" "$source_php" "$NEW_PORT" "" "apache"
     matrix_site_build_if_apache "$NEW_SITE"
 else
     create_nginx_config "$NEW_SITE"
-    update_compose_file "$NEW_SITE" "$NEW_PORT"
+    update_compose_file "$NEW_SITE" "$NEW_PORT" "$source_php"
 fi
 
 log_info "Starting cloned site..."

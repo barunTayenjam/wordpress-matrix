@@ -87,7 +87,9 @@ export_site() {
 
     local tmp
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' RETURN
+    # Double quotes bake the value in now: with single quotes the RETURN trap
+    # would expand $tmp after the local goes out of scope and die on set -u.
+    trap "rm -rf '$tmp'" RETURN
 
     # files/: site dir minus logs/ and .git
     mkdir -p "$tmp/files"
@@ -157,7 +159,7 @@ import_site() {
 
     local tmp
     tmp=$(mktemp -d)
-    trap 'rm -rf "$tmp"' RETURN
+    trap "rm -rf '$tmp'" RETURN
     tar -xzf "$bundle" -C "$tmp" 2>/dev/null || {
         error_json "IMPORT_MANIFEST_INVALID" "Bundle is not a valid tar.gz: $bundle"
         return 1
@@ -178,8 +180,14 @@ import_site() {
     [[ -z "$php_ver" ]] && php_ver="$DEFAULT_PHP_VERSION"
     [[ -z "$stack" ]] && stack="nginx"
 
-    local actual_sha
-    actual_sha=$(sha256sum "$tmp/db/site.sql.gz" 2>/dev/null | cut -d' ' -f1)
+    # NOTE: the sha probe must only run for db-backed types. For grav there is
+    # no db member at all; an unconditional `$(sha256sum missing-file ...)`
+    # returns non-zero and aborts the whole import under the caller's set -e
+    # (found live: grav import exited 1 with zero output).
+    local actual_sha=""
+    if site_type_uses_db "$type"; then
+        actual_sha=$(sha256sum "$tmp/db/site.sql.gz" 2>/dev/null | cut -d' ' -f1 || true)
+    fi
     if site_type_uses_db "$type" && [[ "$actual_sha" != "$sha" ]]; then
         error_json "IMPORT_SHA_MISMATCH" "DB dump sha mismatch (manifest $sha, actual ${actual_sha:-none})"
         return 1
@@ -193,6 +201,11 @@ import_site() {
     # Restore files (overwrites generated wp-config; preserves table_prefix)
     mkdir -p "$PROJECT_ROOT/wp_$new_site"
     cp -a "$tmp/files/." "$PROJECT_ROOT/wp_$new_site/"
+
+    # Non-wp: repoint the restored config at the new site's own database.
+    if [[ "$type" != "wp" ]]; then
+        repoint_clone_env "$PROJECT_ROOT/wp_$new_site" "$old_site" "$new_site"
+    fi
 
     # DB: create + import (db-backed types only)
     if site_type_uses_db "$type"; then

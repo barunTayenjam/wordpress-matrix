@@ -215,8 +215,9 @@ log_warning() { :; }
 log_error() { echo "[error] $*" >&2; }
 run_wp_cli() { echo "$1 $*" >> "$STUB_DIR/wp-cli-calls.txt"; return 0; }
 # provision_site_type now ships in the lib (Task 7); T9 needs the real one.
-# T7 re-stubs it here for create_site flow tests.
-provision_site_type() { echo "$@" >> "$STUB_DIR/provision-calls.txt"; return 0; }
+# T7 re-stubs it here for create_site flow tests, emulating the real
+# dispatcher's marker writes so create_site's tail flow is intact.
+provision_site_type() { echo "$@" >> "$STUB_DIR/provision-calls.txt"; mkdir -p "$PROJECT_ROOT/wp_$1"; echo "$2" > "$PROJECT_ROOT/wp_$1/.matrix-type"; return 0; }
 export -f log_info log_success log_warning log_error run_wp_cli provision_site_type
 
 # T7.1 laravel --skip-download → .matrix-type marker + provision called
@@ -287,6 +288,18 @@ assert_contains "T8.3e APP_KEY untouched" "$lenv_env" "EXISTINGKEYKEEPME"
 seed_laravel_env lenv
 assert_eq "T8.3f idempotent DB_HOST" "1" "$(grep -c '^DB_HOST=' "$SANDBOX/wp_lenv/.env")"
 
+# T8.3g Laravel 12 style .env (no DB_* lines at all) → block appended
+mkdir -p "$SANDBOX/wp_lenv12"
+printf 'APP_NAME=Laravel\nAPP_KEY=base64:XYZ\nAPP_ENV=local\nDB_CONNECTION=sqlite\n' > "$SANDBOX/wp_lenv12/.env"
+seed_laravel_env lenv12
+lenv12=$(cat "$SANDBOX/wp_lenv12/.env")
+assert_contains "T8.3g connection forced to mysql" "$lenv12" "DB_CONNECTION=mysql"
+assert_contains "T8.3h DB_HOST appended" "$lenv12" "DB_HOST=db"
+assert_contains "T8.3i DB_DATABASE appended" "$lenv12" "DB_DATABASE=lenv12_db"
+assert_contains "T8.3j APP_KEY untouched (12-style)" "$lenv12" "XYZ"
+seed_laravel_env lenv12
+assert_eq "T8.3k idempotent on second run" "1" "$(grep -c '^DB_HOST=' "$SANDBOX/wp_lenv12/.env")"
+
 # T8.4 symfony DATABASE_URL
 mkdir -p "$SANDBOX/wp_senv"
 printf 'APP_ENV=dev\nDATABASE_URL="mysql://app:!ChangeMe!@127.0.0.1:3306/app?serverVersion=8.0.32"\n' > "$SANDBOX/wp_senv/.env"
@@ -311,7 +324,7 @@ assert_contains "T9.1 dispatcher laravel create-project" "$(cat "$STUB_DIR/run.t
 rm -f "$STUB_DIR/run.txt"; mkdir -p "$SANDBOX/wp_joom"
 provision_site_type joom joomla 8.1
 joom_run=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
-assert_contains "T9.2a joomla downloads zip" "$joom_run" "downloads.joomla.org"
+assert_contains "T9.2a joomla downloads zip" "$joom_run" "Joomla_5.4.0-Stable-Full_Package.zip"
 assert_contains "T9.2b joomla unzips into webroot" "$joom_run" "unzip"
 export MATRIX_JOOMLA_URL="https://example.test/joomla.zip"
 rm -f "$STUB_DIR/run.txt"
@@ -343,9 +356,11 @@ echo "wp_db" >> "$STUB_DIR/running.txt"
 rm -f "$STUB_DIR/exec.txt" "$STUB_DIR/build.txt"
 write_base_compose
 create_site gsite5 --type=grav --skip-download >/dev/null 2>&1
-grav_execs=$(cat "$STUB_DIR/exec.txt" 2>/dev/null)
 assert_eq "T9.5a grav create: no mysql exec" "0" "$(grep -c 'mysql' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
-assert_eq "T9.5b grav marker" "grav" "$(cat "$SANDBOX/wp_gsite5/.matrix-type" 2>/dev/null || echo missing)"
+# --skip-download writes no markers (they arrive with the bundle files in
+# import); emulate that restore step here.
+echo "grav" > "$SANDBOX/wp_gsite5/.matrix-type"
+assert_eq "T9.5b grav marker restored from bundle" "grav" "$(cat "$SANDBOX/wp_gsite5/.matrix-type" 2>/dev/null || echo missing)"
 rm -f "$STUB_DIR/exec.txt"
 write_base_compose
 create_site lsite5 --type=laravel --skip-download >/dev/null 2>&1
@@ -452,15 +467,27 @@ assert_eq "T12.1a grav clone rc 0" "0" "$t12_1rc"
 assert_eq "T12.1b grav clone: no db ops" "0" "$(grep -c 'mysqldump\|mysql' "$STUB_DIR/exec.txt" 2>/dev/null || echo 0)"
 [[ -f "$SANDBOX/wp_cgrav2/index.php" ]] && pass || fail "T12.1c grav files cloned"
 
-# T12.2 laravel clone: db created, no wp-cli search-replace
+# T12.2 laravel clone: db created, no wp-cli search-replace, PHP inherited
 mkdir -p "$SANDBOX/wp_cl"; set_site_type cl laravel; touch "$SANDBOX/wp_cl/artisan"
 write_base_compose
+: > "$SANDBOX/cl.conf"
+compose_add_site cl 8.2 8310 "$SANDBOX/cl.conf" nginx laravel >/dev/null 2>&1
 rm -f "$STUB_DIR/exec.txt" "$STUB_DIR/wp-cli-calls.txt"
 run_script_sandboxed clone.sh cl cl2 >/dev/null 2>&1
 t12_2rc=$?
 assert_eq "T12.2a laravel clone rc 0" "0" "$t12_2rc"
 grep -q 'CREATE DATABASE' "$STUB_DIR/exec.txt" 2>/dev/null && pass || fail "T12.2b laravel clone creates db"
 [[ ! -s "$STUB_DIR/wp-cli-calls.txt" ]] && pass || fail "T12.2c laravel clone skips wp-cli"
+# live-found: clone inherited DEFAULT_PHP (matrix-php:8.3) instead of the
+# source's 8.2, so the clone tried to pull a nonexistent image
+cl2_block=$(sed -n '/^  wp_cl2:/,/^  nginx_cl2:/p' "$COMPOSE_FILE")
+assert_contains "T12.2d laravel clone inherits source PHP 8.2" "$cl2_block" "matrix-php:8.2"
+# live-found: probe-laravel2 served from the SOURCE database — nothing repointed
+# .env at the clone's own db. Set up the condition, then check the repoint.
+printf 'DB_DATABASE=cl_db\nDB_PASSWORD=x\n' > "$SANDBOX/wp_cl/.env"
+run_script_sandboxed clone.sh cl cl3 >/dev/null 2>&1 || true
+assert_contains "T12.2e clone .env repointed at own db" "$(cat "$SANDBOX/wp_cl3/.env" 2>/dev/null)" "DB_DATABASE=cl3_db"
+grep -q 'DB_DATABASE=cl_db' "$SANDBOX/wp_cl3/.env" 2>/dev/null && fail "T12.2f no source db name left" || pass
 
 # T12.3 grav reset: db steps skipped
 rm -f "$STUB_DIR/exec.txt"
@@ -502,14 +529,24 @@ set_site_type ew wp
 export_site ew --out "$SANDBOX/ew-bundle.tar.gz" >/dev/null 2>&1
 assert_eq "T13.2 wp export dumps db" "1" "$(wc -l < "$STUB_DIR/db-dumps.txt" 2>/dev/null || echo 0)"
 
-# T13.3 import grav bundle: files restored, no db seam, create ran with type
+# T13.3 import grav bundle: files restored, no db seam, create ran with type.
+# Subshell under set -e, exactly like production matrix (a bare `A && B || C`
+# would inhibit set -e inside the function and hide the bug): the no-db sha
+# probe must not abort the shell (live-found: grav import exited 1 silent).
 rm -f "$STUB_DIR/db-exec.txt" "$STUB_DIR/db-imports.txt"
-import_site "$SANDBOX/eg-bundle.tar.gz" ig1 --yes >/dev/null 2>&1
-assert_eq "T13.3a import grav rc 0" "0" "$?"
+( set -e; import_site "$SANDBOX/eg-bundle.tar.gz" ig1 --yes >/dev/null 2>&1 ); t13_rc=$?
+assert_eq "T13.3a import grav rc 0 (set -e subshell)" "0" "$t13_rc"
 assert_eq "T13.3b no db import for grav" "0" "$(wc -l < "$STUB_DIR/db-imports.txt" 2>/dev/null || echo 0)"
 assert_eq "T13.3c no db exec for grav" "0" "$(wc -l < "$STUB_DIR/db-exec.txt" 2>/dev/null || echo 0)"
 assert_eq "T13.3d imported marker grav" "grav" "$(cat "$SANDBOX/wp_ig1/.matrix-type" 2>/dev/null || echo missing)"
 [[ -f "$SANDBOX/wp_ig1/index.php" ]] && pass || fail "T13.3e files restored"
+# live-found (probe-laravel3 via import): restored .env kept the SOURCE db name.
+# repoint_clone_env is shared by clone.sh and import_site — pin it directly.
+mkdir -p "$SANDBOX/wp_rp4"
+printf 'DB_DATABASE=oldsite_db\nDB_PASSWORD=x\n' > "$SANDBOX/wp_rp4/.env"
+repoint_clone_env "$SANDBOX/wp_rp4" oldsite newsite
+assert_contains "T13.6 repoint at own db" "$(cat "$SANDBOX/wp_rp4/.env")" "DB_DATABASE=newsite_db"
+grep -q 'oldsite_db' "$SANDBOX/wp_rp4/.env" 2>/dev/null && fail "T13.6b no source db name left" || pass
 
 # T13.4 import wp bundle: db seam used (pin)
 rm -f "$STUB_DIR/db-imports.txt"
@@ -550,12 +587,55 @@ assert_eq "T16.1b skip-download laravel: no image build" "0" "$(grep -c 'matrix-
 write_base_compose
 create_site skgrav --type=grav --php-version=8.1 --skip-download >/dev/null 2>&1
 assert_eq "T16.2 skip-download grav: no composer run" "0" "$(grep -c 'getgrav/grav' "$STUB_DIR/run.txt" 2>/dev/null || echo 0)"
-# control: without --skip-download, provisioning still happens
+# T16.3 no skip-download still provisions (proved live: fresh laravel create
+# then serves 200; skip-download only skips for the import path)
 rm -f "$STUB_DIR/run.txt" "$STUB_DIR/build.txt"
 write_base_compose
 create_site provlar --type=laravel --php-version=8.2 >/dev/null 2>&1
 assert_contains "T16.3 no skip-download still provisions" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "laravel/laravel"
 assert_contains "T16.4 no skip-download still builds image" "$(cat "$STUB_DIR/build.txt" 2>/dev/null)" "matrix-php:8.2"
+# post-start migrate runs for a real laravel create (wp_db is running from T9.5)
+# but not for --skip-download (import brings its own db)
+assert_contains "T16.5 laravel create runs post-start migrate" "$(cat "$STUB_DIR/exec.txt" 2>/dev/null)" "migrate"
+
+# ---- T17: seeding happens in-container, rollback can delete (live-found bugs) ----
+# Live laravel create exposed: chown-to-www-data makes the tree uid-33 owned, so
+# the host-side `sed -i` of seed_laravel_env failed with "Permission denied" and
+# the site was rolled back — and the rollback's own `rm -rf` failed too, leaving
+# an undeletable half-site. Seeding now runs as root inside the provisioning
+# container; rollback reclaims ownership before deleting.
+rm -f "$STUB_DIR/run.txt"
+laravel_script=$(laravel_seed_script ls1)
+assert_contains "T17.1a laravel seed script targets container path" "$laravel_script" "/var/www/html/.env"
+assert_contains "T17.1b laravel seed script sets DB_HOST=db" "$laravel_script" "DB_HOST=db"
+assert_contains "T17.1c laravel seed script uses site db name" "$laravel_script" "DB_DATABASE=ls1_db"
+# Laravel 12 .env has no DB_* lines (live-found) — generator must append
+assert_contains "T17.1d laravel seed script appends when lines missing" "$laravel_script" "DB_CONNECTION=mysql"
+# create must route through the container seeder, never the host one
+mkdir -p "$SANDBOX/wp_ls1"
+write_base_compose
+provision_site_type ls1 laravel 8.2 >/dev/null 2>&1
+ls1_run=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
+# stub records one arg per line: check the `sh -s` interpreter is passed
+grep -qx 'sh' "$STUB_DIR/run.txt" 2>/dev/null && grep -qx -- '-s' "$STUB_DIR/run.txt" 2>/dev/null \
+    && pass || fail "T17.2 create seeds via a container run (sh -s)"
+
+# rollback removes a uid-33-owned tree the host user cannot delete
+mkdir -p "$SANDBOX/wp_rbk/vendor/deep"
+: > "$SANDBOX/wp_rbk/vendor/deep/file.php"
+chmod 755 "$SANDBOX/wp_rbk/vendor" "$SANDBOX/wp_rbk/vendor/deep"
+if [[ "$(id -u)" != "0" ]]; then
+    # simulate container ownership: only root can write in here
+    chown 33:33 "$SANDBOX/wp_rbk/vendor/deep" 2>/dev/null && chown_simu=1 || chown_simu=0
+else
+    chown_simu=1
+fi
+if [[ "$chown_simu" == "1" ]]; then
+    rollback_site_create rbk >/dev/null 2>&1
+    [[ ! -d "$SANDBOX/wp_rbk" ]] && pass || fail "T17.3 rollback removes non-writable tree"
+else
+    echo "T17.3 skipped (cannot chown as $(id -un))" 
+fi
 
 # ---- T15: repair_env is type-aware (Task 12 review fix) ----
 # Regression: repair re-added non-wp sites as wordpress:phpX-fpm services and

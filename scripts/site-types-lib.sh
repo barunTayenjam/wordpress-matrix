@@ -71,9 +71,11 @@ php_at_least() {
     [[ "$(printf '%s\n' "$floor" "$have" | sort -V | head -1)" == "$floor" ]]
 }
 
-# Joomla 5 stable full-package zip. Floating minor; override via MATRIX_JOOMLA_URL.
+# Joomla 5 stable full-package zip, pinned to a GitHub release asset.
+# downloads.joomla.org 500s from some networks (verified live 2026-10-14);
+# GitHub release assets are stable and versioned. Override via MATRIX_JOOMLA_URL.
 joomla_zip_url() {
-    echo "${MATRIX_JOOMLA_URL:-https://downloads.joomla.org/cms/joomla5/5.3/joomla_5-3-stable-full_package.zip}"
+    echo "${MATRIX_JOOMLA_URL:-https://github.com/joomla/joomla-cms/releases/download/5.4.0/Joomla_5.4.0-Stable-Full_Package.zip}"
 }
 
 # provision_joomla <site> <php> — Joomla 5 zip + unzip into webroot.
@@ -127,31 +129,82 @@ require_site_type() {
     return 0
 }
 
+# reclaim_site_dir <dir> <site> — a provisioned site tree is owned by uid 33
+# (www-data) because its runtime chowns itself. The host user therefore cannot
+# unlink files inside it, and a bare `rm -rf` leaves the directory behind.
+# Hand ownership back using the site's own runtime image (already present
+# locally — this must never pull anything).
+reclaim_site_dir() {
+    local dir="${1:-}" site="${2:-}"
+    [[ -n "$dir" && -d "$dir" ]] || return 0
+    local type php image
+    type=$(get_site_type "$site")
+    php=$(get_site_php_version_from_compose "$site")
+    [[ -z "$php" ]] && php="${DEFAULT_PHP_VERSION:-8.3}"
+    image=$(site_type_runtime_image "$type" "$php")
+    $CONTAINER_RUNTIME run --rm -v "$dir":/t "$image" \
+        chown -R "$(id -u):$(id -g)" /t >/dev/null 2>&1 || true
+}
+
+# remove_site_dir <dir> <site> — rm -rf with an ownership reclaim retry.
+remove_site_dir() {
+    local dir="${1:-}" site="${2:-}"
+    [[ -n "$dir" && -e "$dir" ]] || return 0
+    rm -rf "$dir" 2>/dev/null && return 0
+    log_warning "[$site] site files are not host-writable; reclaiming ownership first"
+    reclaim_site_dir "$dir" "$site"
+    rm -rf "$dir" 2>/dev/null || { log_error "[$site] could not remove $dir — remove it manually"; return 1; }
+    return 0
+}
+
+# repoint_clone_env <new-dir> <source-site> <new-site> — after a clone or
+# import restores files, point the copy at its OWN database.
+# Without this the copy keeps the SOURCE db name in .env/configuration.php,
+# shares one database with the source, and its own fresh <new>_db sits empty
+# (found live twice: probe-laravel2 via clone, probe-laravel3 via import).
+repoint_clone_env() {
+    local new_dir="${1:-}" source_site="${2:-}" new_site="${3:-}"
+    local cfg
+    for cfg in "$new_dir/.env" "$new_dir/configuration.php"; do
+        if [[ -f "$cfg" ]] && grep -q "${source_site}_db" "$cfg" 2>/dev/null; then
+            log_info "Repointing $(basename "$cfg") at ${new_site}_db..."
+            sed -i.bak "s/${source_site}_db/${new_site}_db/g" "$cfg"
+            rm -f "$cfg.bak"
+        fi
+    done
+}
+
 # rollback_site_create <site> — remove a half-provisioned site dir + logs after
 # failed non-wp provisioning. Half-composer sites are useless (unlike WP where
 # failures leave valid sites), so create rolls back instead of best-effort.
+#
+# The tree is owned by uid 33 (www-data) after provisioning, so a plain
+# `rm -rf` as the host user fails with "Permission denied" and leaves an
+# undeletable half-site behind. Reclaim ownership first, via the same runtime
+# that created it, then delete.
 rollback_site_create() {
     local site="${1:-}"
     log_error "Provisioning failed for '$site' — rolling back"
-    rm -rf "$PROJECT_ROOT/wp_${site}" "$PROJECT_ROOT/logs/wp_${site}"
+    remove_site_dir "$PROJECT_ROOT/wp_${site}" "$site"
+    rm -rf "$PROJECT_ROOT/logs/wp_${site}"
 }
 
 # provision_site_type <site> <type> <php> — dispatcher for non-wp provisioning.
 # wp is handled inline by create_site.
 provision_site_type() {
-    local site="${1:-}" type="${2:-}" php="${3:-}"
+    local site="${1:-}" type="${2:-}" php="${3:-}" stack="${4:-nginx}"
     case "$type" in
         laravel)
             provision_composer "$site" laravel "$php" || return 1
-            seed_laravel_env "$site" || return 1
+            seed_in_container "$site" laravel "$php" || return 1
             ;;
         symfony)
             provision_composer "$site" symfony "$php" || return 1
-            seed_symfony_env "$site" || return 1
+            seed_in_container "$site" symfony "$php" || return 1
             ;;
         drupal)
             provision_composer "$site" drupal "$php" || return 1
-            seed_drupal_settings "$site" || return 1
+            seed_in_container "$site" drupal "$php" || return 1
             ;;
         grav)
             provision_composer "$site" grav "$php" || return 1
@@ -165,6 +218,27 @@ provision_site_type() {
             return 1
             ;;
     esac
+    write_markers_in_container "$site" "$type" "$stack" "$php"
+}
+
+# write_markers_in_container <site> <type> <stack> <php> — write .matrix-stack
+# and .matrix-type after non-wp provisioning finishes.
+#
+# The tree is usually www-data-owned by this point (provisioning ends with a
+# chown), and the host user cannot write into it — so this tries a direct host
+# write first and only falls back to a root container when that fails. In the
+# stubbed test environment (host-owned dirs) the direct write always wins, so
+# no container spawn is needed there either.
+write_markers_in_container() {
+    local site="${1:-}" type="${2:-}" stack="${3:-nginx}" php="${4:-}"
+    local dir="$PROJECT_ROOT/wp_${site}"
+    if set_site_type "$site" "$type" 2>/dev/null && \
+       echo "$stack" > "$dir/.matrix-stack" 2>/dev/null; then
+        return 0
+    fi
+    printf 'printf %%s\\\\n %s > /var/www/html/.matrix-stack\nprintf %%s\\\\n %s > /var/www/html/.matrix-type\n' \
+        "$stack" "$type" | \
+        $CONTAINER_RUNTIME run --rm -i -v "$dir":/var/www/html "matrix-php:${php}" sh -s
 }
 
 # provision_composer <site> <type> <php> — one-shot matrix-php container runs
@@ -189,27 +263,129 @@ provision_composer() {
         chown -R www-data:www-data /var/www/html
 }
 
-# seed_laravel_env <site> — patch the create-project generated .env with the
-# platform DB creds. Replace-in-place; missing lines are laravel's defaults.
-# ponytail: like seed_symfony_env, a password containing | or & corrupts the sed
-# replacement. Fine for platform defaults; switch both to a temp-file rewrite
-# if a user sets an exotic password.
+# seed_in_container <site> <type> <php> — run the type's config seeding INSIDE
+# a root one-shot container, mounted on the same dir.
+#
+# Why in-container and not on the host: create-project (and the chown above)
+# leave the tree owned by uid 33, so a host-side `sed -i` cannot even create
+# its temp file — the host user gets "Permission denied" and provisioning
+# fails on a perfectly good project. Inside the container we are root, so the
+# write always succeeds regardless of ownership.
+seed_in_container() {
+    local site="${1:-}" type="${2:-}" php="${3:-}"
+    local dir="$PROJECT_ROOT/wp_${site}"
+    local script=""
+    case "$type" in
+        laravel) script=$(laravel_seed_script "$site") ;;
+        symfony) script=$(symfony_seed_script "$site") ;;
+        drupal)  script=$(drupal_seed_script "$site") ;;
+        *) return 0 ;;
+    esac
+    [[ -n "$script" ]] || return 0
+    printf '%s\n' "$script" | \
+        $CONTAINER_RUNTIME run --rm -i -v "$dir":/var/www/html "matrix-php:${php}" sh -s
+}
+
+# --- seed script generators (pure string builders — unit-tested) ---
+# They emit POSIX sh run as root inside the provisioning container.
+# ponytail: creds containing | or & break these seds. Fine for platform
+# defaults; switch to a temp-file rewrite if a user sets an exotic password.
+
+laravel_seed_script() {
+    local site="${1:-}"
+    # Laravel 12's default .env carries only DB_CONNECTION=sqlite — no DB_HOST /
+    # DB_DATABASE / DB_USERNAME / DB_PASSWORD lines at all. So: replace when the
+    # lines exist (older skeletons), append a mysql block when they don't.
+    cat << EOF
+[ -f /var/www/html/.env ] || exit 0
+if grep -q '^DB_HOST=' /var/www/html/.env; then
+  sed -i \\
+    -e 's|^DB_HOST=.*|DB_HOST=db|' \\
+    -e 's|^DB_PORT=.*|DB_PORT=3306|' \\
+    -e 's|^DB_DATABASE=.*|DB_DATABASE=${site}_db|' \\
+    -e 's|^DB_USERNAME=.*|DB_USERNAME=${MYSQL_USER:-wp_user}|' \\
+    -e 's|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}|' \\
+    /var/www/html/.env
+else
+  if grep -q '^DB_CONNECTION=' /var/www/html/.env; then
+    sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=mysql|' /var/www/html/.env
+  else
+    printf '%s\n' 'DB_CONNECTION=mysql' >> /var/www/html/.env
+  fi
+  cat >> /var/www/html/.env <<'ENV'
+DB_HOST=db
+DB_PORT=3306
+ENV
+  printf '%s\n' 'DB_DATABASE=${site}_db' 'DB_USERNAME=${MYSQL_USER:-wp_user}' 'DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}' >> /var/www/html/.env
+fi
+EOF
+}
+
+symfony_seed_script() {
+    local site="${1:-}"
+    local url="mysql://${MYSQL_USER:-wp_user}:${MYSQL_PASSWORD:-wp_password}@db:3306/${site}_db"
+    cat << EOF
+[ -f /var/www/html/.env ] || exit 0
+if grep -q '^DATABASE_URL=' /var/www/html/.env; then
+  sed -i 's|^DATABASE_URL=.*|DATABASE_URL="'"$url"'"|' /var/www/html/.env
+else
+  printf '%s\n' 'DATABASE_URL="'"$url"'"' >> /var/www/html/.env
+fi
+EOF
+}
+
+drupal_seed_script() {
+    local site="${1:-}"
+    local salt
+    salt=$(head -c 32 /dev/urandom | base64 | tr -d '=+/' | cut -c1-40)
+    cat << EOF
+mkdir -p /var/www/html/web/sites/default
+cat > /var/www/html/web/sites/default/settings.php <<'PHPEOF'
+<?php
+// Generated by matrix multi-stack provisioning
+\$databases['default']['default'] = array (
+  'driver' => 'mysql',
+  'database' => '${site}_db',
+  'username' => '${MYSQL_USER:-wp_user}',
+  'password' => '${MYSQL_PASSWORD:-wp_password}',
+  'host' => 'db',
+  'prefix' => '',
+);
+\$settings['hash_salt'] = '${salt}';
+PHPEOF
+EOF
+}
+
+# seed_laravel_env <site> — host-side variant of laravel seeding, kept for
+# non-container callers and tests. NOT used by create (see seed_in_container).
 seed_laravel_env() {
     local site="${1:-}"
     local env="$PROJECT_ROOT/wp_${site}/.env"
     [[ -f "$env" ]] || return 0
-    sed -i \
-        -e 's|^DB_HOST=.*|DB_HOST=db|' \
-        -e 's|^DB_PORT=.*|DB_PORT=3306|' \
-        -e "s|^DB_DATABASE=.*|DB_DATABASE=${site}_db|" \
-        -e "s|^DB_USERNAME=.*|DB_USERNAME=${MYSQL_USER:-wp_user}|" \
-        -e "s|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}|" \
-        "$env"
+    # Mirrors laravel_seed_script (container variant): Laravel 12's default
+    # .env has no DB_* lines at all, so replace when present, append when not.
+    if grep -q '^DB_HOST=' "$env"; then
+        sed -i \
+            -e 's|^DB_HOST=.*|DB_HOST=db|' \
+            -e 's|^DB_PORT=.*|DB_PORT=3306|' \
+            -e "s|^DB_DATABASE=.*|DB_DATABASE=${site}_db|" \
+            -e "s|^DB_USERNAME=.*|DB_USERNAME=${MYSQL_USER:-wp_user}|" \
+            -e "s|^DB_PASSWORD=.*|DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}|" \
+            "$env"
+    else
+        if grep -q '^DB_CONNECTION=' "$env"; then
+            sed -i 's|^DB_CONNECTION=.*|DB_CONNECTION=mysql|' "$env"
+        else
+            printf '%s\n' 'DB_CONNECTION=mysql' >> "$env"
+        fi
+        {
+            printf '%s\n' 'DB_HOST=db' 'DB_PORT=3306' "DB_DATABASE=${site}_db" \
+                "DB_USERNAME=${MYSQL_USER:-wp_user}" "DB_PASSWORD=${MYSQL_PASSWORD:-wp_password}"
+        } >> "$env"
+    fi
 }
 
-# seed_symfony_env <site> — point DATABASE_URL at the platform DB.
-# ponytail: creds with | or & break sed — fine for local .env defaults; switch
-# to a temp-file rewrite when a user sets exotic passwords.
+# seed_symfony_env <site> — host-side variant of symfony seeding (see above).
 seed_symfony_env() {
     local site="${1:-}"
     local env="$PROJECT_ROOT/wp_${site}/.env"

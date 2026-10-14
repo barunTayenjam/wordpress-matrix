@@ -1,11 +1,13 @@
 # matrix-php — shared runtime for all non-wp site types (laravel, symfony,
-# drupal, joomla, grav). Composer + unzip baked in so composer create-project
-# platform requirements (intl, zip, pdo_mysql...) resolve in the same image
-# that later serves the site. Spec: docs/superpowers/specs/2026-10-13-multi-php-stack-support-design.md
+# drupal, joomla, grav). Composer + unzip + git baked in so composer
+# create-project platform requirements (intl, zip, pdo_mysql...) resolve and
+# post-install scripts that git-clone (grav) work in the same image that
+# later serves the site. Spec: docs/superpowers/specs/2026-10-13-multi-php-stack-support-design.md
 ARG PHP_VERSION=8.3
 FROM php:${PHP_VERSION}-fpm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
         libzip-dev \
         libpng-dev \
         libjpeg-dev \
