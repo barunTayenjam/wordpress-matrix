@@ -165,7 +165,12 @@ remove_site_dir() {
 repoint_clone_env() {
     local new_dir="${1:-}" source_site="${2:-}" new_site="${3:-}"
     local cfg
-    for cfg in "$new_dir/.env" "$new_dir/configuration.php"; do
+    # .env (laravel/symfony), configuration.php (joomla),
+    # web/sites/default/settings.php (drupal, composer layout) and
+    # sites/default/settings.php (drupal, legacy layout).
+    for cfg in "$new_dir/.env" "$new_dir/configuration.php" \
+               "$new_dir/web/sites/default/settings.php" \
+               "$new_dir/sites/default/settings.php"; do
         if [[ -f "$cfg" ]] && grep -q "${source_site}_db" "$cfg" 2>/dev/null; then
             log_info "Repointing $(basename "$cfg") at ${new_site}_db..."
             sed -i.bak "s/${source_site}_db/${new_site}_db/g" "$cfg"

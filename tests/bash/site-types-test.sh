@@ -547,6 +547,12 @@ printf 'DB_DATABASE=oldsite_db\nDB_PASSWORD=x\n' > "$SANDBOX/wp_rp4/.env"
 repoint_clone_env "$SANDBOX/wp_rp4" oldsite newsite
 assert_contains "T13.6 repoint at own db" "$(cat "$SANDBOX/wp_rp4/.env")" "DB_DATABASE=newsite_db"
 grep -q 'oldsite_db' "$SANDBOX/wp_rp4/.env" 2>/dev/null && fail "T13.6b no source db name left" || pass
+# live-found (probe-drupal3 via clone): repoint missed drupal's settings.php —
+# the helper only knew .env + configuration.php.
+mkdir -p "$SANDBOX/wp_rp5/web/sites/default"
+printf "<?php\n  'database' => 'oldsite_db',\n" > "$SANDBOX/wp_rp5/web/sites/default/settings.php"
+repoint_clone_env "$SANDBOX/wp_rp5" oldsite newsite
+assert_contains "T13.6c drupal settings.php repointed" "$(cat "$SANDBOX/wp_rp5/web/sites/default/settings.php")" "newsite_db"
 
 # T13.4 import wp bundle: db seam used (pin)
 rm -f "$STUB_DIR/db-imports.txt"
