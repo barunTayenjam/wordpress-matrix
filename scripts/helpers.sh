@@ -219,17 +219,25 @@ get_site_php_version_from_compose() {
     local site="${1:-}"
     local image_line=""
     if [[ -z "$site" || ! -f "$COMPOSE_FILE" ]]; then
-        return
+        return 0
     fi
     image_line=$(grep -A 20 "^  wp_${site}:" "$COMPOSE_FILE" 2>/dev/null | grep -E '^\s+image:' | head -1 || true)
     if [[ -z "$image_line" ]]; then
-        return
+        return 0
     fi
+    # Three image shapes: wordpress:php8.3-fpm, wp-matrix-apache:8.3, matrix-php:8.2.
+    # Every branch ends in 0 — a parse miss must never be fatal under set -e,
+    # since callers (site_state, list_sites_json) assign straight from this.
+    local ver=""
     if [[ "$image_line" == *wp-matrix-apache* ]]; then
-        echo "$image_line" | grep -oE '[0-9]+\.[0-9]+' | head -1
+        ver=$(echo "$image_line" | grep -oE '[0-9]+\.[0-9]+' | head -1 || true)
+    elif [[ "$image_line" == *matrix-php* ]]; then
+        ver=$(echo "$image_line" | grep -oE 'matrix-php:[0-9]+\.[0-9]+' | head -1 | sed 's/matrix-php://' || true)
     else
-        echo "$image_line" | grep -oE 'php[0-9.]+' | sed 's/php//'
+        ver=$(echo "$image_line" | grep -oE 'php[0-9.]+' | sed 's/php//' || true)
     fi
+    echo "$ver"
+    return 0
 }
 
 get_site_port() {

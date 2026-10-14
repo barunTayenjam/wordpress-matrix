@@ -172,12 +172,20 @@ compose_remove_site() {
     tmp=$(mktemp)
 
     # Anchor on the exact site comment so removing "su2" never matches "su21".
-    # Two leading spaces + "# WordPress site: " + site name + optional suffix.
+    # Two leading spaces + "# WordPress site: " (apache stack) or "# Site: "
+    # (nginx stack, carries "(type: <t>)") + site name + optional suffix.
     awk -v site="$site_name" '
-    BEGIN { skip = 0; pattern = "^  # WordPress site: " site "([[:space:]]|$)" }
+    BEGIN {
+        skip = 0
+        # Two alternatives (not one grouped regex): awk chokes on
+        # "(WordPress site|Site)" directly after a literal "#".
+        wp_pat = "^  # WordPress site: " site "([[:space:]]|$)"
+        any_pat = "^  # Site: " site "([[:space:]]|$)"
+        any_comment = "^  # WordPress site: |^  # Site: "
+    }
     skip {
         # A new site block starts at the next site comment or a top-level key.
-        if ($0 ~ /^  # WordPress site: / || ($0 ~ /^[a-zA-Z]/ && $0 !~ /^  /)) {
+        if ($0 ~ any_comment || ($0 ~ /^[a-zA-Z]/ && $0 !~ /^  /)) {
             skip = 0
             print
             next
@@ -185,7 +193,7 @@ compose_remove_site() {
         next
     }
     {
-        if ($0 ~ pattern) {
+        if ($0 ~ wp_pat || $0 ~ any_pat) {
             skip = 1
             next
         }

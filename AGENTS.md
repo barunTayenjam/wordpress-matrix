@@ -152,7 +152,7 @@ scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports
 - PHPUnit for unit tests
 - Frontend API tests use Jest and Supertest from `frontend/`
 - Coverage reports generated in `./tests/coverage/`
-- Current verified release bar: `bash -n matrix`, `bash -n scripts/*.sh`, offline suites `tests/bash/{site-state,stubs,ssl,multisite,presets,doctor,wp-version,export-import,share,ops}-test.sh` (189 asserts), `npm --prefix frontend test` (37 tests), `./matrix * --json | python3 -m json.tool`, and `scripts/health-check.sh`
+- Current verified release bar: `bash -n matrix`, `bash -n scripts/*.sh`, offline suites `tests/bash/{site-types,site-state,stubs,ssl,multisite,presets,doctor,wp-version,export-import,share,ops}-test.sh` (335 asserts), `npm --prefix frontend test` (62 tests), `./matrix * --json | python3 -m json.tool`, and `scripts/health-check.sh`
 
 ## Access URLs
 
@@ -166,23 +166,37 @@ scripts/health-check.sh  # Runtime health check for containers, DB, Redis, ports
 
 ## Common Workflows
 
-### Creating a New WordPress Site
-```bash
-# Create with default PHP (8.3)
-./matrix create mysite
+### Creating a New Site (6 stacks, `--type`)
 
-# Create with specific PHP version
+```bash
+# WordPress (default type) — everything below still applies
+./matrix create mysite
 ./matrix create legacy-site --php-version=7.4
-./matrix create modern-site --php-version=8.2
+
+# Other stacks
+./matrix create shop      --type=laravel    # PHP >= 8.2, webroot public/, composer-provisioned
+./matrix create api       --type=symfony    # PHP >= 8.2, webroot public/
+./matrix create cms       --type=drupal     # PHP >= 8.3, webroot web/, settings.php pre-seeded
+./matrix create intranet  --type=joomla     # PHP >= 8.1, Joomla 5 zip, wizard creds printed at create
+./matrix create docs      --type=grav       # PHP >= 8.1, webroot /, NO database
 ```
 
 This automatically:
-1. Creates WordPress core files in `wp_mysite/`
-2. Creates database named `mysite_db`
-3. Generates Nginx configuration
+1. Creates the site files in `wp_<name>/` and records the stack in `.matrix-type` (absent = `wp`)
+2. Creates database named `<name>_db` — except `grav`, which has none
+3. Generates Nginx configuration with the type's webroot (`/`, `public/`, `web/`)
 4. Assigns port (8201+)
-5. Pulls appropriate Docker image with specified PHP version
+5. Builds/uses `matrix-php:<php>` (composer + unzip baked in) for non-wp stacks; wp uses `wordpress:phpX-fpm`
 6. Starts Docker services
+
+Type rules:
+- PHP floors enforced at create: wp 7.4 · joomla/grav 8.1 · laravel/symfony 8.2 · drupal 8.3
+- `--wp-version`, `--multisite`, `--preset` and `stack=apache` are **wp-only**
+- `matrix wp|check|optimize|update-core|cache-clear|search-replace` refuse non-wp sites
+  (gated centrally in `run_wp_cli` / `require_site_type`)
+- clone / reset / export / import are type-aware: grav sites never touch the database
+- Failed non-wp provisioning rolls back (no half-site, no compose entry); the wp path stays best-effort
+- `--skip-download` means "restore files from a bundle" for **all** types (used by `matrix import`)
 
 ### Running Code Quality Checks
 ```bash

@@ -125,7 +125,10 @@ show_help() {
 Usage: ./matrix <command> [options]
 
  Site Management:
-   create <name> [--php-version=X.X] [--stack=nginx|apache]  Create new WordPress site (default PHP: ${DEFAULT_PHP_VERSION}, stack: nginx)
+   create <name> [--type=wp|laravel|symfony|drupal|joomla|grav] [--php-version=X.X] [--stack=nginx|apache]
+               Create new site (default type: wp, PHP: ${DEFAULT_PHP_VERSION}, stack: nginx)
+               PHP floors: wp 7.4, joomla/grav 8.1, laravel/symfony 8.2, drupal 8.3
+               --wp-version/--multisite/--preset and stack=apache are wp-only
     edit <name> [--php-version=X.X] [--port=XXXX]  Edit site configuration
     rename <old> <new> [--delete-old]  Rename an existing site
     list              List all sites
@@ -393,6 +396,11 @@ create_site() {
     else
         log_info "Skipping WP download (--skip-download: files restored from bundle)"
     fi
+    elif [[ "$skip_download" -eq 1 ]]; then
+        # --skip-download means "restore files from a bundle" for every type, not
+        # just wp — otherwise import re-runs composer create-project and then
+        # overwrites every file it just wrote.
+        log_info "Skipping provisioning (--skip-download: files restored from bundle)"
     else
         # Non-wp types: shared matrix-php runtime image + per-type provisioning
         build_site_image "$php_version" || { rollback_site_create "$site_name"; return 1; }
@@ -536,22 +544,28 @@ optimize_site() {
 
     if [[ -n "$target" ]]; then
         require_site_type "$target" wp || return 1
+        # propagate optimize_single_site's status (it ran before this branch)
         optimize_single_site "$target"
-        return 0
+        return $?
     fi
 
     log_info "Optimizing all existing sites..."
     local temp_file
     temp_file=$(get_sites_array)
+    local skipped=0
     while IFS= read -r site; do
         [[ -z "$site" ]] && continue
-        if require_site_type "$site" wp; then
-            optimize_single_site "$site"
-        else
-            log_info "[$site] skipped (not a wp site)"
+        # get_site_type only — require_site_type would log a per-site error
+        # right before the summary line below.
+        if [[ "$(get_site_type "$site")" != "wp" ]]; then
+            skipped=$((skipped + 1))
+            continue
         fi
+        optimize_single_site "$site"
     done < "$temp_file"
     rm -f "$temp_file"
+    [[ "$skipped" -gt 0 ]] && log_info "Skipped $skipped non-wp site(s) (optimize is WordPress-only)"
+    return 0
 }
 
 optimize_single_site() {
@@ -1589,6 +1603,8 @@ run_checks() {
             log_error "Site '$site_name' not found (directory: $site_dir)"
             return 1
         fi
+        # phpcs targets wp-content/{themes,plugins}; other stacks have none.
+        require_site_type "$site_name" wp || return 1
         
         if [[ -n "$specific_path" ]]; then
             target_paths="./${site_dir}/${specific_path}"
@@ -2925,23 +2941,33 @@ ENVEOF
                 *) repair_stack="nginx" ;;
             esac
 
+            # Non-wp sites are nginx-only and must not be re-registered as
+            # wordpress:phpX-fpm services (wrong image + WRONG webroot).
+            local repair_type
+            repair_type=$(get_site_type "$site")
+            if [[ "$repair_type" != "wp" ]]; then
+                repair_stack="nginx"
+            fi
+
             local port
             port=$(get_next_port)
 
             if [[ "$repair_stack" == "apache" ]]; then
-                compose_add_site "$site" "$php_version" "$port" "" "apache"
+                compose_add_site "$site" "$php_version" "$port" "" "apache" "$repair_type"
                 matrix_site_build_if_apache "$site" || true
                 log_success "[$site] Added Apache stack to docker-compose.yml (PHP $php_version, port $port)"
             else
                 if [[ ! -f "$nginx_conf" ]]; then
-                    generate_nginx_conf "$site" "$(get_site_type "$site")"
+                    generate_nginx_conf "$site" "$repair_type"
                 fi
-                compose_add_site "$site" "$php_version" "$port" "$nginx_conf" "nginx"
-                log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port)"
+                compose_add_site "$site" "$php_version" "$port" "$nginx_conf" "nginx" "$repair_type"
+                log_success "[$site] Added to docker-compose.yml (PHP $php_version, port $port, type $repair_type)"
             fi
             site_fixed=$((site_fixed + 1))
         fi
 
+        # grav (and any no-db type) must never get a database created.
+        if site_type_uses_db "$(get_site_type "$site")"; then
         if compose_ps_names 2>/dev/null | grep -q "wp_db"; then
             local db_exists
             db_exists=$($DOCKER_COMPOSE exec -T -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" db mysql -u root \
@@ -2953,6 +2979,7 @@ ENVEOF
                 log_success "[$site] Created database '${site}_db'"
                 site_fixed=$((site_fixed + 1))
             fi
+        fi
         fi
 
         mkdir -p "$PROJECT_ROOT/logs/wp_$site"

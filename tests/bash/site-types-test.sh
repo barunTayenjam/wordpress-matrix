@@ -192,6 +192,8 @@ generate_nginx_conf dsite2 drupal
 assert_contains "T6.5 drupal root web" "$(cat "$SANDBOX/config/nginx/dsite2.conf")" "root /var/www/html/web;"
 generate_nginx_conf gsite2 grav
 assert_contains "T6.6 grav root html" "$(cat "$SANDBOX/config/nginx/gsite2.conf")" "root /var/www/html;"
+# clone path (common.sh create_nginx_config) used 64k before dedup; keep it.
+assert_contains "T6.7 wp conf keeps 64k busy buffers" "$wp_conf" "fastcgi_busy_buffers_size 64k;"
 
 # ---- T7: create_site --type parsing (Task 5) ----
 # Loads the full CLI (multisite-test.sh reset pattern), then exercises
@@ -220,7 +222,8 @@ export -f log_info log_success log_warning log_error run_wp_cli provision_site_t
 # T7.1 laravel --skip-download → .matrix-type marker + provision called
 write_base_compose
 rm -f "$STUB_DIR/provision-calls.txt"
-create_site t1 --type=laravel --skip-download >/dev/null 2>&1
+# No --skip-download here: it now means "restore from bundle" (see T16).
+create_site t1 --type=laravel >/dev/null 2>&1
 assert_eq "T7.1a laravel marker written" "laravel" "$(cat "$SANDBOX/wp_t1/.matrix-type" 2>/dev/null || echo missing)"
 assert_contains "T7.1b provisioning dispatched" "$(cat "$STUB_DIR/provision-calls.txt" 2>/dev/null)" "t1 laravel"
 
@@ -517,12 +520,93 @@ assert_eq "T13.4 wp import uses db seam" "1" "$(wc -l < "$STUB_DIR/db-imports.tx
 mkdir -p "$SANDBOX/wp_lj"; set_site_type lj grav
 get_site_stack() { echo "nginx"; }
 get_site_port() { echo "8299"; }
-get_site_php_version_from_compose() { echo "8.1"; }
+write_base_compose
+mkdir -p "$SANDBOX/config/nginx"
+: > "$SANDBOX/config/nginx/lj.conf"
+# Real matrix-php service — no get_site_php_version_from_compose stub below, so
+# an unparsed image would kill site_state/list_sites_json under set -e.
+compose_add_site lj 8.2 8299 "$SANDBOX/config/nginx/lj.conf" nginx laravel >/dev/null 2>&1
 lj_json=$(list_sites_json)
 assert_contains "T13.6a list json carries type=grav" "$lj_json" '"name":"lj","status":"stopped","stack":"nginx","type":"grav"'
+# No get_site_php_version_from_compose stub here: a real matrix-php image line
+# must parse under set -e (regression: an unparsed image killed site_state,
+# list_sites_json, info and rename for every non-wp site).
+assert_eq "T13.6c real matrix-php image parsed" "8.2" "$(get_site_php_version_from_compose lj)"
 mkdir -p "$SANDBOX/wp_lj2"
 lj2_json=$(list_sites_json)
 assert_contains "T13.6b list json defaults type=wp" "$lj2_json" '"name":"lj2","status":"stopped","stack":"nginx","type":"wp"'
+
+# ---- T16: --skip-download skips provisioning for every type (Task 12 review fix) ----
+# Regression: import_site calls create --skip-download, which was honored only
+# inside the wp branch — non-wp types ran composer create-project and then had
+# every file overwritten by the bundle restore.
+rm -f "$STUB_DIR/run.txt" "$STUB_DIR/build.txt"
+write_base_compose
+mkdir -p "$SANDBOX/config/nginx"
+: > "$SANDBOX/config/nginx/sklar.conf" "$SANDBOX/config/nginx/skgrav.conf"
+create_site sklar --type=laravel --php-version=8.2 --skip-download >/dev/null 2>&1
+assert_eq "T16.1a skip-download laravel: no composer run" "0" "$(grep -c 'create-project' "$STUB_DIR/run.txt" 2>/dev/null || echo 0)"
+assert_eq "T16.1b skip-download laravel: no image build" "0" "$(grep -c 'matrix-php' "$STUB_DIR/build.txt" 2>/dev/null || echo 0)"
+write_base_compose
+create_site skgrav --type=grav --php-version=8.1 --skip-download >/dev/null 2>&1
+assert_eq "T16.2 skip-download grav: no composer run" "0" "$(grep -c 'getgrav/grav' "$STUB_DIR/run.txt" 2>/dev/null || echo 0)"
+# control: without --skip-download, provisioning still happens
+rm -f "$STUB_DIR/run.txt" "$STUB_DIR/build.txt"
+write_base_compose
+create_site provlar --type=laravel --php-version=8.2 >/dev/null 2>&1
+assert_contains "T16.3 no skip-download still provisions" "$(cat "$STUB_DIR/run.txt" 2>/dev/null)" "laravel/laravel"
+assert_contains "T16.4 no skip-download still builds image" "$(cat "$STUB_DIR/build.txt" 2>/dev/null)" "matrix-php:8.2"
+
+# ---- T15: repair_env is type-aware (Task 12 review fix) ----
+# Regression: repair re-added non-wp sites as wordpress:phpX-fpm services and
+# created a database for grav. Calls the REAL repair_env (no logic duplicated).
+mkdir -p "$SANDBOX/wp_rp1"; set_site_type rp1 laravel
+mkdir -p "$SANDBOX/wp_rp2"; set_site_type rp2 grav
+mkdir -p "$SANDBOX/wp_rp3"; set_site_type rp3 wp
+write_base_compose
+repair_env >/dev/null 2>&1
+# Per-site service block — repair_env walks every site in the sandbox, so
+# whole-file counts would measure the other fixtures too.
+rp1_block=$(sed -n '/^  wp_rp1:/,/^  nginx_rp1:/p' "$COMPOSE_FILE")
+rp2_block=$(sed -n '/^  wp_rp2:/,/^  nginx_rp2:/p' "$COMPOSE_FILE")
+rp3_block=$(sed -n '/^  wp_rp3:/,/^  nginx_rp3:/p' "$COMPOSE_FILE")
+assert_contains "T15.1a repair keeps matrix-php image for laravel" "$rp1_block" "matrix-php:8.3"
+grep -q 'WORDPRESS_DB_HOST' <<<"$rp1_block" && fail "T15.1b repair adds no WORDPRESS env for laravel" || pass
+grep -q 'depends_on' <<<"$rp2_block" && fail "T15.2a repair: grav gets no depends_on db" || pass
+grep -q 'rp2_db' <<<"$rp2_block" && fail "T15.2b repair: grav gets no DB name" || pass
+assert_contains "T15.3a repair keeps wordpress image for wp" "$rp3_block" "wordpress:php8.3-fpm"
+grep -q 'WORDPRESS_DB_HOST' <<<"$rp3_block" && pass || fail "T15.3b repair keeps wp DB env"
+
+# T14.4 similar names never collide ("rm2" removal must not eat "rm21")
+write_base_compose
+: > "$SANDBOX/config/nginx/rm2.conf" "$SANDBOX/config/nginx/rm21.conf"
+compose_add_site rm2  8.2 8308 "$SANDBOX/config/nginx/rm2.conf"  nginx laravel >/dev/null 2>&1
+compose_add_site rm21 8.2 8309 "$SANDBOX/config/nginx/rm21.conf" nginx laravel >/dev/null 2>&1
+compose_remove_site rm2 >/dev/null 2>&1
+grep -q '^  wp_rm2:'  "$COMPOSE_FILE" && fail "T14.4a rm2 removed" || pass
+grep -q '^  wp_rm21:' "$COMPOSE_FILE" && pass || fail "T14.4b rm21 untouched by rm2 removal"
+
+# ---- T14: compose_remove_site works for every type (Task 12 review fix) ----
+# Regression: compose_add_site renamed the block comment to "# Site: <n> (type: <t>)"
+# while compose_remove_site still anchored on "# WordPress site: " — removal silently
+# no-oped, leaving compose entries pointing at deleted site dirs.
+write_base_compose
+mkdir -p "$SANDBOX/wp_rml" "$SANDBOX/config/nginx"
+: > "$SANDBOX/config/nginx/rml.conf"
+compose_add_site rml 8.2 8305 "$SANDBOX/config/nginx/rml.conf" nginx laravel >/dev/null 2>&1
+assert_contains "T14.1a added laravel compose entry" "$(cat "$COMPOSE_FILE")" "wp_rml:"
+compose_remove_site rml >/dev/null 2>&1
+grep -q '^  wp_rml:' "$COMPOSE_FILE" && fail "T14.1b laravel compose entry removed" || pass
+write_base_compose
+: > "$SANDBOX/config/nginx/rmw.conf"
+compose_add_site rmw 8.3 8306 "$SANDBOX/config/nginx/rmw.conf" nginx wp >/dev/null 2>&1
+compose_remove_site rmw >/dev/null 2>&1
+grep -q '^  wp_rmw:' "$COMPOSE_FILE" && fail "T14.2 wp compose entry removed" || pass
+write_base_compose
+: > "$SANDBOX/config/nginx/rmg.conf"
+compose_add_site rmg 8.1 8307 "$SANDBOX/config/nginx/rmg.conf" nginx grav >/dev/null 2>&1
+compose_remove_site rmg >/dev/null 2>&1
+grep -q '^  wp_rmg:' "$COMPOSE_FILE" && fail "T14.3 grav compose entry removed" || pass
 
 # T13.5 site_state carries type
 get_site_stack() { echo "nginx"; }

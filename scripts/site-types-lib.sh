@@ -191,6 +191,9 @@ provision_composer() {
 
 # seed_laravel_env <site> — patch the create-project generated .env with the
 # platform DB creds. Replace-in-place; missing lines are laravel's defaults.
+# ponytail: like seed_symfony_env, a password containing | or & corrupts the sed
+# replacement. Fine for platform defaults; switch both to a temp-file rewrite
+# if a user sets an exotic password.
 seed_laravel_env() {
     local site="${1:-}"
     local env="$PROJECT_ROOT/wp_${site}/.env"
@@ -262,7 +265,10 @@ server {
         # Increase buffer sizes to handle large headers
         fastcgi_buffer_size 32k;
         fastcgi_buffers 16 16k;
-        fastcgi_busy_buffers_size 32k;
+        # 64k: the larger of the two values the codebase used (common.sh's
+        # clone-path conf used 64k, create_site's used 32k). Buffers only grow,
+        # so this is the union that breaks neither.
+        fastcgi_busy_buffers_size 64k;
     }
 
     # Deny access to sensitive files

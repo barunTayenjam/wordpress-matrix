@@ -123,7 +123,7 @@ Full analysis: [`docs/competitor-analysis.html`](docs/competitor-analysis.html)
 <summary><b>Create & configure</b></summary>
 
 ```bash
-./matrix create shop                                # PHP 8.3 default
+./matrix create shop                                # WordPress, PHP 8.3 default
 ./matrix create legacy --php-version=7.4            # side-by-side PHP
 ./matrix create lab    --wp-version=6.4             # pin WP core (6.4|6.5|6.6|latest)
 ./matrix create team   --multisite=subdomain        # network at creation
@@ -132,6 +132,19 @@ Full analysis: [`docs/competitor-analysis.html`](docs/competitor-analysis.html)
 ./matrix edit site --memory=512M --cpu=1            # per-site resource limits
 ./matrix clone src dst · ./matrix reset name · ./matrix remove name
 ```
+
+**Other stacks** — `--type=` picks the runtime, webroot and provisioning. PHP floors are enforced at create.
+
+```bash
+./matrix create shop     --type=laravel            # PHP ≥ 8.2 · public/ · composer create-project
+./matrix create api      --type=symfony            # PHP ≥ 8.2 · public/
+./matrix create cms      --type=drupal             # PHP ≥ 8.3 · web/ · settings.php pre-seeded
+./matrix create intranet --type=joomla             # PHP ≥ 8.1 · Joomla 5 · wizard creds printed at create
+./matrix create docs     --type=grav               # PHP ≥ 8.1 · no database at all
+```
+
+`--wp-version`, `--multisite`, `--preset` and `stack=apache` are WordPress-only. `wp-cli`, `check`
+and `optimize` refuse non-wp sites; clone/reset/export/import adapt per type.
 </details>
 
 <details>
@@ -195,7 +208,9 @@ scripts/health-check.sh                             # runtime deep-check
 └──────────────────────────────┬───────────────────────────────────┘
                                ▼  $CONTAINER_RUNTIME / $DOCKER_COMPOSE
 ┌────────────────────────── containers ────────────────────────────┐
-│  wp_<site> (wordpress:phpX.X-fpm) ⇄ nginx_<site> (:8201+/443)    │
+│  wp_<site> (wordpress:phpX.X-fpm | matrix-php:X.X) ⇄ nginx_<site>  │
+│                    webroot: / · public/ (laravel,symfony) · web/   │
+│                            (drupal) — grav has no database         │
 │  wp_db (MySQL :3306) · redis · phpmyadmin (:8200)                │
 │  wp-cli → ephemeral wordpress:cli, joins the live db network     │
 └──────────────────────────────────────────────────────────────────┘
@@ -215,18 +230,19 @@ Methodology: [`docs/TDD-IMPLEMENTATION.md`](docs/TDD-IMPLEMENTATION.md)
 
 | Suite | Asserts | What it pins |
 |---|---|---|
+| `site-types-test.sh` | 139 | 6-stack registry, provisioning, compose/nginx/repair type-awareness |
 | `site-state-test.sh` | 34 | Compose + live-container state seam |
 | `stubs-test.sh` | 4 | docker/compose stub infrastructure |
 | `ssl-test.sh` | 12 | cert generation, port math, domains |
-| `multisite-test.sh` | 16 | multisite-at-creation contract |
-| `presets-test.sh` | 14 | golden-parity preset loader |
+| `multisite-test.sh` | 20 | multisite-at-creation contract |
+| `presets-test.sh` | 17 | golden-parity preset loader |
 | `doctor-test.sh` | 18 | every check + exit codes |
 | `export-import-test.sh` | 33 | bundle round-trip, sha, name rules |
 | `wp-version-test.sh` | 21 | pinning + compat matrix |
-| `share-test.sh` | — | provider detection, url extraction, cleanup |
+| `share-test.sh` | 16 | provider detection, url extraction, cleanup |
 | `ops-test.sh` | 21 | schedules, crontab blocks, auth middleware |
 
-All stub suites run **offline** — no Docker daemon needed. Plus 37 Jest tests for the dashboard API.
+All stub suites run **offline** — no Docker daemon needed. Plus 62 Jest tests for the dashboard API.
 
 ```bash
 # the release bar — run before every commit
@@ -249,6 +265,7 @@ npm --prefix frontend test
 - [x] Phase 6 — export/import bundles
 - [x] Phase 7 — WP version pinning + compat lab
 - [x] Phase 8 — scheduled backups + dashboard token auth
+- [x] Multi-stack — `--type=laravel|symfony|drupal|joomla|grav` alongside wp
 - [ ] Push/pull hosting sync (WP Engine/Kinsta-style)
 - [ ] Apache-stack TLS parity
 - [ ] Blueprint marketplace
