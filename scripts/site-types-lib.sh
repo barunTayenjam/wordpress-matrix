@@ -129,6 +129,19 @@ require_site_type() {
     return 0
 }
 
+# chown_site_tree <dir> <php> — chown a site tree to www-data from inside a
+# root container. clone.sh (cp -R as the host user) and import_site (bundle
+# restore as the host user) both leave trees host-owned; non-wp runtimes need
+# web-writable trees (laravel storage/, drupal settings.php rewrite, joomla
+# configuration.php creation — the installer warns otherwise, found live).
+# wp paths keep their pre-existing behavior and do not call this.
+chown_site_tree() {
+    local dir="${1:-}" php="${2:-${DEFAULT_PHP_VERSION:-8.3}}"
+    [[ -d "$dir" ]] || return 0
+    $CONTAINER_RUNTIME run --rm -v "$dir":/var/www/html "matrix-php:${php}" \
+        chown -R www-data:www-data /var/www/html
+}
+
 # reclaim_site_dir <dir> <site> — a provisioned site tree is owned by uid 33
 # (www-data) because its runtime chowns itself. The host user therefore cannot
 # unlink files inside it, and a bare `rm -rf` leaves the directory behind.

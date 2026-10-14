@@ -108,6 +108,9 @@ if [[ "$REDIS_ONLY" == false ]]; then
             log_error "Site '$SITE_NAME' not found"
             exit 1
         fi
+        # wp-cli only: fail fast instead of "succeeding" via the site-agnostic
+        # redis flush while the wp parts warn-and-continue (found live).
+        require_site_type "$SITE_NAME" wp || exit 1
         if [[ "$SUPERCACHE_ONLY" == false ]]; then
             clear_wp_cache "$SITE_NAME"
         fi

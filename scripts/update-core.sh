@@ -51,6 +51,9 @@ update_site() {
     local FORCE_FLAG=""
     local failed=false
     validate_site_name "$site" || return 1
+    # wp-cli only: fail fast with the clear message instead of a confusing
+    # "Failed to update" after the gated wp-cli call (found live).
+    require_site_type "$site" wp || return 1
 
     if [[ "$FORCE" == true ]]; then
         FORCE_FLAG="--force"

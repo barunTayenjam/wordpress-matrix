@@ -177,6 +177,10 @@ assert_eq "T5.3c grav has no depends_on" "0" "$(sed -n '/wp_gsite:/,/nginx_gsite
 write_base_compose; mk_site_conf dsite
 compose_add_site dsite 8.3 8204 "$SANDBOX/dsite.conf" nginx
 assert_eq "T5.4 default type keeps wordpress image" "1" "$(grep -c 'wordpress:php8.3-fpm' "$COMPOSE_FILE")"
+# live-found (rename): the WORDPRESS_* lines shipped without their
+# `environment:` parent key → go-yaml rejected the whole file. Presence
+# asserts never caught it; pin the structure.
+assert_contains "T5.5 wp block has environment header" "$(grep -B6 'WORDPRESS_DB_HOST' "$COMPOSE_FILE" | head -8)" "    environment:"
 
 # ---- T6: generate_nginx_conf per-type webroot (Task 4) ----
 mkdir -p "$SANDBOX/config/nginx"
@@ -547,6 +551,16 @@ printf 'DB_DATABASE=oldsite_db\nDB_PASSWORD=x\n' > "$SANDBOX/wp_rp4/.env"
 repoint_clone_env "$SANDBOX/wp_rp4" oldsite newsite
 assert_contains "T13.6 repoint at own db" "$(cat "$SANDBOX/wp_rp4/.env")" "DB_DATABASE=newsite_db"
 grep -q 'oldsite_db' "$SANDBOX/wp_rp4/.env" 2>/dev/null && fail "T13.6b no source db name left" || pass
+# live-found (probe-joomla3): clone/import leave trees host-owned, so the
+# runtime (www-data) cannot write storage/, settings.php or configuration.php.
+# chown_site_tree fixes ownership from inside a root container; the stub
+# records the run so the call is pinned.
+rm -f "$STUB_DIR/run.txt"
+mkdir -p "$SANDBOX/wp_rp6"
+chown_site_tree "$SANDBOX/wp_rp6" 8.2
+chown_log=$(cat "$STUB_DIR/run.txt" 2>/dev/null)
+assert_contains "T13.6d chown runs in matrix-php image" "$chown_log" "matrix-php:8.2"
+assert_contains "T13.6e chown targets www-data" "$chown_log" "www-data"
 # live-found (probe-drupal3 via clone): repoint missed drupal's settings.php —
 # the helper only knew .env + configuration.php.
 mkdir -p "$SANDBOX/wp_rp5/web/sites/default"
@@ -662,6 +676,17 @@ grep -q 'depends_on' <<<"$rp2_block" && fail "T15.2a repair: grav gets no depend
 grep -q 'rp2_db' <<<"$rp2_block" && fail "T15.2b repair: grav gets no DB name" || pass
 assert_contains "T15.3a repair keeps wordpress image for wp" "$rp3_block" "wordpress:php8.3-fpm"
 grep -q 'WORDPRESS_DB_HOST' <<<"$rp3_block" && pass || fail "T15.3b repair keeps wp DB env"
+
+# T12.5 wp-only script gates fail fast with the clear message (live-found:
+# update-core/cache-clear/search-replace leaked confusing errors or fake success)
+mkdir -p "$SANDBOX/wp_ggate"; set_site_type ggate laravel
+printf 'y\n' | run_script_sandboxed update-core.sh ggate > "$SANDBOX/t12-5a.out" 2>&1 || true
+grep -q 'command not supported for laravel site (requires wp)' "$SANDBOX/t12-5a.out" && pass || fail "T12.5a update-core gated"
+run_script_sandboxed cache-clear.sh ggate > "$SANDBOX/t12-5b.out" 2>&1; c5b_rc=$?
+grep -q 'command not supported for laravel site (requires wp)' "$SANDBOX/t12-5b.out" && pass || fail "T12.5b cache-clear gated"
+assert_eq "T12.5c cache-clear rc nonzero" "1" "$c5b_rc"
+run_script_sandboxed search-replace.sh ggate a b > "$SANDBOX/t12-5c.out" 2>&1 || true
+grep -q 'command not supported for laravel site (requires wp)' "$SANDBOX/t12-5c.out" && pass || fail "T12.5d search-replace gated"
 
 # T14.4 similar names never collide ("rm2" removal must not eat "rm21")
 write_base_compose

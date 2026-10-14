@@ -1502,7 +1502,7 @@ rename_site() {
         if [[ "$stack" == "apache" ]]; then
             nginx_conf_path=""
         fi
-        compose_add_site "$new_name" "$php_version" "$port" "$nginx_conf_path" "$stack" || {
+        compose_add_site "$new_name" "$php_version" "$port" "$nginx_conf_path" "$stack" "$(get_site_type "$new_name")" || {
             log_error "Failed to add renamed site to docker-compose"
             return 1
         }
@@ -1513,8 +1513,8 @@ rename_site() {
         fi
     fi
 
-    # Rename the database (if the DB container is running)
-    if compose_or_container_running "wp_db"; then
+    # Rename the database (if the DB container is running; never for no-db types)
+    if site_type_uses_db "$(get_site_type "$new_name")" && compose_or_container_running "wp_db"; then
         log_info "Renaming database ${src_db_name} -> ${new_name}_db..."
         $CONTAINER_RUNTIME exec -e MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-root}" wp_db mysql -u root -e "CREATE DATABASE IF NOT EXISTS \`${new_name}_db\`;" 2>/dev/null || true
         local db_user="${MYSQL_USER:-wp_user}"
@@ -1540,6 +1540,13 @@ rename_site() {
                 rm -f "$new_dir/wp-config.php.bak"
             fi
         fi
+    fi
+
+    # Non-wp: repoint the moved config at the new database name, or the
+    # renamed site keeps serving from the OLD database (same shared-DB bug
+    # as clone/import — see repoint_clone_env).
+    if [[ "$(get_site_type "$new_name")" != "wp" ]]; then
+        repoint_clone_env "$new_dir" "$old_name" "$new_name"
     fi
 
     # Update .env site-specific port variable

@@ -39,6 +39,9 @@ fi
 
 # Type-aware cloning: db steps only for db-backed types, wp-cli only for wp
 SOURCE_TYPE=$(get_site_type "$SOURCE_SITE")
+# PHP version travels with the clone (compose entry + chown container image).
+source_php=$(get_site_php_version_from_compose "$SOURCE_SITE")
+[[ -z "$source_php" ]] && source_php="${DEFAULT_PHP_VERSION:-8.3}"
 
 log_info "Cloning '$SOURCE_SITE' to '$NEW_SITE'..."
 
@@ -72,6 +75,9 @@ fi
 # Point non-wp config at the clone's own database (see repoint_clone_env).
 if [[ "$SOURCE_TYPE" != "wp" ]]; then
     repoint_clone_env "$NEW_DIR" "$SOURCE_SITE" "$NEW_SITE"
+    # cp -R leaves the tree host-owned; the runtime needs it web-writable
+    # (laravel storage/, drupal settings rewrite, joomla configuration.php).
+    chown_site_tree "$NEW_DIR" "$source_php"
 fi
 
 # Create database
@@ -122,8 +128,6 @@ fi
 # Update docker-compose.yml (inherit stack + PHP version from source, so the
 # clone uses an image that already exists locally instead of a default one)
 log_info "Updating docker-compose configuration..."
-source_php=$(get_site_php_version_from_compose "$SOURCE_SITE")
-[[ -z "$source_php" ]] && source_php="${DEFAULT_PHP_VERSION:-8.3}"
 if [[ "$local_stack" == "apache" ]]; then
     compose_add_site "$NEW_SITE" "$source_php" "$NEW_PORT" "" "apache"
     matrix_site_build_if_apache "$NEW_SITE"

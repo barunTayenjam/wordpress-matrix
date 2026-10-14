@@ -205,6 +205,9 @@ import_site() {
     # Non-wp: repoint the restored config at the new site's own database.
     if [[ "$type" != "wp" ]]; then
         repoint_clone_env "$PROJECT_ROOT/wp_$new_site" "$old_site" "$new_site"
+        # Bundle restore leaves the tree host-owned; the runtime needs it
+        # web-writable (see chown_site_tree).
+        chown_site_tree "$PROJECT_ROOT/wp_$new_site" "$php_ver"
     fi
 
     # DB: create + import (db-backed types only)

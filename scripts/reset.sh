@@ -134,4 +134,8 @@ fi
 # WordPress will be reinstalled on first visit or via wp-cli
 log_success "Site '$SITE_NAME' reset successfully!"
 log_info "Backup saved to: $BACKUP_DIR"
-log_info "Visit the site to complete WordPress installation"
+if [[ "$SITE_TYPE" == "wp" ]]; then
+    log_info "Visit the site to complete WordPress installation"
+else
+    log_info "Visit the site to complete $SITE_TYPE installation"
+fi

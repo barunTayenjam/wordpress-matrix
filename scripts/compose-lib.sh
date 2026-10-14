@@ -58,7 +58,8 @@ compose_add_site() {
     runtime_image=$(site_type_runtime_image "$type" "$php_version")
     local db_env=""
     if [[ "$type" == "wp" ]]; then
-        db_env="      WORDPRESS_DB_HOST: db:3306
+        db_env="    environment:
+      WORDPRESS_DB_HOST: db:3306
       WORDPRESS_DB_USER: \${MYSQL_USER:-wp_user}
       WORDPRESS_DB_PASSWORD: \${MYSQL_PASSWORD:-wp_password}
       WORDPRESS_DB_NAME: ${site_name}_db

@@ -52,6 +52,10 @@ if ! site_exists "$SITE_NAME"; then
     exit 1
 fi
 
+# wp-cli only: fail fast with the clear message instead of a confusing
+# "Search and replace failed" after the gated wp-cli call (found live).
+require_site_type "$SITE_NAME" wp || exit 1
+
 log_info "Search and replace for: $SITE_NAME"
 log_info "Search: $SEARCH"
 log_info "Replace: $REPLACE"
