@@ -85,13 +85,17 @@ if [[ -f "$PROJECT_ROOT/.env" ]]; then
 fi
 
 # Use podman-compose instead of docker-compose
-if command -v podman-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE="podman-compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE="docker-compose"
-else
-    log_error "Neither docker-compose nor podman-compose found"
-    exit 1
+# Preset DOCKER_COMPOSE wins (tests/CI inject the stub; without this guard
+# sourcing matrix on a compose-less host aborts — same rule as common.sh).
+if [[ -z "${DOCKER_COMPOSE:-}" ]]; then
+    if command -v podman-compose >/dev/null 2>&1; then
+        DOCKER_COMPOSE="podman-compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Neither docker-compose nor podman-compose found"
+        exit 1
+    fi
 fi
 
 # Derive container runtime from compose tool
