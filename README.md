@@ -22,7 +22,7 @@
   [![Podman](https://img.shields.io/badge/Podman-892CA0?style=for-the-badge&logo=podman&logoColor=white)](https://podman.io)
   [![WordPress](https://img.shields.io/badge/WordPress%207.4–8.3-21759B?style=for-the-badge&logo=wordpress&logoColor=white)](https://wordpress.org)
   [![Node](https://img.shields.io/badge/Dashboard-Node%2018+-339933?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
-  [![License](https://img.shields.io/badge/license-MIT- blue?style=for-the-badge)](LICENSE)
+  [![License](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](LICENSE)
 
 </div>
 
