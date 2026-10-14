@@ -70,7 +70,7 @@ $ ./matrix ssl mysite --json
 
 - [x] **One entry point** — every operation is a `./matrix` subcommand; the dashboard only invokes it
 - [x] **Per-site PHP 7.4 → 8.3** — run legacy and modern sites side by side (`--php-version=7.4`)
-- [x] **WP core pinning + compat lab** — `--wp-version=6.4|6.5|6.6|latest`, then `matrix test` sweeps them
+- [x] **Stack-specific provisioning & pinning** — `--wp-version=6.4|6.5|6.6|latest`, then `matrix test` sweeps them
 - [x] **Auto-HTTPS** — mkcert (trusted CA) with openssl fallback; TLS on `port+1000`, `<site>.test` domains optional
 - [x] **Multisite at creation** — `--multisite=subdirectory|subdomain`, nginx/Apache rewrites generated
 - [x] **Shareable presets** — drop a `.sh` into `config/presets/`; `--preset=woocommerce` just works
@@ -78,7 +78,7 @@ $ ./matrix ssl mysite --json
 - [x] **Portable bundles** — `export`/`import` a site as tar.gz: manifest + files + sha-verified DB dump
 - [x] **Scheduled backups** — `--schedule=daily --retention=7`, marker-block crontab sync
 - [x] **Docker *and* Podman** — runtime abstraction everywhere; no docker socket mounted
-- [x] **Code quality built in** — PHPStan Level 9 + WordPress Coding Standards per site
+- [x] **Code quality built in** — PHPStan Level 9 + stack-specific standards per site
 - [x] **JSON everywhere** — every command emits parseable `{"success":…}`; the dashboard never scrapes text
 - [x] **Live dashboard** — real-time status, site flyouts, activity log, keyboard shortcuts at `:8500`
 - [x] **Doctor** — bootstrap checks that degrade with a fix-command, never a dead end
