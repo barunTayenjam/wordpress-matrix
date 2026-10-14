@@ -166,6 +166,10 @@ remove_site_dir() {
     rm -rf "$dir" 2>/dev/null && return 0
     log_warning "[$site] site files are not host-writable; reclaiming ownership first"
     reclaim_site_dir "$dir" "$site"
+    # Drupal's installer hardens sites/default to read-only (555/444) as a
+    # security step — ownership alone is not enough, force writability too
+    # (found live: installed drupal tree survived chown + rm -rf).
+    chmod -R u+rwX "$dir" 2>/dev/null || true
     rm -rf "$dir" 2>/dev/null || { log_error "[$site] could not remove $dir — remove it manually"; return 1; }
     return 0
 }
@@ -371,6 +375,9 @@ cat > /var/www/html/web/sites/default/settings.php <<'PHPEOF'
 );
 \$settings['hash_salt'] = '${salt}';
 PHPEOF
+# The seeder runs as root, but the runtime is www-data: the installer must be
+# able to rewrite settings.php (found live: "The Settings file is not writable").
+chown -R www-data:www-data /var/www/html/web/sites
 EOF
 }
 

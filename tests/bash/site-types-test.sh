@@ -631,6 +631,10 @@ assert_contains "T17.1b laravel seed script sets DB_HOST=db" "$laravel_script" "
 assert_contains "T17.1c laravel seed script uses site db name" "$laravel_script" "DB_DATABASE=ls1_db"
 # Laravel 12 .env has no DB_* lines (live-found) — generator must append
 assert_contains "T17.1d laravel seed script appends when lines missing" "$laravel_script" "DB_CONNECTION=mysql"
+# live-found (probe-drupal installer): the container seeder wrote settings.php
+# as root, so the installer refused it ("The Settings file is not writable").
+drupal_script=$(drupal_seed_script dsd1)
+assert_contains "T17.4a drupal seed chowns sites dir" "$drupal_script" "chown -R www-data:www-data /var/www/html/web/sites"
 # create must route through the container seeder, never the host one
 mkdir -p "$SANDBOX/wp_ls1"
 write_base_compose
@@ -688,6 +692,20 @@ assert_eq "T12.5c cache-clear rc nonzero" "1" "$c5b_rc"
 run_script_sandboxed search-replace.sh ggate a b > "$SANDBOX/t12-5c.out" 2>&1 || true
 grep -q 'command not supported for laravel site (requires wp)' "$SANDBOX/t12-5c.out" && pass || fail "T12.5d search-replace gated"
 
+# T12.6 backup is type-aware (live-found: hardcoded wp-content + unconditional
+# mysqldump failed every non-wp backup)
+mkdir -p "$SANDBOX/wp_bl"; set_site_type bl laravel; touch "$SANDBOX/wp_bl/artisan"
+mkdir -p "$SANDBOX/wp_bg"; set_site_type bg grav; touch "$SANDBOX/wp_bg/index.php"
+echo "wp_db" >> "$STUB_DIR/running.txt"
+run_script_sandboxed backup.sh bl > "$SANDBOX/t12-6a.out" 2>&1
+bl_backup=$(find "$SANDBOX/backups" -maxdepth 2 -name bl -type d 2>/dev/null | head -1)
+[[ -f "$bl_backup/database.sql" ]] && pass || fail "T12.6a laravel backup has db dump"
+[[ -f "$bl_backup/files/artisan" ]] && pass || fail "T12.6b laravel backup has files"
+run_script_sandboxed backup.sh bg > "$SANDBOX/t12-6b.out" 2>&1
+bg_backup=$(find "$SANDBOX/backups" -maxdepth 2 -name bg -type d 2>/dev/null | head -1)
+[[ ! -f "$bg_backup/database.sql" ]] && pass || fail "T12.6c grav backup has no db dump"
+[[ -f "$bg_backup/files/index.php" ]] && pass || fail "T12.6d grav backup has files"
+
 # T14.4 similar names never collide ("rm2" removal must not eat "rm21")
 write_base_compose
 : > "$SANDBOX/config/nginx/rm2.conf" "$SANDBOX/config/nginx/rm21.conf"
@@ -718,6 +736,16 @@ write_base_compose
 compose_add_site rmg 8.1 8307 "$SANDBOX/config/nginx/rmg.conf" nginx grav >/dev/null 2>&1
 compose_remove_site rmg >/dev/null 2>&1
 grep -q '^  wp_rmg:' "$COMPOSE_FILE" && fail "T14.3 grav compose entry removed" || pass
+
+# live-found (installed drupal): the installer hardens sites/default to
+# read-only, so chown alone cannot delete the tree — remove_site_dir forces
+# writability too. Host-owned fixture: no container needed for this path.
+mkdir -p "$SANDBOX/wp_ro/sub"
+: > "$SANDBOX/wp_ro/sub/locked.php"
+chmod 555 "$SANDBOX/wp_ro/sub"; chmod 444 "$SANDBOX/wp_ro/sub/locked.php"
+remove_site_dir "$SANDBOX/wp_ro" rosite >/dev/null 2>&1
+[[ ! -e "$SANDBOX/wp_ro" ]] && pass || fail "T17.5 remove deletes read-only tree"
+chmod -R u+rwX "$SANDBOX/wp_ro" 2>/dev/null || true; rm -rf "$SANDBOX/wp_ro"
 
 # T13.5 site_state carries type
 get_site_stack() { echo "nginx"; }

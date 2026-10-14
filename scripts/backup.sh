@@ -68,9 +68,11 @@ backup_site() {
     mkdir -p "$site_backup_dir"
 
     log_info "Backing up: $site"
+    local site_type
+    site_type=$(get_site_type "$site")
 
-    # Backup database
-    if [[ "$FILES_ONLY" == false ]]; then
+    # Backup database (db-backed types only — grav has none)
+    if [[ "$FILES_ONLY" == false ]] && site_type_uses_db "$site_type"; then
         DB_NAME="${site}_db"
         local db_backup="$site_backup_dir/database.sql"
 
@@ -85,18 +87,32 @@ backup_site() {
         fi
     fi
 
-    # Backup files
+    # Backup files (wp: wp-content only; other stacks: whole tree minus
+    # logs/.git — mirrors export. A hardcoded wp-content path fails for
+    # every non-wp site, found live.)
     if [[ "$DB_ONLY" == false ]]; then
         local site_dir="$PROJECT_ROOT/wp_$site"
         local files_backup="$site_backup_dir/files"
 
         log_info "  Backing up files..."
-        if cp -R "$site_dir/wp-content" "$files_backup"; then
-            local size=$(du -sh "$files_backup" | cut -f1)
-            log_success "  Files backed up ($size)"
+        if [[ "$site_type" == "wp" ]]; then
+            if cp -R "$site_dir/wp-content" "$files_backup"; then
+                local size=$(du -sh "$files_backup" | cut -f1)
+                log_success "  Files backed up ($size)"
+            else
+                log_error "  Failed to backup files"
+                return 1
+            fi
         else
-            log_error "  Failed to backup files"
-            return 1
+            mkdir -p "$files_backup"
+            if cp -a "$site_dir/." "$files_backup/" 2>/dev/null; then
+                rm -rf "$files_backup/logs" "$files_backup/.git"
+                local size=$(du -sh "$files_backup" | cut -f1)
+                log_success "  Files backed up ($size)"
+            else
+                log_error "  Failed to backup files"
+                return 1
+            fi
         fi
     fi
 }
