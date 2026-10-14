@@ -32,7 +32,7 @@
 
 ```bash
 git clone https://github.com/barunTayenjam/sitematrix.git
-cd wordpress-matrix
+cd sitematrix
 chmod +x matrix
 
 # Check your machine is ready — names every missing piece + the exact fix
