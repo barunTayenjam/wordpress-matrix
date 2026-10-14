@@ -28,14 +28,17 @@ if [[ -f "$PROJECT_ROOT/.env" ]]; then
     set +a
 fi
 
-# Docker compose detection
-if command -v podman-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE="podman-compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE="docker-compose"
-else
-    log_error "Neither docker-compose nor podman-compose found"
-    exit 1
+# Docker compose detection — a preset DOCKER_COMPOSE wins (tests/CI inject it;
+# without this guard sourcing common.sh on a compose-less host aborts).
+if [[ -z "${DOCKER_COMPOSE:-}" ]]; then
+    if command -v podman-compose >/dev/null 2>&1; then
+        DOCKER_COMPOSE="podman-compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Neither docker-compose nor podman-compose found"
+        exit 1
+    fi
 fi
 
 if [[ "$DOCKER_COMPOSE" == "podman-compose" ]]; then

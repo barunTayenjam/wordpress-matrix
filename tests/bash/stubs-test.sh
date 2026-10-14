@@ -70,6 +70,17 @@ rm -f "$STUB_DIR/restarted.txt"
 docker restart nginx_alpha
 assert_contains "T0.4 docker restart recorded" "nginx_alpha" "$STUB_DIR/restarted.txt"
 
+# --- T0.5: common.sh honors a preset DOCKER_COMPOSE (CI hosts have none) ----
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+NCBIN="$(mktemp -d)"
+ln -s "$(command -v dirname)" "$NCBIN/dirname"   # only external common.sh needs pre-detection
+out=$(env -i PATH="$NCBIN" DOCKER_COMPOSE=my-compose "$(which bash)" -c \
+    "source '$REPO_ROOT/scripts/common.sh' >/dev/null 2>&1; echo \"rc=\$? dc=\$DOCKER_COMPOSE\"")
+rm -rf "$NCBIN"
+assert_file=$(mktemp); printf '%s\n' "$out" > "$assert_file"
+assert_contains "T0.5 preset DOCKER_COMPOSE survives common.sh (no compose on PATH)" "rc=0 dc=my-compose" "$assert_file"
+rm -f "$assert_file"
+
 echo ""
 echo "stub tests: $PASS passed, $FAIL failed"
 [[ "$FAIL" -eq 0 ]]
