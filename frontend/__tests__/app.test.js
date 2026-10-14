@@ -258,7 +258,7 @@ describe('real API routes', () => {
     expect(mockSpawn).toHaveBeenCalledWith(
       expect.stringContaining('/matrix'),
       ['list', '--json'],
-      expect.objectContaining({ cwd: expect.stringContaining('wordpress-matrix') })
+      expect.objectContaining({ cwd: expect.stringMatching(/sitematrix|wordpress-matrix/) })
     );
   });
 
