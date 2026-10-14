@@ -1,7 +1,7 @@
 <div align="center">
 
   <!-- Header & Capsule -->
-  <img src="https://capsule-render.vercel.app/api?type=waving&color=0:21759B,50:1E4E79,100:0F2B3D&height=180&section=header&text=SiteMatrix&fontSize=48&fontAlignY=32&desc=One%20command.%20Every%20site.%20WordPress%2C%20Laravel%2C%20Drupal%20%26%20more.&descAlignY=55&descSize=18&animation=fadeIn&fontColor=ffffff" width="100%" alt="SiteMatrix banner" />
+  <img src="docs/banner-header.svg" width="100%" alt="SiteMatrix banner" />
 
   <!-- SiteMatrix logo (brand) -->
   <p align="center">
@@ -285,7 +285,7 @@ Dev guide: [`AGENTS.md`](AGENTS.md)
 
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0F2B3D,50:1E4E79,100:21759B&height=120&section=footer" width="100%" alt="" />
+<img src="docs/banner-footer.svg" width="100%" alt="" />
 
 </div>
 
