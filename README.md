@@ -281,7 +281,7 @@ git checkout -b feat/my-feature
 # 3. docs in same commit →  README.md + AGENTS.md
 ```
 
-Dev guide: [`AGENTS.md`](AGENTS.md) · Architecture Q&A: [`DFD.md`](DFD.md) · Feature plan: [`FEATURES-PLAN.md`](FEATURES-PLAN.md)
+Dev guide: [`AGENTS.md`](AGENTS.md)
 
 <div align="center">
 

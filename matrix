@@ -1,5 +1,5 @@
 #!/bin/bash
-# Simplified WordPress Development Platform - All-in-One Management Script
+# SiteMatrix - Unified PHP Stack Management Script
 
 set -euo pipefail
 
@@ -120,7 +120,7 @@ source "$PROJECT_ROOT/scripts/compose-lib.sh"
 # Main help
 show_help() {
     cat << EOF
-🚀 Simplified WordPress Development Platform
+🚀 SiteMatrix — PHP Stack Management
 
 Usage: ./matrix <command> [options]
 
@@ -793,7 +793,7 @@ list_sites_json() {
 
 # List all sites and services
 list_sites() {
-    log_info "WordPress Sites & Services:"
+    log_info "Sites & Services:"
     echo ""
 
     # Get WordPress sites - use temp file for bash 3.2 compatibility
@@ -927,7 +927,7 @@ cmd_start_site() {
 
 # Start environment
 start_env() {
-    log_info "Starting WordPress environment..."
+    log_info "Starting environment..."
     $DOCKER_COMPOSE up -d db redis phpmyadmin 2>/dev/null || true
     sleep 3
 
@@ -953,7 +953,7 @@ start_env() {
 
 # Stop environment
 stop_env() {
-    log_info "Stopping WordPress environment..."
+    log_info "Stopping environment..."
     
     # Stop frontend first if running
     if [[ -d "$PROJECT_ROOT/frontend" ]]; then
@@ -1916,7 +1916,7 @@ rest_site() {
 
 # Setup environment
 setup_env() {
-    log_info "Setting up simplified WordPress environment..."
+    log_info "Setting up environment..."
     
     # Create .env if not exists
     if [[ ! -f "$PROJECT_ROOT/.env" ]]; then
@@ -1927,7 +1927,7 @@ setup_env() {
         local gen_redis_pass
         gen_redis_pass=$(openssl rand -hex 16 2>/dev/null || head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
         cat > "$PROJECT_ROOT/.env" << EOF
-# Simplified WordPress Environment
+# SiteMatrix environment — multi-PHP stack credentials and configs
 DOMAIN_SUFFIX=${HOST_IP}.nip.io
 MYSQL_USER=wp_user
 MYSQL_PASSWORD=${gen_pass}
@@ -2018,7 +2018,7 @@ EOF
 install_env() {
     local site_name="${1:-wordpress}"
 
-    log_info "Installing complete WordPress environment..."
+    log_info "Installing complete environment..."
 
     # Make sure we have the simple compose file
     if [[ ! -f "$PROJECT_ROOT/docker-compose.simple.yml" ]]; then
@@ -2126,7 +2126,7 @@ EOF
     log_info "Starting all services..."
     start_env
 
-    log_success "WordPress environment installed successfully!"
+    log_success "Environment installed successfully!"
     echo ""
     echo "Your site is available at:"
     echo "  http://$HOST_IP:[port]"
