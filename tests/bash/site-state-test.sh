@@ -135,6 +135,15 @@ assert_eq "T7 stack" "apache" "$(field beta stack)"
 assert_eq "T7 php"   "8.1"    "$(field beta php)"
 assert_eq "T7 port"  "8202"   "$(field beta port)"
 
+# --- T7.1: ssl-lib must not shadow get_site_port ----------------------------
+# Regression: ssl-lib.sh once redefined get_site_port nginx-only. Sourced after
+# helpers.sh (as matrix does), it won the name race and every apache-stack site
+# reported port="" → "no exposed port". Re-source in matrix's order to pin it.
+load_helpers "docker-compose.yml"
+# shellcheck disable=SC1090,SC1091
+source "$REPO_ROOT/scripts/ssl-lib.sh"
+assert_eq "T7.1 apache port after ssl-lib" "8202" "$(get_site_port beta)"
+
 # --- T8: anchored predicates (no prefix collisions) --------------------------
 load_helpers "docker-compose.yml"
 

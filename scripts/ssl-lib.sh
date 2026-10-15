@@ -7,25 +7,9 @@
 set -uo pipefail
 
 # --- Configuration helpers ---
-
-# Returns the port number for <site> from compose metadata or live container.
-# Used to compute the paired HTTPS port (HTTP_port + 1000).
-get_site_port() {
-    local site="${1:-}"
-    local port=""
-    # First try compose metadata: look for the nginx_<site> port mapping
-    if [[ -n "$site" && -f "$PROJECT_ROOT/docker-compose.yml" ]]; then
-        # Look for - "8201:80" style lines under the nginx_<site> service block
-        port=$(grep -A 30 "^  nginx_${site}:" "$PROJECT_ROOT/docker-compose.yml" 2>/dev/null | \
-            grep -E '^\s*-\s*"[0-9]+:80"' | \
-            grep -oE '^[0-9]+' | head -1)
-    fi
-    # Fallback: live container inspection (works even if compose is absent)
-    if [[ -z "$port" ]]; then
-        port=$($CONTAINER_RUNTIME port "nginx_${site}" 2>/dev/null | grep '80/tcp' | head -1 | sed 's/.*://' | tr -d ' ')
-    fi
-    echo "$port"
-}
+# get_site_port lives in scripts/helpers.sh (handles nginx_ + wp_ compose blocks
+# and live-container fallback). ssl-lib previously redefined an nginx-only copy,
+# which shadowed the general one and broke Apache-stack sites.
 
 # Compute the HTTPS port paired with a given HTTP port.
 # Rule: https_port = http_port + 1000
